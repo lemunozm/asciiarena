@@ -55,7 +55,10 @@ pub enum GameStatus {
 }
 
 pub struct Player {
-
+    pub character_id: CharacterId,
+    pub entity_id: Option<EntityId>,
+    pub partial_points: usize,
+    pub total_points: usize,
 }
 
 pub struct Game {
@@ -64,7 +67,7 @@ pub struct Game {
     pub arena_number: usize,
     pub arena: Option<Arena>,
     pub characters: HashMap<CharacterId, Character>,
-    pub players: Vec<(CharacterId, Option<EntityId>)>,
+    pub players: Vec<Player>,
 }
 
 impl Game {

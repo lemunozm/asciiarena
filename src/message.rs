@@ -55,9 +55,10 @@ pub enum ServerMessage {
 
     // Arena level messages
     WaitArena(Duration),
-    StartArena(ArenaInfo), // number
-    FinishArena, // winners
+    StartArena(ArenaInfo),
+    ArenaChange(ArenaChange),
     Step(Frame), //arena state
+    FinishArena, // winners
 }
 
 // ===================================================
@@ -101,12 +102,19 @@ pub struct EntityData {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameInfo {
     pub characters: Vec<Character>,
+    pub players: Vec<(CharacterId, usize)>, //id, total_pointsd
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ArenaInfo {
     pub number: usize,
-    pub players: Vec<(CharacterId, Option<EntityId>)>,
+    pub players: Vec<(Option<EntityId>, usize)>, //id, partial_points
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ArenaChange {
+    PlayerPartialPoints(Vec<usize>)
+    // Other possible arena changes here
 }
 
 #[derive(Serialize, Deserialize, Debug)]

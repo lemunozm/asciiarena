@@ -1,8 +1,9 @@
-use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena, ArenaStatus};
+use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena, ArenaStatus, Player};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
-use crate::version::{self};
 use crate::direction::{Direction};
+use crate::message::{ArenaChange};
+use crate::version::{self};
 
 use std::net::{SocketAddr};
 use std::time::{Instant};
@@ -148,6 +149,16 @@ impl Store {
                         .into_iter()
                         .map(|character| (character.id(), character))
                         .collect();
+
+                    self.state.server.game.players = game_info.players
+                        .into_iter()
+                        .map(|(character_id, total_points)| Player {
+                            character_id,
+                            entity_id: None,
+                            partial_points: 0,
+                            total_points,
+                        })
+                        .collect();
                 },
 
                 ServerEvent::FinishGame => {
@@ -166,9 +177,11 @@ impl Store {
                 ServerEvent::StartArena(arena_info) => {
                     self.state.server.game.next_arena_timestamp = None;
                     self.state.server.game.arena_number = arena_info.number;
-                    self.state.server.game.players = arena_info.players
-                        .into_iter()
-                        .collect();
+
+                    for (i, player) in arena_info.players.into_iter().enumerate() {
+                        self.state.server.game.players[i].entity_id = player.0;
+                        self.state.server.game.players[i].partial_points = player.1;
+                    }
 
                     self.state.server.game.arena = Some(Arena {
                         status: ArenaStatus::Playing,
@@ -176,26 +189,22 @@ impl Store {
                     });
                 },
 
-                ServerEvent::FinishArena => {
-                    self.state.server.game.arena_mut().status = ArenaStatus::Finished;
-                },
+                ServerEvent::ArenaChange(arena_change) => {
+                    let ArenaChange::PlayerPartialPoints(player_points) = arena_change;
+                    for (i, points) in player_points.into_iter().enumerate() {
+                        self.state.server.game.players[i].partial_points = points;
+                    }
+                }
 
                 ServerEvent::ArenaStep(frame) => {
-                    let entities_map = frame.entities
+                    self.state.server.game.arena_mut().entities = frame.entities
                         .into_iter()
                         .map(|entity| (entity.id, entity))
                         .collect::<HashMap<_, _>>();
+                },
 
-                    // If the entity no longer exists, remove it from players
-                    for player in &mut self.state.server.game.players {
-                        if let Some(entity_id) = &mut player.1 {
-                            if !entities_map.contains_key(&entity_id) {
-                                player.1 = None;
-                            }
-                        }
-                    }
-
-                    self.state.server.game.arena_mut().entities = entities_map;
+                ServerEvent::FinishArena => {
+                    self.state.server.game.arena_mut().status = ArenaStatus::Finished;
                 },
             },
         }

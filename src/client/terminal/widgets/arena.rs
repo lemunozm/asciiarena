@@ -1,6 +1,6 @@
 use super::util::{self};
 
-use crate::client::state::{State, GameStatus};
+use crate::client::state::{State, GameStatus, Player};
 use crate::client::store::{Store, Action};
 use crate::client::terminal::input::{InputEvent};
 
@@ -146,12 +146,12 @@ impl Widget for PlayerPanelListWidget<'_> {
             .split(area);
 
         for (index, player) in self.state.server.game.players.iter().enumerate() {
-            let character = self.state.server.game.characters.get(&player.0).unwrap();
-            let entity = player.1
+            let character = self.state.server.game.characters.get(&player.character_id).unwrap();
+            let entity = player.entity_id
                 .map(|id| self.state.server.game.arena().entities.get(&id)
                 .unwrap());
 
-            PlayerPanelWidget::new(self.state, character, entity)
+            PlayerPanelWidget::new(self.state, player, character, entity)
                 .render(row[index + 1], buffer)
         }
     }
@@ -161,6 +161,7 @@ impl Widget for PlayerPanelListWidget<'_> {
 #[derive(derive_new::new)]
 struct PlayerPanelWidget<'a> {
     _state: &'a State,
+    player: &'a Player,
     character: &'a Character,
     entity: Option<&'a EntityData>,
 }
@@ -187,11 +188,11 @@ impl Widget for PlayerPanelWidget<'_> {
 
         // Main panel
         let panel_area = Rect::new(symbol_area.right(), area.y, 22, 4).intersection(area);
-        let points = 3; //TODO fix it
+        let points = self.player.total_points + self.player.partial_points;
         Block::default()
             .title(Spans::from(
                 vec![
-                    Span::raw("───Pts: "),
+                    Span::raw("── Pts: "),
                     Span::styled(points.to_string(), Style::default().add_modifier(Modifier::BOLD)),
                     Span::raw(" "),
                 ]

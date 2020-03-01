@@ -1,8 +1,7 @@
 use crate::message::{LoginStatus, ServerInfo, ClientMessage, ServerMessage,
-    LoggedKind, GameInfo, ArenaInfo, Frame};
+    LoggedKind, GameInfo, ArenaInfo, Frame, ArenaChange};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
-use crate::util::{self};
 
 use message_io::events::{EventQueue, EventSender};
 use message_io::network::{Network, NetEvent, Endpoint};
@@ -44,8 +43,9 @@ pub enum ServerEvent {
     FinishGame,
     WaitArena(Duration),
     StartArena(ArenaInfo),
-    FinishArena,
+    ArenaChange(ArenaChange),
     ArenaStep(Frame),
+    FinishArena,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -210,6 +210,7 @@ where C: Fn(ServerEvent) {
     }
 
     pub fn process_event(&mut self, event: Event) {
+        log::trace!("Process event: {:?}", event);
         match event {
             Event::Api(api_event) => {
                 match api_event {
@@ -257,7 +258,7 @@ where C: Fn(ServerEvent) {
                         self.process_server_info(info);
                     },
                     ServerMessage::DynamicServerInfo(players) => {
-                        self.process_dynamic_server_info(players);
+                        (self.event_callback)(ServerEvent::PlayerListUpdated(players));
                     },
                     ServerMessage::LoginStatus(character, status) => {
                         self.process_login_status(character, status);
@@ -266,22 +267,25 @@ where C: Fn(ServerEvent) {
                         self.process_udp_connected();
                     },
                     ServerMessage::StartGame(game_info) => {
-                        self.process_start_game(game_info);
+                        (self.event_callback)(ServerEvent::StartGame(game_info));
                     },
                     ServerMessage::FinishGame => {
                         self.process_finish_game();
                     },
                     ServerMessage::WaitArena(duration) => {
-                        self.process_wait_arena(duration);
+                        (self.event_callback)(ServerEvent::WaitArena(duration));
                     },
                     ServerMessage::StartArena(arena_info) => {
-                        self.process_start_arena(arena_info);
+                        (self.event_callback)(ServerEvent::StartArena(arena_info));
+                    },
+                    ServerMessage::ArenaChange(arena_change) => {
+                        (self.event_callback)(ServerEvent::ArenaChange(arena_change));
                     },
                     ServerMessage::FinishArena => {
-                        self.process_finish_arena();
+                        (self.event_callback)(ServerEvent::FinishArena);
                     },
                     ServerMessage::Step(frame) => {
-                        self.process_arena_step(frame);
+                        (self.event_callback)(ServerEvent::ArenaStep(frame));
                     },
                 },
                 NetEvent::AddedEndpoint(_) => unreachable!(),
@@ -322,14 +326,8 @@ where C: Fn(ServerEvent) {
     }
 
     fn process_server_info(&mut self, info: ServerInfo) {
-        log::info!("Server info: {:?}", info);
         self.connection.udp_port = Some(info.udp_port);
         (self.event_callback)(ServerEvent::ServerInfo(info));
-    }
-
-    fn process_dynamic_server_info(&mut self, players: Vec<char>) {
-        log::info!("Player list updated: {}", util::format::items_to_string(&players));
-        (self.event_callback)(ServerEvent::PlayerListUpdated(players));
     }
 
     fn process_login_status(&mut self, character: char, status: LoginStatus) {
@@ -396,35 +394,10 @@ where C: Fn(ServerEvent) {
         (self.event_callback)(ServerEvent::UdpReachable(true));
     }
 
-    fn process_start_game(&mut self, game_info: GameInfo) {
-        log::info!("Start game");
-        (self.event_callback)(ServerEvent::StartGame(game_info));
-    }
-
     fn process_finish_game(&mut self) {
-        log::info!("Finish game");
         self.connection.has_udp_hasdshake = false;
         (self.event_callback)(ServerEvent::FinishGame);
     }
 
-    fn process_wait_arena(&mut self, duration: Duration) {
-        log::info!("The arena will be start in {}", duration.as_secs_f32());
-        (self.event_callback)(ServerEvent::WaitArena(duration));
-    }
-
-    fn process_start_arena(&mut self, arena_info: ArenaInfo) {
-        log::info!("Start arena");
-        (self.event_callback)(ServerEvent::StartArena(arena_info));
-    }
-
-    fn process_finish_arena(&mut self) {
-        log::info!("Finish arena");
-        (self.event_callback)(ServerEvent::FinishArena);
-    }
-
-    fn process_arena_step(&mut self, frame: Frame) {
-        log::info!("Process arena step");
-        (self.event_callback)(ServerEvent::ArenaStep(frame));
-    }
 }
 

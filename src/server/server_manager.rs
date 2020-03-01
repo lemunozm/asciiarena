@@ -2,7 +2,7 @@ use super::session::{RoomSession, SessionStatus};
 use super::game::{Game};
 
 use crate::message::{ClientMessage, ServerMessage, ServerInfo, GameInfo, ArenaInfo,
-    LoginStatus, LoggedKind, SessionToken, EntityData, Frame};
+    LoginStatus, LoggedKind, SessionToken, EntityData, Frame, ArenaChange};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
 use crate::util::{self};
@@ -449,9 +449,25 @@ impl<'a> ServerManager<'a> {
         let game = self.game.as_mut().unwrap();
 
         log::trace!("Processing step");
-        game.step();
 
-        if let Some(arena) = game.arena() {
+        let previous_players = game.living_players().len();
+        game.step();
+        let current_players = game.living_players().len();
+
+        if current_players < previous_players {
+            let points = game
+                .players()
+                .values()
+                .map(|player| player.partial_points())
+                .collect();
+
+            let change = ArenaChange::PlayerPartialPoints(points);
+            let message = ServerMessage::ArenaChange(change);
+            self.network.send_all(self.room.faster_endpoints(), message);
+        }
+
+        if current_players > 1 {
+            let arena = game.arena().unwrap();
             let entities = arena.entities().values().map(|entity| {
                 EntityData {
                     id: entity.id(),
@@ -511,6 +527,13 @@ impl<'a> ServerManager<'a> {
             characters: game.characters()
                 .iter()
                 .map(|(_, character)| (**character).clone())
+                .collect(),
+            players: game.players()
+                .iter()
+                .map(|(_, player)| (
+                    player.character().id(),
+                    player.total_points()
+                ))
                 .collect()
         };
 
@@ -523,8 +546,8 @@ impl<'a> ServerManager<'a> {
             players: game.players()
                 .iter()
                 .map(|(_, player)| (
-                    player.character().id(),
-                    player.control().borrow().entity_id()
+                    player.control().borrow().entity_id(),
+                    player.partial_points()
                 ))
                 .collect()
         };
