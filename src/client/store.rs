@@ -197,10 +197,21 @@ impl Store {
                 }
 
                 ServerEvent::ArenaStep(frame) => {
-                    self.state.server.game.arena_mut().entities = frame.entities
+                    let entity_map = frame.entities
                         .into_iter()
                         .map(|entity| (entity.id, entity))
                         .collect::<HashMap<_, _>>();
+
+                    // If the entity no longer exists, remove it from players
+                    for player in &mut self.state.server.game.players {
+                        if let Some(entity_id) = player.entity_id {
+                            if !entity_map.contains_key(&entity_id) {
+                                player.entity_id = None;
+                            }
+                        }
+                    }
+
+                    self.state.server.game.arena_mut().entities = entity_map;
                 },
 
                 ServerEvent::FinishArena => {

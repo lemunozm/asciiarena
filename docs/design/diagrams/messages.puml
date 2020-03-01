@@ -54,6 +54,7 @@ loop each frame until there is an arena winner
         Client ->> Server : CastSkill
     end
     Client <[#purple]- Server : Step
+    Client <<[#purple]- Server : ArenaChange
 end
 
 @enduml

@@ -15,12 +15,11 @@ pub struct Entity {
     live: usize,
     energy: usize,
     speed: f32,
-    last_walk_moving: Instant,
+    next_walk_time: Instant,
 }
 
 impl Entity {
     pub fn new(id: EntityId, character: Rc<Character>, position: Vec2) -> Entity {
-        let now = Instant::now();
         Entity {
             id,
             position,
@@ -28,7 +27,7 @@ impl Entity {
             live: character.max_live(),
             energy: character.max_energy(),
             speed: character.speed_base(),
-            last_walk_moving: now - Duration::from_secs_f32(1.0 / character.speed_base()),
+            next_walk_time: Instant::now(),
             character,
         }
     }
@@ -69,11 +68,13 @@ impl Entity {
         self.position += displacement;
     }
 
-    pub fn walk(&mut self, direction: Direction, current: Instant) {
-        let next_move_time = self.last_walk_moving + Duration::from_secs_f32(1.0 / self.speed);
-        if current > next_move_time {
+    pub fn walk(&mut self, direction: Direction, current: Instant) -> bool {
+        if current > self.next_walk_time {
             self.position += direction.to_vec2();
+            self.next_walk_time = current + Duration::from_secs_f32(1.0 / self.speed);
+            return true
         }
+        false
     }
 
     pub fn set_direction(&mut self, direction: Direction) {
