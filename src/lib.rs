@@ -1,33 +1,38 @@
-mod vec2;
+pub mod vec2;
 mod util;
 mod collision;
-mod message;
+pub mod message;
+pub mod network;
+mod server;
+pub mod events;
+pub mod network_manager;
+pub mod server_manager;
+pub mod client_manager;
 
 use collision::Rectangle;
 use vec2::Vec2;
 
-use std::collections::HashMap;
 use std::rc::Rc;
 
-struct Skill {
+pub struct Skill {
     name: String,
     id: usize,
     cost: i32,
     cooldown: i32,
 }
 
-struct Spell {
+pub struct Spell {
     skill: Rc<Skill>,
     rectangle: Rectangle
 }
 
-struct Character {
+pub struct Character {
     name: String,
     skills: Vec<Rc<Skill>>,
 }
 
 
-struct Entity {
+pub struct Entity {
     character: Rc<Character>,
     rectangle: Rectangle,
     live: i32,
@@ -36,48 +41,35 @@ struct Entity {
     max_energy: i32,
 }
 
-struct Player {
+pub struct Player {
     id: usize,
     entity: Option<Rc<Entity>>,
     points: usize,
 }
 
-struct Wall {
+pub struct Wall {
     rectangles: Vec<Rectangle>,
 }
 
-struct Map {
+pub struct Map {
     dimension: Vec2,
     obstacles: Vec<Wall>,
 }
 
-struct Scene {
+pub struct Scene {
     entities: Vec<Rc<Entity>>,
     spells: Vec<Spell>,
     map: Map,
 }
 
-struct Arena {
+pub struct Arena {
     scene: Scene,
 }
 
-struct Game {
+pub struct Game {
     players: Vec<Player>,
     arena: Arena,
     win_points: usize,
 }
 
 
-struct Connection {
-}
-
-struct PlayerSession {
-    id: usize,
-    character: Rc<Character>,
-    connection: Connection,
-}
-
-struct Server {
-    skill: HashMap<String, Rc<Skill>>,
-    users: HashMap<usize, PlayerSession>,
-}

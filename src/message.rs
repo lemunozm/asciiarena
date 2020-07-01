@@ -1,15 +1,19 @@
 use crate::util::Direction;
 
-pub enum UplinkMessage {
-    Version { version: String },
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize)]
+pub enum Message {
+    //Uplink
+    Version { value: String },
     Login { user_name: String, skill_ids: Vec<usize> },
     Reconnect { user_name: String },
+    Disconnect,
     PlayerMove { direction: Direction },
     PlayerCast { skill_id: usize },
-}
 
-pub enum DownlinkMessage {
-    Version { version: String, compatible: bool },
+    //Downlink
+    VersionInfo { value: String, compatible: bool },
     ServerStatus { },
     LoginError { },
     FrameInfo { },
@@ -18,3 +22,4 @@ pub enum DownlinkMessage {
     StartGame { },
     EndGame { },
 }
+
