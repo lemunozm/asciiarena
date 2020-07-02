@@ -1,10 +1,37 @@
 use mio::net::{TcpListener, TcpStream};
 use mio::{Poll, Interest, Token, Events};
 
+use std::thread::{JoinHandle};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 use std::time::Duration;
 use std::io::ErrorKind;
+
+pub struct Connection {
+    tcp_stream: TcpStream,
+    handle: JoinHandle<()>,
+    input_buffer: Vec<u8>,
+    id: usize,
+}
+
+impl Connection {
+    pub fn run() {
+
+    }
+}
+
+pub struct NetworkServer {
+    connections: HashMap<usize, Connection>,
+}
+
+impl NetworkServer {
+    pub fn listen(addr: SocketAddr) {
+        //on_connection
+        //on_disconnection
+        //on_input_data
+        //on_input_data
+    }
+}
 
 /*
 pub struct Callbacks<A, B, C> {

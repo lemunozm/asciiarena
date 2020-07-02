@@ -2,21 +2,17 @@ use crossbeam_channel::{self, Sender, Receiver};
 
 use std::time::Duration;
 use std::thread::{self};
+use std::hash::{Hash};
 
-pub enum Event<Message, Signal> {
-    Message(Message),
-    Signal(Signal),
-    LostEndpoint,
+pub enum Event<M, S, E> {
+    Message(M, E),
+    Signal(S),
+    LostEndpoint(E),
     Idle,
 }
 
 
-#[derive(Hash, Clone, Copy)]
-pub struct Endpoint {
-
-}
-
-pub fn new_event_system<M, S: Send + 'static>() -> (EventQueue<M, S>, InputMessageHandle<M>, OutputMessageHandle<M>) {
+pub fn new_event_system<M, S: Send + 'static, E: Hash + Copy>() -> (EventQueue<M, S, E>, InputMessageHandle<M, E>, OutputMessageHandle<M, E>) {
     let (msg_input_sender, msg_input_receiver) = crossbeam_channel::unbounded();
     let (endpoint_input_sender, endpoint_input_receiver) = crossbeam_channel::unbounded();
     let (msg_output_sender, msg_output_receiver) = crossbeam_channel::unbounded();
@@ -28,24 +24,23 @@ pub fn new_event_system<M, S: Send + 'static>() -> (EventQueue<M, S>, InputMessa
     (event_queue, message_input, message_output)
 }
 
-pub struct EventQueue<M, S> {
+pub struct EventQueue<M, S, E> {
     signal_input_sender: Sender<S>,
     signal_input_receiver: Receiver<S>,
     timer_input_sender: Sender<(S, usize)>,
     timer_input_receiver: Receiver<(S, usize)>,
-    msg_input_receiver: Receiver<(M, Endpoint)>,
-    endpoint_input_receiver: Receiver<Endpoint>,
-    msg_output_sender: Sender<(M, Vec<Endpoint>)>,
+    msg_input_receiver: Receiver<(M, E)>,
+    endpoint_input_receiver: Receiver<E>,
+    msg_output_sender: Sender<(M, Vec<E>)>,
     timers: Vec<thread::JoinHandle<()>>,
-    selfpoint: Endpoint,
 }
 
-impl<M, S: Send + 'static> EventQueue<M, S>
+impl<M, S: Send + 'static, E: Hash + Copy> EventQueue<M, S, E>
 {
-    fn new(msg_input_receiver: Receiver<(M, Endpoint)>,
-           endpoint_input_receiver: Receiver<Endpoint>,
-           msg_output_sender: Sender<(M, Vec<Endpoint>)>
-           ) -> EventQueue<M, S>
+    fn new(msg_input_receiver: Receiver<(M, E)>,
+           endpoint_input_receiver: Receiver<E>,
+           msg_output_sender: Sender<(M, Vec<E>)>,
+           ) -> EventQueue<M, S, E>
     {
         let (signal_input_sender, signal_input_receiver) = crossbeam_channel::unbounded();
         let (timer_input_sender, timer_input_receiver) = crossbeam_channel::unbounded();
@@ -58,14 +53,14 @@ impl<M, S: Send + 'static> EventQueue<M, S>
             endpoint_input_receiver,
             msg_output_sender,
             timers: Vec::new(),
-            selfpoint: Endpoint {} }
+        }
     }
 
-    pub fn emit_message(&mut self, message: M, endpoint: Endpoint) {
+    pub fn emit_message(&mut self, message: M, endpoint: E) {
         self.msg_output_sender.send((message, vec![endpoint])).unwrap();
     }
 
-    pub fn emit_message_all(&mut self, message: M, endpoints: Vec<Endpoint>) {
+    pub fn emit_message_all(&mut self, message: M, endpoints: Vec<E>) {
         self.msg_output_sender.send((message, endpoints)).unwrap();
     }
 
@@ -83,29 +78,29 @@ impl<M, S: Send + 'static> EventQueue<M, S>
         self.timers.push(timer);
     }
 
-    pub fn pop_event(&mut self, timeout: Duration) -> Option<(Event<M, S>, Endpoint)> {
+    pub fn pop_event(&mut self, timeout: Duration) -> Option<Event<M, S, E>> {
         crossbeam_channel::select! {
             recv(self.signal_input_receiver) -> signal => {
-                Some((Event::Signal(signal.unwrap()), self.selfpoint))
+                Some(Event::Signal(signal.unwrap()))
             },
             recv(self.timer_input_receiver) -> signal_index => {
                 let (signal, index) = signal_index.unwrap();
                 self.timers.remove(index);
-                Some((Event::Signal(signal), self.selfpoint))
+                Some(Event::Signal(signal))
             },
             recv(self.msg_input_receiver) -> msg_endpoint => {
                 let (mensage, endpoint) = msg_endpoint.unwrap();
-                Some((Event::Message(mensage), endpoint))
+                Some(Event::Message(mensage, endpoint))
             },
             recv(self.endpoint_input_receiver) -> endpoint => {
-                Some((Event::LostEndpoint, endpoint.unwrap()))
+                Some(Event::LostEndpoint(endpoint.unwrap()))
             },
             default(timeout) => None
         }
     }
 }
 
-impl<M, S> Drop for EventQueue<M, S> {
+impl<M, S, E> Drop for EventQueue<M, S, E> {
     fn drop(&mut self) {
         while self.timers.len() > 0 {
             self.timers.remove(0).join().unwrap();
@@ -114,36 +109,36 @@ impl<M, S> Drop for EventQueue<M, S> {
 }
 
 
-pub struct InputMessageHandle<M> {
-    msg_input_sender: Sender<(M, Endpoint)>,
-    endpoint_input_sender: Sender<Endpoint>,
+pub struct InputMessageHandle<M, E> {
+    msg_input_sender: Sender<(M, E)>,
+    endpoint_input_sender: Sender<E>,
 }
 
-impl<M> InputMessageHandle<M> {
-    fn new(msg_input_sender: Sender<(M, Endpoint)>, endpoint_input_sender: Sender<Endpoint>) -> InputMessageHandle<M> {
+impl<M, E> InputMessageHandle<M, E> {
+    fn new(msg_input_sender: Sender<(M, E)>, endpoint_input_sender: Sender<E>) -> InputMessageHandle<M, E> {
         InputMessageHandle { msg_input_sender, endpoint_input_sender }
     }
 
-    pub fn push(&mut self, message: M, endpoint: Endpoint) {
+    pub fn push(&mut self, message: M, endpoint: E) {
         self.msg_input_sender.send((message, endpoint)).unwrap();
     }
 
-    pub fn notify_lost_endpoint(&mut self, endpoint: Endpoint) {
+    pub fn notify_lost_endpoint(&mut self, endpoint: E) {
         self.endpoint_input_sender.send(endpoint).unwrap();
     }
 }
 
 
-pub struct OutputMessageHandle<M> {
-    output_receiver: Receiver<(M, Vec<Endpoint>)>,
+pub struct OutputMessageHandle<M, E> {
+    output_receiver: Receiver<(M, Vec<E>)>,
 }
 
-impl<M> OutputMessageHandle<M> {
-    fn new(output_receiver: Receiver<(M, Vec<Endpoint>)>) -> OutputMessageHandle<M> {
+impl<M, E> OutputMessageHandle<M, E> {
+    fn new(output_receiver: Receiver<(M, Vec<E>)>) -> OutputMessageHandle<M, E> {
         OutputMessageHandle { output_receiver }
     }
 
-    pub fn pop(&mut self, timeout: Duration) -> Option<(M, Vec<Endpoint>)> {
+    pub fn pop(&mut self, timeout: Duration) -> Option<(M, Vec<E>)> {
         self.output_receiver.recv_timeout(timeout).ok()
     }
 }
