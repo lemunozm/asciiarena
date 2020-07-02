@@ -1,7 +1,7 @@
 use crossbeam_channel::{self, Sender, Receiver};
 
 use std::time::Duration;
-use std::thread::{self};
+use std::thread::{self, JoinHandle};
 use std::hash::{Hash};
 
 pub enum Event<M, S, E> {
@@ -11,17 +11,23 @@ pub enum Event<M, S, E> {
     Idle,
 }
 
+pub struct MessageHandle<M, E> {
+    pub input_message_handle: InputMessageHandle<M, E>,
+    pub output_message_handle: OutputMessageHandle<M, E>,
+}
 
-pub fn new_event_system<M, S: Send + 'static, E: Hash + Copy>() -> (EventQueue<M, S, E>, InputMessageHandle<M, E>, OutputMessageHandle<M, E>) {
+pub fn new_event_system<M, S: Send + 'static, E: Hash + Copy>() -> (EventQueue<M, S, E>, MessageHandle<M, E>) {
     let (msg_input_sender, msg_input_receiver) = crossbeam_channel::unbounded();
     let (endpoint_input_sender, endpoint_input_receiver) = crossbeam_channel::unbounded();
     let (msg_output_sender, msg_output_receiver) = crossbeam_channel::unbounded();
 
-    let event_queue = EventQueue::new(msg_input_receiver, endpoint_input_receiver, msg_output_sender);
-    let message_input = InputMessageHandle::new(msg_input_sender, endpoint_input_sender);
-    let message_output = OutputMessageHandle::new(msg_output_receiver);
-
-    (event_queue, message_input, message_output)
+    (
+        EventQueue::new(msg_input_receiver, endpoint_input_receiver, msg_output_sender),
+        MessageHandle {
+            input_message_handle: InputMessageHandle::new(msg_input_sender, endpoint_input_sender),
+            output_message_handle: OutputMessageHandle::new(msg_output_receiver),
+        },
+    )
 }
 
 pub struct EventQueue<M, S, E> {
@@ -32,7 +38,7 @@ pub struct EventQueue<M, S, E> {
     msg_input_receiver: Receiver<(M, E)>,
     endpoint_input_receiver: Receiver<E>,
     msg_output_sender: Sender<(M, Vec<E>)>,
-    timers: Vec<thread::JoinHandle<()>>,
+    timers: Vec<JoinHandle<()>>,
 }
 
 impl<M, S: Send + 'static, E: Hash + Copy> EventQueue<M, S, E>
@@ -125,6 +131,15 @@ impl<M, E> InputMessageHandle<M, E> {
 
     pub fn notify_lost_endpoint(&mut self, endpoint: E) {
         self.endpoint_input_sender.send(endpoint).unwrap();
+    }
+}
+
+impl<M, E> Clone for InputMessageHandle<M, E> {
+    fn clone(&self) -> Self {
+        Self {
+            msg_input_sender: self.msg_input_sender.clone(),
+            endpoint_input_sender: self.endpoint_input_sender.clone(),
+        }
     }
 }
 

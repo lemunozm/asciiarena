@@ -2,7 +2,7 @@ use crate::util::Direction;
 
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum Message {
     //Uplink
     Version { value: String },

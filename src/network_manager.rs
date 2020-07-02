@@ -1,71 +1,69 @@
-use crate::events::{InputMessageHandle, OutputMessageHandle};
-use crate::message::{Message};
-use crate::network::{self};
+use crate::events::{MessageHandle};
+use crate::network::{self, Connection};
 
 use serde::{Serialize, Deserialize};
 
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use std::thread::{self};
-
-
-pub enum NetworkRole {
-    Server(SocketAddr),
-    Client(SocketAddr),
-}
+use std::thread::{self, JoinHandle};
 
 pub type Endpoint = usize;
 
-pub struct NetworkManager<M> {
-    message_input_handle: InputMessageHandle<M, Endpoint>,
-    message_output_handle: OutputMessageHandle<M, Endpoint>,
+pub struct NetworkManager {
+    input_thread: Option<JoinHandle<()>>,
+    output_thread: Option<JoinHandle<()>>,
+    endpoint: Endpoint,
 }
 
-impl<'a, M: Serialize + Deserialize<'a>> NetworkManager<M>
+impl NetworkManager
 {
-    pub fn new(message_input_handle: InputMessageHandle<M, Endpoint>, message_output_handle: OutputMessageHandle<M, Endpoint>) -> NetworkManager<M> {
-        NetworkManager {
-            message_input_handle,
-            message_output_handle,
-        }
-    }
+    pub fn listen<'a, M>(addr: SocketAddr, message_handle: MessageHandle<M, Endpoint>) -> Option<NetworkManager>
+    where M: Serialize + Deserialize<'a> + Send + 'static {
+        let MessageHandle {input_message_handle, mut output_message_handle} = message_handle;
 
-    pub fn run(&mut self, role: NetworkRole) -> Option<Endpoint> {
-        None
-        /*
-        // Input
-        let network_callbacks = network::Callbacks {
-            on_connection: |connection| {
-            },
-            on_disconnection: |connection| {
-                self.message_input_handle.notify_lost_endpoint(connection.id());
-            },
-            on_input_data: |connection| {
-                let data = connection.read();
-                let message: Message = bincode::deserialize(&data[..]).unwrap();
-                self.message_input_handle.push(message, connection);
-            },
-        };
-        let network = match role {
-            Client(addr) => network::connect(addr, network_callbacks)
-            Server(addr) => network::listen(addr, network_callbacks)
-        };
+        let (mut input_network, mut output_network, endpoint) = network::listen(addr);
 
-        // Output
-        let output_thread = thread::spawn(|| {
+        let input_thread = thread::spawn(move || {
+            let mut input_message_handle_data = input_message_handle.clone();
+            let mut input_message_handle_disc = input_message_handle.clone();
+            let network_callbacks = network::Callbacks {
+                on_connection: |connection: Connection| {
+                },
+                on_data: |connection: Connection, data: &'a[u8], size: usize| {
+                    let message: M = bincode::deserialize(&data[..]).unwrap();
+                    input_message_handle_data.push(message, connection.id());
+                },
+                on_disconnection: |connection: Connection| {
+                    input_message_handle_disc.notify_lost_endpoint(connection.id());
+                },
+            };
+            input_network.run(network_callbacks);
+        });
+
+        let output_thread = thread::spawn(move || {
             loop {
-                if let Some((message, connection_ids)) = self.message_output_handle.pop(Duration::from_millis(50)) {
+                if let Some((message, connection_ids)) = output_message_handle.pop(Duration::from_millis(50)) {
                     let data: Vec<u8> = bincode::serialize(&message).unwrap();
-                    for id in connection_ids {
-                        if let Some(connection) = network.connections().get(id) {
-                            connection.tcp_stream.write(data);
-                        }
-                    }
+                    output_network.send_all(connection_ids, &data[0..]);
                 }
             }
-        }
-        */
+        });
+
+        Some(NetworkManager {
+            input_thread: Some(input_thread),
+            output_thread: Some(output_thread),
+            endpoint: endpoint.unwrap(),
+        })
+    }
+
+    pub fn connect<'a, M>(addr: SocketAddr, message_handle: MessageHandle<M, Endpoint>) -> Option<NetworkManager>
+    where M: Serialize + Deserialize<'a> + Send + 'static {
+        None
+    }
+
+    pub fn endpoint(&self) -> Endpoint {
+       self.endpoint
     }
 }
 

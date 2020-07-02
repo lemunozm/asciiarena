@@ -7,6 +7,12 @@ use std::collections::HashMap;
 use std::time::Duration;
 use std::io::ErrorKind;
 
+pub struct Callbacks<A, B, C> {
+    pub on_connection: A,
+    pub on_data: B,
+    pub on_disconnection: C,
+}
+
 pub struct Connection {
     tcp_stream: TcpStream,
     handle: JoinHandle<()>,
@@ -15,30 +21,55 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn run() {
-
+    pub fn id(&self) -> usize {
+        return self.id
     }
 }
 
-pub struct NetworkServer {
-    connections: HashMap<usize, Connection>,
+pub fn connect(addr: SocketAddr) -> (InputNetwork, OutputNetwork, Option<usize>) {
+    (InputNetwork::new(), OutputNetwork::new(), Some(0))
 }
 
-impl NetworkServer {
-    pub fn listen(addr: SocketAddr) {
-        //on_connection
-        //on_disconnection
-        //on_input_data
-        //on_input_data
+pub fn listen(addr: SocketAddr) -> (InputNetwork, OutputNetwork, Option<usize>) {
+    let mut listener = TcpListener::bind(addr).unwrap();
+    (InputNetwork::new(), OutputNetwork::new(), Some(0))
+}
+
+pub struct InputNetwork {
+    connections: HashMap<usize, Connection>,
+    id: usize,
+}
+
+impl InputNetwork {
+    pub fn new() -> InputNetwork {
+        InputNetwork {
+            connections: HashMap::new(),
+            id: 0,
+        }
+    }
+
+    pub fn run<A, B, C>(&mut self, callbacks: Callbacks<A, B, C>) {
+        loop {
+        }
+    }
+}
+
+pub struct OutputNetwork {
+}
+
+impl OutputNetwork {
+    pub fn new() -> OutputNetwork {
+        OutputNetwork {}
+    }
+
+    pub fn send(&mut self, id: usize, data: &[u8]) {
+    }
+
+    pub fn send_all(&mut self, ids: Vec<usize>, data: &[u8]) {
     }
 }
 
 /*
-pub struct Callbacks<A, B, C> {
-    pub on_connection: A,
-    pub on_disconnection: B,
-    pub on_data: C,
-}
 
 pub struct Connection {
     pub tcp_stream: TcpStream,
@@ -60,7 +91,6 @@ pub fn run<OnConnection, OnDisconnection, OnData>(addr: SocketAddr, callbacks: C
     let mut connections_count = 0;
     let mut poll = Poll::new().unwrap();
     let mut events = Events::with_capacity(EVENTS_SIZE);
-    let mut listener = TcpListener::bind(addr).unwrap();
 
     poll.registry().register(&mut listener, SERVER, Interest::READABLE).unwrap();
 

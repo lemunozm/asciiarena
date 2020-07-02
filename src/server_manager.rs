@@ -21,7 +21,7 @@ impl<Endpoint: Hash + Copy> ServerManager<Endpoint> {
 
     pub fn run(&mut self) {
         loop {
-            if let Some(event) = self.event_queue.pop_event(Duration::from_millis(50)) {
+            if let Some(event) = self.event_queue.pop_event(Duration::from_millis(3000)) {
                 match event {
                     Event::Message(message, endpoint) => match message {
                         Message::Version { value } => {

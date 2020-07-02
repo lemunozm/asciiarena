@@ -2,7 +2,7 @@ use crate::vec2::Vec2;
 
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub enum Direction {
     Up, Down, Left, Right, None,
 }
