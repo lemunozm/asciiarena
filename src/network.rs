@@ -1,5 +1,5 @@
 use mio::net::{TcpListener, TcpStream};
-use mio::{Poll, Interest, Token, Events};
+use mio::{Poll, Interest, Token, Events, event};
 
 use std::thread::{JoinHandle};
 use std::net::SocketAddr;
@@ -8,8 +8,10 @@ use std::time::Duration;
 use std::io::{ErrorKind, Write};
 use std::sync::{Arc, Mutex};
 
-const SERVER_ID: usize = 0;
+const SELF_ID: usize = 0;
 const FIRST_CONNECTION_ID: usize = 1;
+
+const EVENTS_SIZE: usize = 128;
 
 pub struct Callbacks<A, B, C> {
     pub on_connection: A,
@@ -32,34 +34,44 @@ impl Connection {
 }
 
 
-pub fn connect(addr: SocketAddr) -> (InputNetwork, OutputNetwork, Option<usize>) {
-    let connections = Arc::new(Mutex::new(HashMap::new()));
-    (InputNetwork::new(connections.clone()), OutputNetwork::new(connections), Some(FIRST_CONNECTION_ID))
+pub fn connect(addr: SocketAddr) -> (InputNetwork<TcpStream>, OutputNetwork, Option<usize>) {
+    new_network_system(TcpStream::connect(addr).unwrap(), FIRST_CONNECTION_ID)
 }
 
-pub fn listen(addr: SocketAddr) -> (InputNetwork, OutputNetwork, Option<usize>) {
-    let mut listener = TcpListener::bind(addr).unwrap();
+pub fn listen(addr: SocketAddr) -> (InputNetwork<TcpListener>, OutputNetwork, Option<usize>) {
+    new_network_system(TcpListener::bind(addr).unwrap(), SELF_ID)
+}
+
+fn new_network_system<S: event::Source>(event_source: S, id: usize) -> (InputNetwork<S>, OutputNetwork, Option<usize>) {
     let connections = Arc::new(Mutex::new(HashMap::new()));
-    (InputNetwork::new(connections.clone()), OutputNetwork::new(connections), Some(SERVER_ID))
+    (InputNetwork::new(connections.clone(), event_source), OutputNetwork::new(connections), Some(id))
 }
 
 
-pub struct InputNetwork {
+pub struct InputNetwork<S> {
     connections: Arc<Mutex<HashMap<usize, Connection>>>,
+    event_source: S,
 }
 
-impl InputNetwork {
-    fn new(connections: Arc<Mutex<HashMap<usize, Connection>>>) -> InputNetwork {
-        InputNetwork {
-            connections: connections,
-        }
+impl<S> InputNetwork<S> {
+    fn new(connections: Arc<Mutex<HashMap<usize, Connection>>>, event_source: S) -> InputNetwork<S> {
+        InputNetwork { connections, event_source }
     }
 
     pub fn run<'a, A, B, C>(&mut self, callbacks: Callbacks<A, B, C>)
     where A: FnMut(&'a Connection),
           B: FnMut(&'a Connection, &'a [u8]),
           C: FnMut(&'a Connection),
+          S: event::Source
     {
+        const SELF: Token = Token(SELF_ID);
+
+        let mut connections_count = 0;
+        let mut poll = Poll::new().unwrap();
+        let mut events = Events::with_capacity(EVENTS_SIZE);
+
+        poll.registry().register(&mut self.event_source, SELF, Interest::READABLE).unwrap();
+
         loop {
         }
     }
