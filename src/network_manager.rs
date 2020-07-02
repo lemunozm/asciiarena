@@ -28,13 +28,13 @@ impl NetworkManager
             let mut input_message_handle_data = input_message_handle.clone();
             let mut input_message_handle_disc = input_message_handle.clone();
             let network_callbacks = network::Callbacks {
-                on_connection: |connection: Connection| {
+                on_connection: |_: &Connection| {
                 },
-                on_data: |connection: Connection, data: &'a[u8], size: usize| {
+                on_data: |connection: &Connection, data: &'a[u8]| {
                     let message: M = bincode::deserialize(&data[..]).unwrap();
                     input_message_handle_data.push(message, connection.id());
                 },
-                on_disconnection: |connection: Connection| {
+                on_disconnection: |connection: &Connection| {
                     input_message_handle_disc.notify_lost_endpoint(connection.id());
                 },
             };
@@ -45,7 +45,7 @@ impl NetworkManager
             loop {
                 if let Some((message, connection_ids)) = output_message_handle.pop(Duration::from_millis(50)) {
                     let data: Vec<u8> = bincode::serialize(&message).unwrap();
-                    output_network.send_all(connection_ids, &data[0..]);
+                    output_network.send_all(&connection_ids, &data[0..]);
                 }
             }
         });

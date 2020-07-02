@@ -5,13 +5,18 @@ use std::thread::{JoinHandle};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 use std::time::Duration;
-use std::io::ErrorKind;
+use std::io::{ErrorKind, Write};
+use std::sync::{Arc, Mutex};
+
+const SERVER_ID: usize = 0;
+const FIRST_CONNECTION_ID: usize = 1;
 
 pub struct Callbacks<A, B, C> {
     pub on_connection: A,
     pub on_data: B,
     pub on_disconnection: C,
 }
+
 
 pub struct Connection {
     tcp_stream: TcpStream,
@@ -26,46 +31,61 @@ impl Connection {
     }
 }
 
+
 pub fn connect(addr: SocketAddr) -> (InputNetwork, OutputNetwork, Option<usize>) {
-    (InputNetwork::new(), OutputNetwork::new(), Some(0))
+    let connections = Arc::new(Mutex::new(HashMap::new()));
+    (InputNetwork::new(connections.clone()), OutputNetwork::new(connections), Some(FIRST_CONNECTION_ID))
 }
 
 pub fn listen(addr: SocketAddr) -> (InputNetwork, OutputNetwork, Option<usize>) {
     let mut listener = TcpListener::bind(addr).unwrap();
-    (InputNetwork::new(), OutputNetwork::new(), Some(0))
+    let connections = Arc::new(Mutex::new(HashMap::new()));
+    (InputNetwork::new(connections.clone()), OutputNetwork::new(connections), Some(SERVER_ID))
 }
 
+
 pub struct InputNetwork {
-    connections: HashMap<usize, Connection>,
-    id: usize,
+    connections: Arc<Mutex<HashMap<usize, Connection>>>,
 }
 
 impl InputNetwork {
-    pub fn new() -> InputNetwork {
+    fn new(connections: Arc<Mutex<HashMap<usize, Connection>>>) -> InputNetwork {
         InputNetwork {
-            connections: HashMap::new(),
-            id: 0,
+            connections: connections,
         }
     }
 
-    pub fn run<A, B, C>(&mut self, callbacks: Callbacks<A, B, C>) {
+    pub fn run<'a, A, B, C>(&mut self, callbacks: Callbacks<A, B, C>)
+    where A: FnMut(&'a Connection),
+          B: FnMut(&'a Connection, &'a [u8]),
+          C: FnMut(&'a Connection),
+    {
         loop {
         }
     }
 }
 
 pub struct OutputNetwork {
+    connections: Arc<Mutex<HashMap<usize, Connection>>>,
 }
 
 impl OutputNetwork {
-    pub fn new() -> OutputNetwork {
-        OutputNetwork {}
+    pub fn new(connections: Arc<Mutex<HashMap<usize, Connection>>>) -> OutputNetwork {
+        OutputNetwork { connections }
     }
 
     pub fn send(&mut self, id: usize, data: &[u8]) {
+        let mut connections = self.connections.lock().unwrap();
+        let connection = connections.get_mut(&id).unwrap();
+        connection.tcp_stream.write(data).unwrap();
     }
 
-    pub fn send_all(&mut self, ids: Vec<usize>, data: &[u8]) {
+    pub fn send_all(&mut self, ids: &Vec<usize>, data: &[u8]) {
+        let mut connections = self.connections.lock().unwrap();
+        for id in  ids {
+            let connection = connections.get_mut(&id).unwrap();
+            connection.tcp_stream.write(data).unwrap();
+        }
     }
 }
 
@@ -85,7 +105,6 @@ pub fn run<OnConnection, OnDisconnection, OnData>(addr: SocketAddr, callbacks: C
 {
     const EVENTS_SIZE: usize = 128;
     const INITIAL_BUFFER_SIZE: usize = 1024;
-    const SERVER: Token = Token(0);
 
     let mut connections = HashMap::new();
     let mut connections_count = 0;
