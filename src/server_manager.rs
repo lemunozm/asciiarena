@@ -1,43 +1,52 @@
-use crate::message::{Message};
-use crate::events::{EventQueue, Event};
+use crate::message::{ClientMessage, ServerMessage};
 
-use std::time::{Duration};
-use std::hash::{Hash};
+use message_io::events::{EventQueue};
+use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint};
 
-pub enum Signal {
-    NewArena,
-    ArenaCreated,
-    ComputeFrame,
+use std::net::{SocketAddr};
+
+
+pub enum Event {
+    Network(NetEvent<ClientMessage>),
 }
 
-pub struct ServerManager<Endpoint> {
-    event_queue: EventQueue<Message, Signal, Endpoint>
+pub struct ServerManager {
+    event_queue: EventQueue<Event>,
+    network: NetworkManager,
+    //room here
 }
 
-impl<Endpoint: Hash + Copy> ServerManager<Endpoint> {
-    pub fn new(event_queue: EventQueue<Message, Signal, Endpoint>) -> ServerManager<Endpoint> {
-        ServerManager { event_queue }
+impl ServerManager {
+    pub fn new(addr: SocketAddr) -> Option<ServerManager> {
+        let mut event_queue = EventQueue::new();
+
+        let network_sender = event_queue.sender().clone();
+        let mut network = NetworkManager::new(move |net_event| network_sender.send(Event::Network(net_event)));
+
+        network.listen(addr, TransportProtocol::Tcp).map(|_| {
+            ServerManager {
+                event_queue,
+                network,
+            }
+        })
     }
 
     pub fn run(&mut self) {
         loop {
-            if let Some(event) = self.event_queue.pop_event(Duration::from_millis(3000)) {
-                match event {
-                    Event::Message(message, endpoint) => match message {
-                        Message::Version { value } => {
-                            let message = Message::VersionInfo { value: String::from("0.1.0"), compatible: true };
-                            self.event_queue.emit_message(message, endpoint);
-                            println!("version received");
-                        },
-                        _ => unreachable!()
+            match self.event_queue.receive() {
+                Event::Network(net_event) => match net_event {
+                    NetEvent::Message(message, endpoint) => {
+                        //trace!(message, endpoint)
+                        match message {
+                            ClientMessage::Version{tag} => {
+                                self.network.send(endpoint, ServerMessage::Version{tag: String::from("0.1.0"), compatible: true});
+                            }
+                        }
                     },
-                    Event::Signal(signal) => match signal {
-                        _ => todo!()
-                    }
-                    _ => unreachable!()
+                    NetEvent::AddedEndpoint(_, _) => {},
+                    NetEvent::RemovedEndpoint(_) => {}
                 }
             }
         }
     }
 }
-
