@@ -38,7 +38,7 @@ impl ClientManager {
             match self.event_queue.receive() {
                 Event::Network(net_event) => match net_event {
                     NetEvent::Message(message, endpoint) => {
-                        //trace!(message, endpoint)
+                        log::trace!("Server message: {:?}", message);
                         match message {
                             ServerMessage::Version{tag, compatible} => {
                             }
@@ -46,6 +46,7 @@ impl ClientManager {
                     },
                     NetEvent::AddedEndpoint(_, _) => unreachable!(),
                     NetEvent::RemovedEndpoint(_) => {
+                        println!("Closing client");
                         return None;
                     }
                 }
