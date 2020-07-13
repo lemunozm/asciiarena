@@ -1,10 +1,11 @@
-mod app;
+mod logger;
+mod version;
 mod message;
 mod client_manager;
 mod server_manager;
+mod app;
 
-fn main()
-{
+fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1
     {

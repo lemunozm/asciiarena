@@ -1,7 +1,8 @@
 use crate::message::{ClientMessage, ServerMessage};
+use crate::version::{self, Compatibility};
 
 use message_io::events::{EventQueue};
-use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint};
+use message_io::network::{NetworkManager, NetEvent, TransportProtocol};
 
 use std::net::{SocketAddr};
 
@@ -23,13 +24,11 @@ impl ServerManager {
         let network_sender = event_queue.sender().clone();
         let mut network = NetworkManager::new(move |net_event| network_sender.send(Event::Network(net_event)));
 
-        let tcp_address = SocketAddr::from(([0, 0, 0, 0], tcp_port));
-        let tcp_listener = network.listen(tcp_address, TransportProtocol::Tcp);
-
-        let udp_address = SocketAddr::from(([0, 0, 0, 0], udp_port));
-        let udp_listener = network.listen(udp_address, TransportProtocol::Udp);
+        let tcp_listener = network.listen(SocketAddr::from(([0, 0, 0, 0], tcp_port)), TransportProtocol::Tcp);
+        let udp_listener = network.listen(SocketAddr::from(([0, 0, 0, 0], udp_port)), TransportProtocol::Udp);
 
         tcp_listener.and(udp_listener).map(|_| {
+            log::info!("Server running on tcp port '{}' and udp port '{}'", tcp_port, udp_port);
             ServerManager {
                 event_queue,
                 network,
@@ -42,11 +41,22 @@ impl ServerManager {
             match self.event_queue.receive() {
                 Event::Network(net_event) => match net_event {
                     NetEvent::Message(message, endpoint) => {
-                        log::trace!("Client message: {:?}", message);
-                        println!("aaaaaa");
+                        log::trace!("Message from {}: {:?}", self.network.endpoint_remote_address(endpoint).unwrap(), message);
                         match message {
-                            ClientMessage::Version{tag} => {
-                                self.network.send(endpoint, ServerMessage::Version{tag: String::from("0.1.0"), compatible: true});
+                            ClientMessage::Version(client_version) => {
+                                let compatibility = version::check(&client_version);
+                                match compatibility {
+                                    Compatibility::Fully =>
+                                        log::trace!("Fully compatible versions: {}", client_version),
+                                    Compatibility::OkOutdated =>
+                                        log::info!("Compatible client version but differs. Client: {}. Server: {}", client_version, version::current()),
+                                    Compatibility::None =>
+                                        log::warn!("Incompatible client version. Client: {}. Server: {}. Rejected", client_version, version::current()),
+                                };
+                                self.network.send(endpoint, ServerMessage::Version(version::current().to_string(), compatibility));
+                                if let Compatibility::None = compatibility {
+                                    self.network.remove_endpoint(endpoint);
+                                }
                             }
                         }
                     },

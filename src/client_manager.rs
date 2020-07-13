@@ -1,4 +1,5 @@
 use crate::message::{ClientMessage, ServerMessage};
+use crate::version::{self, Compatibility};
 
 use message_io::events::{EventQueue};
 use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint};
@@ -33,14 +34,27 @@ impl ClientManager {
     }
 
     pub fn run(&mut self) -> Option<()> {
-        self.network.send(self.server, ClientMessage::Version{tag: String::from("0.1.0")});
+        self.network.send(self.server, ClientMessage::Version(version::current().to_string()));
         loop {
             match self.event_queue.receive() {
                 Event::Network(net_event) => match net_event {
                     NetEvent::Message(message, endpoint) => {
-                        log::trace!("Server message: {:?}", message);
+                        log::trace!("Message from {}: {:?}", self.network.endpoint_remote_address(endpoint).unwrap(), message);
                         match message {
-                            ServerMessage::Version{tag, compatible} => {
+                            ServerMessage::Version(server_version, compatibility) => {
+                                match compatibility {
+                                    Compatibility::Fully =>
+                                        log::trace!("Fully compatible versions {}", version::current()),
+                                    Compatibility::OkOutdated => {
+                                        log::warn!("Compatible server version but differs. Client: {}. Server: {}", version::current(), server_version);
+                                        println!("Compatible versions but it is recomendable to update. Client: {}. Server: {}", version::current(), server_version);
+                                    }
+                                    Compatibility::None => {
+                                        log::error!("Incompatible server version. Client: {}. Server: {}", version::current(), server_version);
+                                        println!("Incompatible server version. Client: {}. Server: {}", version::current(), server_version);
+                                        return None; //Specify errors
+                                    }
+                                }
                             }
                         }
                     },
