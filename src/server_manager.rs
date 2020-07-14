@@ -28,7 +28,7 @@ impl ServerManager {
         let udp_listener = network.listen(SocketAddr::from(([0, 0, 0, 0], udp_port)), TransportProtocol::Udp);
 
         tcp_listener.and(udp_listener).map(|_| {
-            log::info!("Server running on tcp port '{}' and udp port '{}'", tcp_port, udp_port);
+            log::info!("Server running on tcp ports {} (tcp) and {} (udp)", tcp_port, udp_port);
             ServerManager {
                 event_queue,
                 network,
@@ -44,7 +44,7 @@ impl ServerManager {
                         log::trace!("Message from {}: {:?}", self.network.endpoint_remote_address(endpoint).unwrap(), message);
                         match message {
                             ClientMessage::Version(client_version) => {
-                                let compatibility = version::check(&client_version);
+                                let compatibility = version::check(&client_version, version::current());
                                 match compatibility {
                                     Compatibility::Fully =>
                                         log::trace!("Fully compatible versions: {}", client_version),

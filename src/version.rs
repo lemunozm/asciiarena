@@ -1,11 +1,11 @@
 use clap::{crate_version};
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Compatibility {
-    Fully,
-    OkOutdated,
-    None,
+    Fully = 2,
+    OkOutdated = 1,
+    None = 0,
 }
 
 enum VersionNumber {
@@ -26,9 +26,8 @@ impl Version for Vec<&str> {
     }
 }
 
-pub fn check(client_tag: &str) -> Compatibility {
-
-    let server_version: Vec<_> = crate_version!().split('.').collect();
+pub fn check(client_tag: &str, server_tag: &str) -> Compatibility {
+    let server_version: Vec<_> = server_tag.split('.').collect();
     let client_version: Vec<_> = client_tag.split('.').collect();
 
     if client_version.number(Major) != server_version.number(Major) {

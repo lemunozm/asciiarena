@@ -41,7 +41,9 @@ impl ClientManager {
                     NetEvent::Message(message, endpoint) => {
                         log::trace!("Message from {}: {:?}", self.network.endpoint_remote_address(endpoint).unwrap(), message);
                         match message {
-                            ServerMessage::Version(server_version, compatibility) => {
+                            ServerMessage::Version(server_version, server_side_compatibility) => {
+                                let client_side_compatibility = version::check(version::current(), &server_version);
+                                let compatibility = std::cmp::min(client_side_compatibility, server_side_compatibility);
                                 match compatibility {
                                     Compatibility::Fully =>
                                         log::trace!("Fully compatible versions {}", version::current()),
