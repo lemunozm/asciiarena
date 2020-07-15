@@ -1,4 +1,4 @@
-use crate::server_manager::{ServerManager};
+use crate::server_manager::{ServerManager, ServerConfig};
 use crate::logger::{self};
 
 use clap::{App, Arg, ArgMatches};
@@ -18,10 +18,15 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
 pub fn run(matches: &ArgMatches) {
     logger::init(matches.value_of("log").unwrap().parse().unwrap());
 
-    if let Some(mut server_manager) = ServerManager::new(3001, 3001) {
+    let config = ServerConfig {
+        tcp_port: 3001,
+        udp_port: 3001,
+        players: 4,
+        map_dimension: (30, 30),
+        winner_points: 15,
+    };
+
+    if let Some(mut server_manager) = ServerManager::new(config) {
         server_manager.run();
-    }
-    else {
-        log::error!("Could not run server on the specified ports"); //print ports
     }
 }

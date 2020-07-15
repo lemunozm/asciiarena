@@ -1,4 +1,4 @@
-use crate::message::{ClientMessage, ServerMessage};
+use crate::message::{ClientMessage, ServerMessage, ServerInfo};
 use crate::version::{self, Compatibility};
 
 use message_io::events::{EventQueue};
@@ -58,6 +58,8 @@ impl ClientManager {
                         match message {
                             ServerMessage::Version(server_version, server_side_compatibility) =>
                                 self.process_version(&server_version, server_side_compatibility),
+                            ServerMessage::ServerInfo(info) =>
+                                self.process_server_info(&info),
                         }
                     },
                     NetEvent::AddedEndpoint(_, _) => unreachable!(),
@@ -90,6 +92,13 @@ impl ClientManager {
                 self.event_queue.sender().send_with_priority(Event::Close(ClosingReason::IncompatibleVersions));
             }
         }
+        if compatibility.is_compatible() {
+            self.network.send(self.server, ClientMessage::RequestServerInfo);
+        }
+    }
+
+    fn process_server_info(&mut self, info: &ServerInfo) {
+        //TODO
     }
 }
 

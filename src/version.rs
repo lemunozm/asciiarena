@@ -8,6 +8,12 @@ pub enum Compatibility {
     None = 0,
 }
 
+impl Compatibility {
+    pub fn is_compatible(&self) -> bool {
+        return *self != Compatibility::None
+    }
+}
+
 enum VersionNumber {
     Major = 0,
     Minor = 1,

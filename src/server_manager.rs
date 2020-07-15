@@ -1,4 +1,4 @@
-use crate::message::{ClientMessage, ServerMessage};
+use crate::message::{ClientMessage, ServerMessage, ServerInfo};
 use crate::version::{self, Compatibility};
 
 use message_io::events::{EventQueue};
@@ -12,14 +12,23 @@ enum Event {
     Close,
 }
 
+pub struct ServerConfig {
+    pub tcp_port: u16,
+    pub udp_port: u16,
+    pub players: usize,
+    pub map_dimension: (usize, usize),
+    pub winner_points: usize,
+}
+
 pub struct ServerManager {
     event_queue: EventQueue<Event>,
     network: NetworkManager,
+    config: ServerConfig,
     //room here
 }
 
 impl ServerManager {
-    pub fn new(tcp_port: u16, udp_port: u16) -> Option<ServerManager> {
+    pub fn new(config: ServerConfig) -> Option<ServerManager> {
         let mut event_queue = EventQueue::new();
 
         let network_sender = event_queue.sender().clone();
@@ -28,15 +37,21 @@ impl ServerManager {
         let network_sender = event_queue.sender().clone();
         ctrlc::set_handler(move || network_sender.send_with_priority(Event::Close)).unwrap();
 
-        let tcp_listener = network.listen(SocketAddr::from(([0, 0, 0, 0], tcp_port)), TransportProtocol::Tcp);
-        let udp_listener = network.listen(SocketAddr::from(([0, 0, 0, 0], udp_port)), TransportProtocol::Udp);
+        if let None = network.listen(SocketAddr::from(([0, 0, 0, 0], config.tcp_port)), TransportProtocol::Tcp) {
+            log::error!("Can not run server on tcp port {}", config.tcp_port);
+            return None;
+        }
 
-        tcp_listener.and(udp_listener).map(|_| {
-            log::info!("Server running on tcp ports {} (tcp) and {} (udp)", tcp_port, udp_port);
-            ServerManager {
-                event_queue,
-                network,
-            }
+        if let None = network.listen(SocketAddr::from(([0, 0, 0, 0], config.udp_port)), TransportProtocol::Udp) {
+            log::error!("Can not run server on udp port {}", config.udp_port);
+            return None;
+        }
+
+        log::info!("Server running on tcp ports {} (tcp) and {} (udp)", config.tcp_port, config.udp_port);
+        Some(ServerManager {
+            event_queue,
+            network,
+            config,
         })
     }
 
@@ -51,6 +66,8 @@ impl ServerManager {
                         match message {
                             ClientMessage::Version(client_version) =>
                                 self.process_version(endpoint, &client_version),
+                            ClientMessage::RequestServerInfo =>
+                                self.process_request_server_info(endpoint),
                         }
                     },
                     NetEvent::AddedEndpoint(_, _) => (),
@@ -78,5 +95,17 @@ impl ServerManager {
         if let Compatibility::None = compatibility {
             self.network.remove_endpoint(endpoint);
         }
+    }
+
+    fn process_request_server_info(&mut self, endpoint: Endpoint) {
+        let info = ServerInfo {
+            udp_port: self.config.udp_port,
+            players: self.config.players as u8,
+            map_dimension: (self.config.map_dimension.0 as u16, self.config.map_dimension.1 as u16),
+            winner_points: self.config.winner_points as u16,
+            logged_players: Vec::new(), //TODO
+        };
+
+        self.network.send(endpoint, ServerMessage::ServerInfo(info));
     }
 }
