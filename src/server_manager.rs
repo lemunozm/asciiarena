@@ -7,8 +7,9 @@ use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint}
 use std::net::{SocketAddr};
 
 #[derive(Debug)]
-pub enum Event {
+enum Event {
     Network(NetEvent<ClientMessage>),
+    Close,
 }
 
 pub struct ServerManager {
@@ -23,6 +24,9 @@ impl ServerManager {
 
         let network_sender = event_queue.sender().clone();
         let mut network = NetworkManager::new(move |net_event| network_sender.send(Event::Network(net_event)));
+
+        let network_sender = event_queue.sender().clone();
+        ctrlc::set_handler(move || network_sender.send_with_priority(Event::Close)).unwrap();
 
         let tcp_listener = network.listen(SocketAddr::from(([0, 0, 0, 0], tcp_port)), TransportProtocol::Tcp);
         let udp_listener = network.listen(SocketAddr::from(([0, 0, 0, 0], udp_port)), TransportProtocol::Udp);
@@ -45,11 +49,16 @@ impl ServerManager {
                     NetEvent::Message(message, endpoint) => {
                         log::trace!("Message from {}", self.network.endpoint_remote_address(endpoint).unwrap());
                         match message {
-                            ClientMessage::Version(client_version) => self.process_version(endpoint, &client_version),
+                            ClientMessage::Version(client_version) =>
+                                self.process_version(endpoint, &client_version),
                         }
                     },
                     NetEvent::AddedEndpoint(_, _) => (),
-                    NetEvent::RemovedEndpoint(_) => {}
+                    NetEvent::RemovedEndpoint(_) => {},
+                },
+                Event::Close => {
+                    log::info!("Closing server");
+                    break
                 }
             }
         }
