@@ -5,20 +5,25 @@ mod client_manager;
 mod server_manager;
 mod app;
 
+
+use clap::{self, App};
+
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() > 1
-    {
-        let sub_args: Vec<String> = args[1..].iter().cloned().collect();
-        match sub_args[0].as_ref()
-        {
-            "client" => { app::client::run(sub_args); return; },
-            "server" => { app::server::run(sub_args); return; },
-            mode => println!("'{}' is not a valid application mode", mode),
+    let matches = App::new(clap::crate_name!())
+        .version(clap::crate_version!())
+        .author(clap::crate_authors!())
+        .about(clap::crate_description!())
+        .subcommand(app::client::configure_cli())
+        .subcommand(app::server::configure_cli())
+        .get_matches();
+
+    if let (name, Some(matches)) = matches.subcommand() {
+        match name {
+            "client" => app::client::run(matches),
+            "server" => app::server::run(matches),
+            _ => unreachable!(),
         }
     }
-    println!("Select a valid application mode");
-    println!("Usage: asciiarena [client | server]");
 }
 
 /*

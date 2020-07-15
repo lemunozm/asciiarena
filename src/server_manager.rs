@@ -44,6 +44,7 @@ impl ServerManager {
                         log::trace!("Message from {}: {:?}", self.network.endpoint_remote_address(endpoint).unwrap(), message);
                         match message {
                             ClientMessage::Version(client_version) => {
+                                log::debug!("Version request");
                                 let compatibility = version::check(&client_version, version::current());
                                 match compatibility {
                                     Compatibility::Fully =>

@@ -1,8 +1,22 @@
 use crate::server_manager::{ServerManager};
 use crate::logger::{self};
 
-pub fn run(_: Vec<String>) {
-    logger::init(logger::Level::Trace); //Default info
+use clap::{App, Arg, ArgMatches};
+
+pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
+    App::new("server")
+        .about("Running an asciiarena server")
+        .arg(Arg::with_name("log")
+            .long("log")
+            .default_value("info")
+            .possible_values(&logger::LOG_LEVELS)
+            .help("Sets the log level of verbosity")
+        )
+}
+
+pub fn run(matches: &ArgMatches) {
+    logger::init(matches.value_of("log").unwrap().parse().unwrap());
+
     if let Some(mut server_manager) = ServerManager::new(3001, 3001) {
         server_manager.run();
     }

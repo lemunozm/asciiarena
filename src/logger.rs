@@ -1,8 +1,8 @@
 use fern::colors::{Color, ColoredLevelConfig};
 use log::{LevelFilter};
 use colored::{Colorize};
-use std::str::{FromStr};
 use clap::{crate_name};
+use std::str::{FromStr};
 
 #[derive(PartialEq)]
 pub enum Level {
@@ -15,7 +15,10 @@ pub enum Level {
     Dev
 }
 
+#[derive(Debug, Clone)]
 pub struct LevelUnknown;
+
+pub const LOG_LEVELS: [&'static str; 7] = ["off", "error", "warning", "info", "debug", "trace", "dev"];
 
 impl FromStr for Level {
     type Err = LevelUnknown;
@@ -27,6 +30,7 @@ impl FromStr for Level {
             "warning" => Ok(Level::Warn),
             "info" => Ok(Level::Info),
             "debug" => Ok(Level::Debug),
+            "trace" => Ok(Level::Trace),
             "dev" => Ok(Level::Dev),
             _ => Err(LevelUnknown),
         }

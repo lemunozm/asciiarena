@@ -173,8 +173,8 @@ checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
 name = "message-io"
-version = "0.1.0"
-source = "git+https://github.com/lemunozm/message-io#105b9e4bed21f93eee15e1c01c83a5f62de1ae49"
+version = "0.2.0"
+source = "git+https://github.com/lemunozm/message-io#0a35a9b3b1609a3e1ef819b1ae151d79372b9d8e"
 dependencies = [
  "bincode",
  "crossbeam-channel",
