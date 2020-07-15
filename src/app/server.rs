@@ -8,6 +8,7 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
         .about("Running an asciiarena server")
         .arg(Arg::with_name("log")
             .long("log")
+            .short("l")
             .default_value("info")
             .possible_values(&logger::LOG_LEVELS)
             .help("Sets the log level of verbosity")

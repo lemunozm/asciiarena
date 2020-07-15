@@ -12,4 +12,4 @@ log = "0.4"
 fern = { version = "0.6", features = ["colored"] }
 chrono = "0.4"
 colored = "1.9.3"
-clap ="2.33.1"
+clap = { version = "2.33.1", features = ["wrap_help"] }

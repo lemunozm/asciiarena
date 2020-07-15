@@ -8,9 +8,16 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
         .about("Running an asciiarena client")
         .arg(Arg::with_name("log")
             .long("log")
+            .short("l")
             .default_value("off")
             .possible_values(&logger::LOG_LEVELS)
             .help("Sets the log level of verbosity")
+        )
+        .arg(Arg::with_name("name")
+            .long("name")
+            .short("n")
+            .value_name("NAME")
+            .help("Set the character name")
         )
 }
 
