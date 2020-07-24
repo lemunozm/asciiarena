@@ -1,9 +1,18 @@
+// Used commonly
 mod logger;
 mod version;
 mod message;
-mod client_manager;
-mod server_manager;
 mod app;
+mod util;
+mod vec2;
+
+// Used only by client
+mod client_manager;
+
+// Used only by server
+mod server_manager;
+mod session;
+mod game;
 
 
 use clap::{self, App};

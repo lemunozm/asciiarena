@@ -2,7 +2,7 @@ use crate::vec2::Vec2;
 
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum Direction {
     Up, Down, Left, Right, None,
 }
@@ -29,3 +29,4 @@ impl Direction {
     }
 }
 
+pub type SessionToken = usize;

@@ -3,6 +3,8 @@ use crate::logger::{self};
 
 use clap::{App, Arg, ArgMatches};
 
+use std::time::{Duration};
+
 pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
     App::new("server")
         .about("Running an asciiarena server")
@@ -21,9 +23,10 @@ pub fn run(matches: &ArgMatches) {
     let config = ServerConfig {
         tcp_port: 3001,
         udp_port: 3001,
-        players: 4,
-        map_dimension: (30, 30),
+        players: 2,
+        map_size: 30,
         winner_points: 15,
+        init_game_waiting: Duration::from_secs(3),
     };
 
     if let Some(mut server_manager) = ServerManager::new(config) {

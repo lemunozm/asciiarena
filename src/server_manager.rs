@@ -1,14 +1,18 @@
-use crate::message::{ClientMessage, ServerMessage, ServerInfo};
+use crate::message::{ClientMessage, ServerMessage, ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
+use crate::session::{Room, SessionCreationResult, HintEndpoint};
+use crate::game::{Game};
 
 use message_io::events::{EventQueue};
 use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint};
 
 use std::net::{SocketAddr};
+use std::time::{Duration};
 
 #[derive(Debug)]
 enum Event {
     Network(NetEvent<ClientMessage>),
+    InitGame,
     Close,
 }
 
@@ -16,15 +20,17 @@ pub struct ServerConfig {
     pub tcp_port: u16,
     pub udp_port: u16,
     pub players: usize,
-    pub map_dimension: (usize, usize),
+    pub map_size: usize,
     pub winner_points: usize,
+    pub init_game_waiting: Duration,
 }
 
 pub struct ServerManager {
     event_queue: EventQueue<Event>,
     network: NetworkManager,
+    room: Room<Endpoint>,
+    game: Option<Game>,
     config: ServerConfig,
-    //room here
 }
 
 impl ServerManager {
@@ -51,6 +57,8 @@ impl ServerManager {
         Some(ServerManager {
             event_queue,
             network,
+            room: Room::new(config.players),
+            game: None,
             config,
         })
     }
@@ -61,17 +69,36 @@ impl ServerManager {
             log::trace!("[Process event] - {:?}", event);
             match event {
                 Event::Network(net_event) => match net_event {
-                    NetEvent::Message(message, endpoint) => {
+                    NetEvent::Message(endpoint, message) => {
                         log::trace!("Message from {}", self.network.endpoint_remote_address(endpoint).unwrap());
                         match message {
-                            ClientMessage::Version(client_version) =>
-                                self.process_version(endpoint, &client_version),
-                            ClientMessage::RequestServerInfo =>
-                                self.process_request_server_info(endpoint),
+                            ClientMessage::Version(client_version) => {
+                                self.process_msg_version(endpoint, &client_version);
+                            }
+                            ClientMessage::RequestServerInfo => {
+                                self.process_msg_request_server_info(endpoint);
+                            }
+                            ClientMessage::Login(player_name) => {
+                                self.process_msg_login(endpoint, &player_name);
+                            }
                         }
                     },
                     NetEvent::AddedEndpoint(_, _) => (),
-                    NetEvent::RemovedEndpoint(_) => {},
+                    NetEvent::RemovedEndpoint(endpoint) => {
+                        if self.game.is_some() {
+                            if let Some(session) = self.room.notify_lost_endpoint(endpoint) {
+                                log::info!("Player '{}' has been disconnected", session.name());
+                            }
+                        }
+                        else {
+                            if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
+                                log::info!("Player logout: {}, current players: {} ", session.name(), self.current_player_names());
+                            }
+                        }
+                    },
+                },
+                Event::InitGame => {
+                    self.process_init_game();
                 },
                 Event::Close => {
                     log::info!("Closing server");
@@ -81,7 +108,7 @@ impl ServerManager {
         }
     }
 
-    fn process_version(&mut self, endpoint: Endpoint, client_version: &str) {
+    fn process_msg_version(&mut self, endpoint: Endpoint, client_version: &str) {
         let compatibility = version::check(&client_version, version::current());
         match compatibility {
             Compatibility::Fully =>
@@ -97,15 +124,70 @@ impl ServerManager {
         }
     }
 
-    fn process_request_server_info(&mut self, endpoint: Endpoint) {
+    fn process_msg_request_server_info(&mut self, endpoint: Endpoint) {
         let info = ServerInfo {
             udp_port: self.config.udp_port,
             players: self.config.players as u8,
-            map_dimension: (self.config.map_dimension.0 as u16, self.config.map_dimension.1 as u16),
+            map_size: self.config.map_size as u16,
             winner_points: self.config.winner_points as u16,
             logged_players: Vec::new(), //TODO
         };
 
         self.network.send(endpoint, ServerMessage::ServerInfo(info));
+    }
+
+    fn process_msg_login(&mut self, endpoint: Endpoint, player_name: &str) {
+        let status = match self.room.create_session(player_name, endpoint) {
+            SessionCreationResult::Created(token) => {
+                log::info!("New player logged: {}, current players: {}", player_name, self.current_player_names());
+                let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe).filter(|&&e| e != endpoint);
+                self.network.send_all(endpoints, ServerMessage::NotifyNewPlayer(player_name.to_string())).ok();
+                LoginStatus::Logged(token)
+            }
+            SessionCreationResult::Recycled(token) => {
+                log::info!("Player '{}' has recovered connection ", player_name);
+                LoginStatus::Relogged(token)
+            }
+            SessionCreationResult::AlreadyLogged => {
+                log::warn!("Player '{}' tries to login but the name is already logged", player_name);
+                LoginStatus::AlreadyLogged
+            }
+            SessionCreationResult::Full => {
+                log::warn!("Player '{}' tries to login but the player limit has been reached", player_name);
+                LoginStatus::PlayerLimit
+            }
+        };
+
+        log::trace!("{} with name '{}' attempts to login. Status: {:?}", self.network.endpoint_remote_address(endpoint).unwrap(), player_name, status);
+        self.network.send(endpoint, ServerMessage::LoginStatus(status));
+
+        if self.game.is_none() && self.room.is_full() {
+            log::info!("Starting new game...");
+            self.game = Some(Game::new());
+            log::trace!("Initializing game in {} seconds", self.config.init_game_waiting.as_secs_f32());
+            self.event_queue.sender().send_with_timer(Event::InitGame, self.config.init_game_waiting);
+        }
+    }
+
+    fn process_init_game(&mut self) {
+        log::trace!("Game initialized");
+        log::info!("Arena 1"); //REMOVE: Show as example
+    }
+
+    fn current_player_names(&self) -> PlayerNames<'_> {
+        PlayerNames(self.room.sessions().map(|session| session.name()).collect::<Vec<_>>())
+    }
+}
+
+struct PlayerNames<'a>(Vec<&'a str>);
+
+impl<'a> std::fmt::Display for PlayerNames<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let separation = ", ";
+        write!(f, "[")?;
+        for (i, name) in self.0.iter().enumerate() {
+            write!(f, "{}{}", name, if i < self.0.len() - 1 {separation} else {""})?;
+        }
+        write!(f, "]")
     }
 }

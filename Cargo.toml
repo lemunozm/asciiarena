@@ -14,3 +14,4 @@ chrono = "0.4"
 colored = "1.9.3"
 clap = { version = "2.33.1", features = ["wrap_help"] }
 ctrlc = "3.1.5"
+rand = "0.7.3"

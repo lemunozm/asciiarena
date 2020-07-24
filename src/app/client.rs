@@ -17,14 +17,16 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
             .long("name")
             .short("n")
             .value_name("NAME")
-            .help("Set the character name")
+            .help("Set the player name. Must be unique in the server")
         )
 }
 
 pub fn run(matches: &ArgMatches) {
     logger::init(matches.value_of("log").unwrap().parse().unwrap());
+    let server_addr = "127.0.0.1:3001".parse().unwrap();
+    let player_name = matches.value_of("name");
 
-    if let Some(mut client_manager) = ClientManager::new("127.0.0.1:3001".parse().unwrap()) {
+    if let Some(mut client_manager) = ClientManager::new(server_addr, player_name) {
         println!("Connected to server");
         client_manager.run();
     }
