@@ -27,10 +27,6 @@ pub fn run(matches: &ArgMatches) {
     let player_name = matches.value_of("name");
 
     if let Some(mut client_manager) = ClientManager::new(server_addr, player_name) {
-        println!("Connected to server");
         client_manager.run();
-    }
-    else {
-        println!("Could not connect to server");
     }
 }

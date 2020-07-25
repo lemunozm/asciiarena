@@ -1,10 +1,12 @@
 use crate::message::{self, ClientMessage, ServerMessage, LoginStatus};
 use crate::version::{self, Compatibility};
+use crate::util::{self};
 
 use message_io::events::{EventQueue};
 use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint};
 
 use std::net::{IpAddr, SocketAddr};
+use std::io::{self, BufRead};
 
 #[derive(Debug)]
 pub enum ClosingReason {
@@ -54,9 +56,11 @@ impl ClientManager {
         let network_sender = event_queue.sender().clone();
         ctrlc::set_handler(move || network_sender.send_with_priority(Event::Close(ClosingReason::Forced))).unwrap();
 
-        network.connect(addr, TransportProtocol::Tcp).map(|(tcp_endpoint, _)| {
-            log::info!("Connected to server by tcp on '{}' by tcp", addr);
-            ClientManager {
+        if let Some((tcp_endpoint, _)) = network.connect(addr, TransportProtocol::Tcp) {
+            let msg = format!("Connected to server on '{}' by tcp", addr);
+            log::info!("{}", msg);
+            println!("{}", msg);
+            Some(ClientManager {
                 event_queue,
                 network,
                 player_name: player_name.map(|s| s.to_string()),
@@ -69,8 +73,14 @@ impl ClientManager {
                     session_token: None,
                 }
 
-            }
-        })
+            })
+        }
+        else {
+            let msg = format!("Could not connect to server on '{}' by tcp", addr);
+            log::error!("{}", msg);
+            eprintln!("{}", msg);
+            None
+        }
     }
 
     pub fn run(&mut self) -> ClosingReason {
@@ -118,15 +128,17 @@ impl ClientManager {
         let client_side_compatibility = version::check(version::current(), &server_version);
         let compatibility = std::cmp::min(client_side_compatibility, server_side_compatibility);
         match compatibility {
-            Compatibility::Fully =>
-                log::trace!("Fully compatible versions {}", version::current()),
+            Compatibility::Fully => {
+                log::trace!("Fully compatible versions {}", version::current());
+                println!("Server version: {} (same version)", server_version);
+            }
             Compatibility::OkOutdated => {
                 log::warn!("Compatible server version but differs. Client: {}. Server: {}", version::current(), server_version);
                 println!("Compatible versions but it is recomendable to update. Client: {}. Server: {}", version::current(), server_version);
             }
             Compatibility::None => {
                 log::error!("Incompatible server version. Client: {}. Server: {}", version::current(), server_version);
-                println!("Incompatible server version. Client: {}. Server: {}", version::current(), server_version);
+                eprintln!("Incompatible server version. Client: {}. Server: {}. Aborted", version::current(), server_version);
                 self.event_queue.sender().send_with_priority(Event::Close(ClosingReason::IncompatibleVersions));
             }
         }
@@ -153,6 +165,16 @@ impl ClientManager {
     fn process_login(&mut self, phase: LoginPhase) {
         match phase {
             LoginPhase::Initial => {
+                if self.player_name.is_none() {
+                    loop {
+                        println!("Choose a character (an unique letter from A to Z): ");
+                        let possible_name = io::stdin().lock().lines().next().unwrap().unwrap();
+                        if util::is_valid_player_name(&possible_name) {
+                            self.player_name = Some(possible_name);
+                            break;
+                        }
+                    }
+                }
                 //Check name
                 let name = self.player_name.clone().unwrap().clone();
                 self.network.send(self.server.tcp_endpoint, ClientMessage::Login(name));

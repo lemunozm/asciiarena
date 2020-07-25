@@ -2,6 +2,7 @@ use crate::message::{ClientMessage, ServerMessage, ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
 use crate::session::{Room, SessionCreationResult, HintEndpoint};
 use crate::game::{Game};
+use crate::util::{self, PlayerNames};
 
 use message_io::events::{EventQueue};
 use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint};
@@ -87,12 +88,12 @@ impl ServerManager {
                     NetEvent::RemovedEndpoint(endpoint) => {
                         if self.game.is_some() {
                             if let Some(session) = self.room.notify_lost_endpoint(endpoint) {
-                                log::info!("Player '{}' has been disconnected", session.name());
+                                log::info!("Player '{}' disconnected", session.name());
                             }
                         }
                         else {
                             if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
-                                log::info!("Player logout: {}, current players: {} ", session.name(), self.current_player_names());
+                                log::info!("Player '{}' logout, current players: {} ", session.name(), self.current_player_names());
                             }
                         }
                     },
@@ -118,6 +119,7 @@ impl ServerManager {
             Compatibility::None =>
                 log::warn!("Incompatible client version. Client: {}. Server: {}. Rejected", client_version, version::current()),
         };
+
         self.network.send(endpoint, ServerMessage::Version(version::current().to_string(), compatibility));
         if let Compatibility::None = compatibility {
             self.network.remove_endpoint(endpoint);
@@ -130,35 +132,42 @@ impl ServerManager {
             players: self.config.players as u8,
             map_size: self.config.map_size as u16,
             winner_points: self.config.winner_points as u16,
-            logged_players: Vec::new(), //TODO
+            logged_players: self.room.sessions().map(|session| session.name().to_string()).collect()
         };
 
         self.network.send(endpoint, ServerMessage::ServerInfo(info));
     }
 
     fn process_msg_login(&mut self, endpoint: Endpoint, player_name: &str) {
-        let status = match self.room.create_session(player_name, endpoint) {
-            SessionCreationResult::Created(token) => {
-                log::info!("New player logged: {}, current players: {}", player_name, self.current_player_names());
-                let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe).filter(|&&e| e != endpoint);
-                self.network.send_all(endpoints, ServerMessage::NotifyNewPlayer(player_name.to_string())).ok();
-                LoginStatus::Logged(token)
-            }
-            SessionCreationResult::Recycled(token) => {
-                log::info!("Player '{}' has recovered connection ", player_name);
-                LoginStatus::Relogged(token)
-            }
-            SessionCreationResult::AlreadyLogged => {
-                log::warn!("Player '{}' tries to login but the name is already logged", player_name);
-                LoginStatus::AlreadyLogged
-            }
-            SessionCreationResult::Full => {
-                log::warn!("Player '{}' tries to login but the player limit has been reached", player_name);
-                LoginStatus::PlayerLimit
+        let status =
+        if !util::is_valid_player_name(player_name) {
+            log::warn!("Invalid login name '{}' has tried to login", player_name);
+            LoginStatus::InvalidPlayerName
+        }
+        else {
+            match self.room.create_session(player_name, endpoint) {
+                SessionCreationResult::Created(token) => {
+                    log::info!("New player logged: {}, current players: {}", player_name, self.current_player_names());
+                    let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe).filter(|&&e| e != endpoint);
+                    self.network.send_all(endpoints, ServerMessage::NotifyNewPlayer(player_name.to_string())).ok();
+                    LoginStatus::Logged(token)
+                }
+                SessionCreationResult::Recycled(token) => {
+                    log::info!("Player '{}' has recovered connection ", player_name);
+                    LoginStatus::Relogged(token)
+                }
+                SessionCreationResult::AlreadyLogged => {
+                    log::warn!("Player '{}' has tried to login but the name is already logged", player_name);
+                    LoginStatus::AlreadyLogged
+                }
+                SessionCreationResult::Full => {
+                    log::warn!("Player '{}' has tried to login but the player limit has been reached", player_name);
+                    LoginStatus::PlayerLimit
+                }
             }
         };
 
-        log::trace!("{} with name '{}' attempts to login. Status: {:?}", self.network.endpoint_remote_address(endpoint).unwrap(), player_name, status);
+        log::trace!("{} with player name '{}' attempts to login. Status: {:?}", self.network.endpoint_remote_address(endpoint).unwrap(), player_name, status);
         self.network.send(endpoint, ServerMessage::LoginStatus(status));
 
         if self.game.is_none() && self.room.is_full() {
@@ -179,15 +188,3 @@ impl ServerManager {
     }
 }
 
-struct PlayerNames<'a>(Vec<&'a str>);
-
-impl<'a> std::fmt::Display for PlayerNames<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let separation = ", ";
-        write!(f, "[")?;
-        for (i, name) in self.0.iter().enumerate() {
-            write!(f, "{}{}", name, if i < self.0.len() - 1 {separation} else {""})?;
-        }
-        write!(f, "]")
-    }
-}

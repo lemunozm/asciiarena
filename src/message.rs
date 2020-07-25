@@ -33,6 +33,7 @@ pub enum ServerMessage {
 pub enum LoginStatus {
     Logged(SessionToken),
     Relogged(SessionToken),
+    InvalidPlayerName,
     AlreadyLogged,
     PlayerLimit,
 }
