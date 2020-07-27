@@ -20,7 +20,7 @@ enum Event {
 pub struct ServerConfig {
     pub tcp_port: u16,
     pub udp_port: u16,
-    pub players: usize,
+    pub players_number: usize,
     pub map_size: usize,
     pub winner_points: usize,
     pub init_game_waiting: Duration,
@@ -58,7 +58,7 @@ impl ServerManager {
         Some(ServerManager {
             event_queue,
             network,
-            room: Room::new(config.players),
+            room: Room::new(config.players_number),
             game: None,
             config,
         })
@@ -129,7 +129,7 @@ impl ServerManager {
     fn process_request_server_info(&mut self, endpoint: Endpoint) {
         let info = ServerInfo {
             udp_port: self.config.udp_port,
-            players: self.config.players as u8,
+            players_number: self.config.players_number as u8,
             map_size: self.config.map_size as u16,
             winner_points: self.config.winner_points as u16,
             logged_players: self.room.sessions().map(|session| session.name().to_string()).collect()

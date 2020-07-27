@@ -1,4 +1,4 @@
-use crate::message::{self, ClientMessage, ServerMessage, LoginStatus};
+use crate::message::{self, ClientMessage, ServerMessage, LoginStatus, ServerInfo};
 use crate::version::{self, Compatibility};
 use crate::util::{self};
 
@@ -24,11 +24,11 @@ enum Event {
     Close(ClosingReason),
 }
 
-struct ServerInfo {
+struct ConnectionInfo {
     ip: IpAddr,
     udp_port: Option<u16>,
-    tcp_endpoint: Endpoint,
-    udp_endpoint: Option<Endpoint>,
+    tcp: Endpoint,
+    udp: Option<Endpoint>,
     udp_confirmed: bool,
     session_token: Option<usize>,
 }
@@ -37,7 +37,8 @@ pub struct ClientManager {
     event_queue: EventQueue<Event>,
     network: NetworkManager,
     player_name: Option<String>,
-    server: ServerInfo,
+    server_info: Option<ServerInfo>,
+    connection: ConnectionInfo,
 }
 
 impl ClientManager {
@@ -51,34 +52,33 @@ impl ClientManager {
         ctrlc::set_handler(move || network_sender.send_with_priority(Event::Close(ClosingReason::Forced))).unwrap();
 
         if let Some((tcp_endpoint, _)) = network.connect(addr, TransportProtocol::Tcp) {
-            let msg = format!("Connected to server on '{}' by tcp", addr);
-            log::info!("{}", msg);
-            println!("{}", msg);
+            log::info!("Connected to server by tcp on {}", addr);
+            println!("Connect to server!");
             Some(ClientManager {
                 event_queue,
                 network,
                 player_name: player_name.map(|s| s.to_string()),
-                server: ServerInfo {
+                server_info: None,
+                connection: ConnectionInfo {
                     ip: addr.ip(),
                     udp_port: None,
-                    tcp_endpoint,
-                    udp_endpoint: None,
+                    tcp: tcp_endpoint,
+                    udp: None,
                     udp_confirmed: false,
                     session_token: None,
-                }
+                },
 
             })
         }
         else {
-            let msg = format!("Could not connect to server on '{}' by tcp", addr);
-            log::error!("{}", msg);
-            eprintln!("{}", msg);
+            log::error!("Could not connect to server by tcp on {}", addr);
+            println!("Could not connect to server on {}", addr);
             None
         }
     }
 
     pub fn run(&mut self) -> ClosingReason {
-        self.network.send(self.server.tcp_endpoint, ClientMessage::Version(version::current().to_string()));
+        self.network.send(self.connection.tcp, ClientMessage::Version(version::current().to_string()));
         loop {
             let event = self.event_queue.receive();
             log::trace!("[Process event] - {:?}", event);
@@ -137,39 +137,47 @@ impl ClientManager {
             }
         }
         if compatibility.is_compatible() {
-            self.network.send(self.server.tcp_endpoint, ClientMessage::RequestServerInfo);
+            self.network.send(self.connection.tcp, ClientMessage::RequestServerInfo);
         }
     }
 
-    fn process_server_info(&mut self, info: message::ServerInfo) {
-        self.server.udp_port = Some(info.udp_port);
+    fn process_server_info(&mut self, info: ServerInfo) {
+        log::info!("Server info: {:?}", info);
+        println!("Game info:");
+        println!(" - Current players: {} ({} of {})", util::format_player_names(&info.logged_players), info.logged_players.len(), info.players_number);
+        println!(" - Winner points: {}", info.winner_points);
+        println!(" - Map size: {}x{}", info.map_size, info.map_size);
+
+        self.connection.udp_port = Some(info.udp_port);
+        self.server_info = Some(info);
         self.event_queue.sender().send(Event::Login);
     }
 
     fn process_login_status(&mut self, status: LoginStatus) {
+        let player_name = self.player_name.as_ref().unwrap();
         match status {
             LoginStatus::Logged(token) => {
-                log::info!("Logged with name '{}' successful", self.player_name.as_ref().unwrap());
+                log::info!("Logged with name '{}' successful", player_name);
                 println!("Logged!");
             },
             LoginStatus::Reconnected(token) => {
-                log::info!("Reconnected with name '{}' successful", self.player_name.as_ref().unwrap());
+                log::info!("Reconnected with name '{}' successful", player_name);
                 println!("Reconnected!");
             },
             LoginStatus::InvalidPlayerName => {
-                log::warn!("Invalid character name {}", self.player_name.as_ref().unwrap());
+                log::warn!("Invalid character name {}", player_name);
                 self.player_name = None;
                 self.event_queue.sender().send(Event::Login);
             },
             LoginStatus::AlreadyLogged => {
-                log::warn!("Character name '{}' already logged", self.player_name.as_ref().unwrap());
+                log::warn!("Character name '{}' already logged", player_name);
                 println!("Character name already logged, please use another name");
                 self.player_name = None;
                 self.event_queue.sender().send(Event::Login);
             },
             LoginStatus::PlayerLimit => {
                 log::error!("Server full");
-                println!("Player limit reached. Try later :(");
+                println!("Player limit reached: {}, Try later :(" , self.server_info.as_ref().unwrap().players_number);
                 self.event_queue.sender().send_with_priority(Event::Close(ClosingReason::ServerFull));
             },
         }
@@ -194,7 +202,7 @@ impl ClientManager {
             }
         }
         let name = self.player_name.clone().unwrap().clone();
-        self.network.send(self.server.tcp_endpoint, ClientMessage::Login(name));
+        self.network.send(self.connection.tcp, ClientMessage::Login(name));
     }
 }
 

@@ -23,7 +23,7 @@ pub fn run(matches: &ArgMatches) {
     let config = ServerConfig {
         tcp_port: 3001,
         udp_port: 3001,
-        players: 2,
+        players_number: 2,
         map_size: 30,
         winner_points: 15,
         init_game_waiting: Duration::from_secs(3),

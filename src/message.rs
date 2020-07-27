@@ -41,7 +41,7 @@ pub enum LoginStatus {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServerInfo {
     pub udp_port: u16,
-    pub players: u8,
+    pub players_number: u8,
     pub map_size: u16,
     pub winner_points: u16,
     pub logged_players: Vec<String>,

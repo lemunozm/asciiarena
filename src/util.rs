@@ -31,8 +31,10 @@ impl Direction {
 
 pub type SessionToken = usize;
 
+pub fn format_player_names<I: IntoIterator<Item = S>, S: AsRef<str> + Ord>(players: I) -> String {
+    let mut players: Vec<S> = players.into_iter().collect();
+    players.sort();
 
-pub fn format_player_names<I: IntoIterator<Item = S>, S: AsRef<str>>(players: I) -> String {
     let mut formatted = String::new();
     let mut it = players.into_iter();
     if let Some(name) = it.next() {
