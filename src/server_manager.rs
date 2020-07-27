@@ -2,7 +2,7 @@ use crate::message::{ClientMessage, ServerMessage, ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
 use crate::session::{Room, SessionCreationResult, HintEndpoint};
 use crate::game::{Game};
-use crate::util::{self, PlayerNames};
+use crate::util::{self};
 
 use message_io::events::{EventQueue};
 use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint};
@@ -74,13 +74,13 @@ impl ServerManager {
                         log::trace!("Message from {}", self.network.endpoint_remote_address(endpoint).unwrap());
                         match message {
                             ClientMessage::Version(client_version) => {
-                                self.process_msg_version(endpoint, &client_version);
+                                self.process_version(endpoint, &client_version);
                             }
                             ClientMessage::RequestServerInfo => {
-                                self.process_msg_request_server_info(endpoint);
+                                self.process_request_server_info(endpoint);
                             }
                             ClientMessage::Login(player_name) => {
-                                self.process_msg_login(endpoint, &player_name);
+                                self.process_login(endpoint, &player_name);
                             }
                         }
                     },
@@ -93,7 +93,7 @@ impl ServerManager {
                         }
                         else {
                             if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
-                                log::info!("Player '{}' logout, current players: {} ", session.name(), self.current_player_names());
+                                log::info!("Player '{}' logout, current players: {} ", session.name(), util::format_player_names(self.room.sessions().map(|session| session.name())));
                             }
                         }
                     },
@@ -109,7 +109,7 @@ impl ServerManager {
         }
     }
 
-    fn process_msg_version(&mut self, endpoint: Endpoint, client_version: &str) {
+    fn process_version(&mut self, endpoint: Endpoint, client_version: &str) {
         let compatibility = version::check(&client_version, version::current());
         match compatibility {
             Compatibility::Fully =>
@@ -126,7 +126,7 @@ impl ServerManager {
         }
     }
 
-    fn process_msg_request_server_info(&mut self, endpoint: Endpoint) {
+    fn process_request_server_info(&mut self, endpoint: Endpoint) {
         let info = ServerInfo {
             udp_port: self.config.udp_port,
             players: self.config.players as u8,
@@ -138,7 +138,7 @@ impl ServerManager {
         self.network.send(endpoint, ServerMessage::ServerInfo(info));
     }
 
-    fn process_msg_login(&mut self, endpoint: Endpoint, player_name: &str) {
+    fn process_login(&mut self, endpoint: Endpoint, player_name: &str) {
         let status =
         if !util::is_valid_player_name(player_name) {
             log::warn!("Invalid login name '{}' has tried to login", player_name);
@@ -147,14 +147,15 @@ impl ServerManager {
         else {
             match self.room.create_session(player_name, endpoint) {
                 SessionCreationResult::Created(token) => {
-                    log::info!("New player logged: {}, current players: {}", player_name, self.current_player_names());
+                    let player_names = self.room.sessions().map(|session| session.name().to_string()).collect();
+                    log::info!("New player logged: {}, current players: {}", player_name, util::format_player_names(&player_names));
                     let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe).filter(|&&e| e != endpoint);
-                    self.network.send_all(endpoints, ServerMessage::NotifyNewPlayer(player_name.to_string())).ok();
+                    self.network.send_all(endpoints, ServerMessage::PlayerListUpdated(player_names)).ok();
                     LoginStatus::Logged(token)
                 }
                 SessionCreationResult::Recycled(token) => {
-                    log::info!("Player '{}' has recovered connection ", player_name);
-                    LoginStatus::Relogged(token)
+                    log::info!("Player '{}' reconnected", player_name);
+                    LoginStatus::Reconnected(token)
                 }
                 SessionCreationResult::AlreadyLogged => {
                     log::warn!("Player '{}' has tried to login but the name is already logged", player_name);
@@ -181,10 +182,6 @@ impl ServerManager {
     fn process_init_game(&mut self) {
         log::trace!("Game initialized");
         log::info!("Arena 1"); //REMOVE: Show as example
-    }
-
-    fn current_player_names(&self) -> PlayerNames<'_> {
-        PlayerNames(self.room.sessions().map(|session| session.name()).collect::<Vec<_>>())
     }
 }
 

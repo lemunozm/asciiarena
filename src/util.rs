@@ -31,19 +31,20 @@ impl Direction {
 
 pub type SessionToken = usize;
 
-pub struct PlayerNames<'a>(pub Vec<&'a str>);
 
-impl<'a> std::fmt::Display for PlayerNames<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let separation = ", ";
-        write!(f, "[")?;
-        for (i, name) in self.0.iter().enumerate() {
-            write!(f, "{}{}", name, if i < self.0.len() - 1 {separation} else {""})?;
+pub fn format_player_names<I: IntoIterator<Item = S>, S: AsRef<str>>(players: I) -> String {
+    let mut formatted = String::new();
+    let mut it = players.into_iter();
+    if let Some(name) = it.next() {
+        formatted.push_str(name.as_ref());
+        for name in it {
+            formatted.push_str(&format!(", {}", name.as_ref()));
         }
-        write!(f, "]")
     }
+    formatted
 }
 
 pub fn is_valid_player_name(name: &str) -> bool {
     name.len() == 1 && name.chars().all(|c| c.is_ascii_uppercase())
 }
+

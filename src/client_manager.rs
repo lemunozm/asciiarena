@@ -14,19 +14,13 @@ pub enum ClosingReason {
     Forced,
     ConnectionLost,
     IncompatibleVersions,
-}
-
-#[derive(Debug)]
-pub enum LoginPhase {
-    Initial,
-    Logged,
-    //UdpHandshake{msg_count: usize},
+    ServerFull,
 }
 
 #[derive(Debug)]
 enum Event {
     Network(NetEvent<ServerMessage>),
-    Login(LoginPhase),
+    Login,
     Close(ClosingReason),
 }
 
@@ -94,16 +88,16 @@ impl ClientManager {
                         log::trace!("Message from {}", self.network.endpoint_remote_address(endpoint).unwrap());
                         match message {
                             ServerMessage::Version(server_version, server_side_compatibility) => {
-                                self.process_msg_version(&server_version, server_side_compatibility);
+                                self.process_version(&server_version, server_side_compatibility);
                             }
                             ServerMessage::ServerInfo(info) => {
-                                self.process_msg_server_info(&info);
+                                self.process_server_info(info);
                             }
                             ServerMessage::LoginStatus(status) => {
-                                self.process_msg_login_status(&status);
+                                self.process_login_status(status);
                             }
-                            ServerMessage::NotifyNewPlayer(name) => {
-                                self.process_msg_notify_new_player(&name);
+                            ServerMessage::PlayerListUpdated(players) => {
+                                self.process_notify_new_player(players);
                             }
                         }
                     },
@@ -113,8 +107,8 @@ impl ClientManager {
                         self.event_queue.sender().send_with_priority(Event::Close(ClosingReason::ConnectionLost))
                     }
                 },
-                Event::Login(phase) => {
-                    self.process_login(phase);
+                Event::Login => {
+                    self.process_login();
                 }
                 Event::Close(reason) => {
                     log::info!("Closing client. Reason: {:?}", reason);
@@ -124,7 +118,7 @@ impl ClientManager {
         }
     }
 
-    fn process_msg_version(&mut self, server_version: &str, server_side_compatibility: Compatibility) {
+    fn process_version(&mut self, server_version: &str, server_side_compatibility: Compatibility) {
         let client_side_compatibility = version::check(version::current(), &server_version);
         let compatibility = std::cmp::min(client_side_compatibility, server_side_compatibility);
         match compatibility {
@@ -147,56 +141,60 @@ impl ClientManager {
         }
     }
 
-    fn process_msg_server_info(&mut self, info: &message::ServerInfo) {
+    fn process_server_info(&mut self, info: message::ServerInfo) {
         self.server.udp_port = Some(info.udp_port);
-        if info.players as usize > info.logged_players.len() {
-            self.event_queue.sender().send(Event::Login(LoginPhase::Initial));
+        self.event_queue.sender().send(Event::Login);
+    }
+
+    fn process_login_status(&mut self, status: LoginStatus) {
+        match status {
+            LoginStatus::Logged(token) => {
+                log::info!("Logged with name '{}' successful", self.player_name.as_ref().unwrap());
+                println!("Logged!");
+            },
+            LoginStatus::Reconnected(token) => {
+                log::info!("Reconnected with name '{}' successful", self.player_name.as_ref().unwrap());
+                println!("Reconnected!");
+            },
+            LoginStatus::InvalidPlayerName => {
+                log::warn!("Invalid character name {}", self.player_name.as_ref().unwrap());
+                self.player_name = None;
+                self.event_queue.sender().send(Event::Login);
+            },
+            LoginStatus::AlreadyLogged => {
+                log::warn!("Character name '{}' already logged", self.player_name.as_ref().unwrap());
+                println!("Character name already logged, please use another name");
+                self.player_name = None;
+                self.event_queue.sender().send(Event::Login);
+            },
+            LoginStatus::PlayerLimit => {
+                log::error!("Server full");
+                println!("Player limit reached. Try later :(");
+                self.event_queue.sender().send_with_priority(Event::Close(ClosingReason::ServerFull));
+            },
         }
     }
 
-    fn process_msg_login_status(&mut self, status: &LoginStatus) {
+    fn process_notify_new_player(&mut self, name: Vec<String>) {
         //TODO
     }
 
-    fn process_msg_notify_new_player(&mut self, name: &str) {
-        //TODO
-    }
-
-    fn process_login(&mut self, phase: LoginPhase) {
-        match phase {
-            LoginPhase::Initial => {
-                if self.player_name.is_none() {
-                    loop {
-                        println!("Choose a character (an unique letter from A to Z): ");
-                        let possible_name = io::stdin().lock().lines().next().unwrap().unwrap();
-                        if util::is_valid_player_name(&possible_name) {
-                            self.player_name = Some(possible_name);
-                            break;
-                        }
-                    }
+    fn process_login(&mut self) {
+        if self.player_name.is_none() {
+            loop {
+                println!("Choose a character (an unique letter from A to Z): ");
+                let possible_name = io::stdin().lock().lines().next().unwrap().unwrap();
+                if util::is_valid_player_name(&possible_name) {
+                    self.player_name = Some(possible_name);
+                    break;
                 }
-                //Check name
-                let name = self.player_name.clone().unwrap().clone();
-                self.network.send(self.server.tcp_endpoint, ClientMessage::Login(name));
-            },
-            LoginPhase::Logged => {
-            },
-                //TODO
-                /*
-                let (endpoint, _) = self.network.connect(SocketAddr::from((self.server.ip, self.server.udp_port)), TransportProtocol::Udp).unwrap();
-                self.server.udp_endpoint = Some(endpoint);
-                self.event_queue.sender().send(Event::Login(LoginPhase::UdpHandshake{msg_count: 0}));
-                */
-            /*
-            LoginPhase::UdpHandshake{msg_count} => {
-                if msg_count <
-                self.network.send()
-                self.event_queue.sender().send_with_timer(Event::Login(LoginPhase::UdpHandshake{msg_count: msg_count + 1}), Duration::from_millis());
-            },
-            */
+                else {
+                    //warn
+                }
+            }
         }
-        //Create socket
-        //User name by CLI if not setted.
+        let name = self.player_name.clone().unwrap().clone();
+        self.network.send(self.server.tcp_endpoint, ClientMessage::Login(name));
     }
 }
 

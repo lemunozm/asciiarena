@@ -22,7 +22,7 @@ pub enum ServerMessage {
     Version(String, Compatibility),
     ServerInfo(ServerInfo),
     LoginStatus(LoginStatus),
-    NotifyNewPlayer(String),
+    PlayerListUpdated(Vec<String>),
     //UdpHello(SessionToken),
 }
 
@@ -32,7 +32,7 @@ pub enum ServerMessage {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum LoginStatus {
     Logged(SessionToken),
-    Relogged(SessionToken),
+    Reconnected(SessionToken),
     InvalidPlayerName,
     AlreadyLogged,
     PlayerLimit,
