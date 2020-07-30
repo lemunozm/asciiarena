@@ -26,7 +26,7 @@ pub fn run(matches: &ArgMatches) {
         players_number: 2,
         map_size: 30,
         winner_points: 15,
-        init_arena_waiting: Duration::from_secs(3),
+        arena_waiting: Duration::from_secs(3),
     };
 
     if let Some(mut server_manager) = ServerManager::new(config) {

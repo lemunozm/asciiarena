@@ -1,4 +1,4 @@
-use crate::message::{self, ClientMessage, ServerMessage, LoginStatus, ServerInfo};
+use crate::message::{ClientMessage, ServerMessage, LoginStatus, ServerInfo};
 use crate::version::{self, Compatibility};
 use crate::util::{self};
 
@@ -7,6 +7,7 @@ use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint}
 
 use std::net::{IpAddr, SocketAddr};
 use std::io::{self, BufRead};
+use std::time::{Duration};
 
 #[derive(Debug)]
 pub enum ClosingReason {
@@ -99,6 +100,15 @@ impl ClientManager {
                             ServerMessage::PlayerListUpdated(players) => {
                                 self.process_notify_new_player(players);
                             }
+                            ServerMessage::StartGame => {
+                                self.process_start_game();
+                            },
+                            ServerMessage::PrepareArena(duration) => {
+                                self.process_prepare_arena(duration);
+                            },
+                            ServerMessage::StartArena => {
+                                self.process_start_arena();
+                            },
                         }
                     },
                     NetEvent::AddedEndpoint(_, _) => unreachable!(),
@@ -159,10 +169,12 @@ impl ClientManager {
             LoginStatus::Logged(token) => {
                 log::info!("Logged with name '{}' successful", player_name);
                 println!("Logged!");
+                self.connection.session_token = Some(token);
             },
             LoginStatus::Reconnected(token) => {
                 log::info!("Reconnected with name '{}' successful", player_name);
                 println!("Reconnected!");
+                self.connection.session_token = Some(token);
             },
             LoginStatus::InvalidPlayerName => {
                 log::warn!("Invalid character name {}", player_name);
@@ -206,6 +218,20 @@ impl ClientManager {
 
         let name = self.player_name.clone().unwrap().clone();
         self.network.send(self.connection.tcp, ClientMessage::Login(name));
+    }
+
+    fn process_start_game(&mut self) {
+        log::info!("Start game");
+        println!("Players ready! Initializing game");
+    }
+
+    fn process_prepare_arena(&mut self, duration: Duration) {
+        log::info!("The arena will be start in {}", duration.as_secs_f32());
+        //println!("3..."); //TODO
+    }
+
+    fn process_start_arena(&mut self) {
+        log::info!("Start arena 1");
     }
 }
 

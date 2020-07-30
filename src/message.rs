@@ -3,6 +3,8 @@ use crate::util::{SessionToken};
 
 use serde::{Serialize, Deserialize};
 
+use std::time::{Duration};
+
 // ===================================================
 //     High level messages
 // ===================================================
@@ -24,6 +26,9 @@ pub enum ServerMessage {
     LoginStatus(LoginStatus),
     PlayerListUpdated(Vec<String>),
     //UdpHello(SessionToken),
+    StartGame,
+    PrepareArena(Duration),
+    StartArena,
 }
 
 // ===================================================

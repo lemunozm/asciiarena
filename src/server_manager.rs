@@ -25,7 +25,7 @@ pub struct ServerConfig {
     pub players_number: usize,
     pub map_size: usize,
     pub winner_points: usize,
-    pub init_arena_waiting: Duration,
+    pub arena_waiting: Duration,
 }
 
 pub struct ServerManager {
@@ -140,7 +140,7 @@ impl ServerManager {
             players_number: self.config.players_number as u8,
             map_size: self.config.map_size as u16,
             winner_points: self.config.winner_points as u16,
-            logged_players: self.room.sessions().map(|session| session.name().to_string()).collect()
+            logged_players: self.room.sessions().map(|session| session.name().to_string()).collect(),
         };
 
         self.network.send(endpoint, ServerMessage::ServerInfo(info));
@@ -164,6 +164,7 @@ impl ServerManager {
                 SessionCreationResult::Recycled(token) => {
                     log::info!("Player '{}' reconnected", player_name);
                     LoginStatus::Reconnected(token)
+                    //TODO: send an StartArena directly (ensure)
                 }
                 SessionCreationResult::AlreadyLogged => {
                     log::warn!("Player '{}' has tried to login but the name is already logged", player_name);
@@ -188,15 +189,24 @@ impl ServerManager {
         log::info!("Starting new game");
         self.game = Some(Game::new());
         self.event_queue.sender().send(Event::PrepareArena);
+
+        let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe);
+        self.network.send_all(endpoints, ServerMessage::StartGame).ok();
     }
 
     fn process_prepare_arena(&mut self) {
-        log::info!("Initializing arena in {} seconds...", self.config.init_arena_waiting.as_secs_f32());
-        self.event_queue.sender().send_with_timer(Event::StartArena, self.config.init_arena_waiting);
+        log::info!("Initializing arena in {} seconds...", self.config.arena_waiting.as_secs_f32());
+        self.event_queue.sender().send_with_timer(Event::StartArena, self.config.arena_waiting);
+
+        let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe);
+        self.network.send_all(endpoints, ServerMessage::PrepareArena(self.config.arena_waiting)).ok();
     }
 
     fn process_start_arena(&mut self) {
         log::info!("Arena 1"); //REMOVE: Show as example
+
+        let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe);
+        self.network.send_all(endpoints, ServerMessage::StartArena).ok();
     }
 }
 
