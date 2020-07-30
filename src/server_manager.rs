@@ -13,7 +13,9 @@ use std::time::{Duration};
 #[derive(Debug)]
 enum Event {
     Network(NetEvent<ClientMessage>),
-    InitGame,
+    StartGame,
+    PrepareArena,
+    StartArena,
     Close,
 }
 
@@ -23,7 +25,7 @@ pub struct ServerConfig {
     pub players_number: usize,
     pub map_size: usize,
     pub winner_points: usize,
-    pub init_game_waiting: Duration,
+    pub init_arena_waiting: Duration,
 }
 
 pub struct ServerManager {
@@ -98,8 +100,14 @@ impl ServerManager {
                         }
                     },
                 },
-                Event::InitGame => {
-                    self.process_init_game();
+                Event::StartGame => {
+                    self.process_start_game();
+                },
+                Event::PrepareArena => {
+                    self.process_prepare_arena();
+                },
+                Event::StartArena => {
+                    self.process_start_arena();
                 },
                 Event::Close => {
                     log::info!("Closing server");
@@ -172,15 +180,22 @@ impl ServerManager {
         self.network.send(endpoint, ServerMessage::LoginStatus(status));
 
         if self.game.is_none() && self.room.is_full() {
-            log::info!("Starting new game...");
-            self.game = Some(Game::new());
-            log::trace!("Initializing game in {} seconds", self.config.init_game_waiting.as_secs_f32());
-            self.event_queue.sender().send_with_timer(Event::InitGame, self.config.init_game_waiting);
+            self.event_queue.sender().send(Event::StartGame);
         }
     }
 
-    fn process_init_game(&mut self) {
-        log::trace!("Game initialized");
+    fn process_start_game(&mut self) {
+        log::info!("Starting new game");
+        self.game = Some(Game::new());
+        self.event_queue.sender().send(Event::PrepareArena);
+    }
+
+    fn process_prepare_arena(&mut self) {
+        log::info!("Initializing arena in {} seconds...", self.config.init_arena_waiting.as_secs_f32());
+        self.event_queue.sender().send_with_timer(Event::StartArena, self.config.init_arena_waiting);
+    }
+
+    fn process_start_arena(&mut self) {
         log::info!("Arena 1"); //REMOVE: Show as example
     }
 }

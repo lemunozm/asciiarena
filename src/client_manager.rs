@@ -183,24 +183,27 @@ impl ClientManager {
         }
     }
 
-    fn process_notify_new_player(&mut self, name: Vec<String>) {
-        //TODO
+    fn process_notify_new_player(&mut self, player_names: Vec<String>) {
+        let mut info = self.server_info.as_mut().unwrap();
+        info.logged_players = player_names;
+        log::info!("Player list updated: {}", util::format_player_names(&info.logged_players));
+        println!("Player list updated: {} ({} of {})", util::format_player_names(&info.logged_players), info.logged_players.len(), info.players_number);
     }
 
     fn process_login(&mut self) {
         if self.player_name.is_none() {
-            loop {
-                println!("Choose a character (an unique letter from A to Z): ");
-                let possible_name = io::stdin().lock().lines().next().unwrap().unwrap();
-                if util::is_valid_player_name(&possible_name) {
-                    self.player_name = Some(possible_name);
-                    break;
-                }
-                else {
-                    //warn
-                }
+            println!("Choose a character (an unique letter from A to Z): ");
+            let possible_name = io::stdin().lock().lines().next().unwrap().unwrap();
+            if util::is_valid_player_name(&possible_name) {
+                self.player_name = Some(possible_name);
+            }
+            else {
+                println!("Character name '{}' not valid, try again", possible_name);
+                log::warn!("Character name '{}' not valid", possible_name);
+                return self.event_queue.sender().send(Event::Login);
             }
         }
+
         let name = self.player_name.clone().unwrap().clone();
         self.network.send(self.connection.tcp, ClientMessage::Login(name));
     }
