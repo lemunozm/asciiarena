@@ -34,7 +34,7 @@ pub enum ServerMessage {
 // ===================================================
 //     Composable message pieces
 // ===================================================
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum LoginStatus {
     Logged(SessionToken),
     Reconnected(SessionToken),

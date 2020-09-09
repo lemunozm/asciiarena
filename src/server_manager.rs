@@ -96,6 +96,9 @@ impl ServerManager {
                         else {
                             if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
                                 log::info!("Player '{}' logout, current players: {} ", session.name(), util::format_player_names(self.room.sessions().map(|session| session.name())));
+                                let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe);
+                                let player_names = self.room.sessions().map(|session| session.name().to_string()).collect();
+                                self.network.send_all(endpoints, ServerMessage::PlayerListUpdated(player_names)).ok();
                             }
                         }
                     },
@@ -155,16 +158,13 @@ impl ServerManager {
         else {
             match self.room.create_session(player_name, endpoint) {
                 SessionCreationResult::Created(token) => {
-                    let player_names = self.room.sessions().map(|session| session.name().to_string()).collect();
-                    log::info!("New player logged: {}, current players: {}", player_name, util::format_player_names(&player_names));
-                    let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe).filter(|&&e| e != endpoint);
-                    self.network.send_all(endpoints, ServerMessage::PlayerListUpdated(player_names)).ok();
+                    let player_names = self.room.sessions().map(|session| session.name().to_string());
+                    log::info!("New player logged: {}, current players: {}", player_name, util::format_player_names(player_names));
                     LoginStatus::Logged(token)
                 }
                 SessionCreationResult::Recycled(token) => {
                     log::info!("Player '{}' reconnected", player_name);
                     LoginStatus::Reconnected(token)
-                    //TODO: send an StartArena directly (ensure)
                 }
                 SessionCreationResult::AlreadyLogged => {
                     log::warn!("Player '{}' has tried to login but the name is already logged", player_name);
@@ -180,19 +180,47 @@ impl ServerManager {
         log::trace!("{} with player name '{}' attempts to login. Status: {:?}", self.network.endpoint_remote_address(endpoint).unwrap(), player_name, status);
         self.network.send(endpoint, ServerMessage::LoginStatus(status));
 
-        if self.game.is_none() && self.room.is_full() {
-            self.event_queue.sender().send(Event::StartGame);
+        match status {
+            LoginStatus::Logged(_) => {
+                let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe).filter(|&&e| e != endpoint);
+                let player_names = self.room.sessions().map(|session| session.name().to_string()).collect();
+                self.network.send_all(endpoints, ServerMessage::PlayerListUpdated(player_names)).ok();
+                if self.game.is_none() && self.room.is_full() {
+                    self.event_queue.sender().send(Event::StartGame);
+                }
+            },
+            LoginStatus::Reconnected(_) => {
+                if self.game.is_some() {
+                    self.network.send(endpoint, ServerMessage::StartGame);
+                    self.network.send(endpoint, ServerMessage::PrepareArena(Duration::from_secs(0))); //Check from the duration time
+                    //if duration time == 0 (already started), send StartArena
+                }
+            },
+            _ => (),
         }
+
     }
 
     fn process_start_game(&mut self) {
         log::info!("Starting new game");
         self.game = Some(Game::new());
-        self.event_queue.sender().send(Event::PrepareArena);
+        self.event_queue.sender().send(Event::PrepareArena); //Event::GameEvent
 
         let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe);
         self.network.send_all(endpoints, ServerMessage::StartGame).ok();
     }
+
+    /*
+    fn process_game_event(&mut self, game_event: GameEvent) {
+        match self.game.process_event() {
+            GameEvent::
+            match timer {
+                Some(duration) => self.event_queue.sender().send(Event::Game(event)),
+                None => self.event_queue.sender().send_with_timer(Event::Game(event), duration),
+            }
+        }
+    }
+    */
 
     fn process_prepare_arena(&mut self) {
         log::info!("Initializing arena in {} seconds...", self.config.arena_waiting.as_secs_f32());

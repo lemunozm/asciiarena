@@ -22,6 +22,7 @@ pub enum ClosingReason {
 enum Event {
     Network(NetEvent<ServerMessage>),
     Login,
+    WaitingArena(Duration),
     Close(ClosingReason),
 }
 
@@ -119,7 +120,10 @@ impl ClientManager {
                 },
                 Event::Login => {
                     self.process_login();
-                }
+                },
+                Event::WaitingArena(duration) => {
+                    self.process_waiting_arena(duration);
+                },
                 Event::Close(reason) => {
                     log::info!("Closing client. Reason: {:?}", reason);
                     break reason
@@ -222,12 +226,22 @@ impl ClientManager {
 
     fn process_start_game(&mut self) {
         log::info!("Start game");
-        println!("Players ready! Initializing game");
+        println!("Players ready!");
     }
 
     fn process_prepare_arena(&mut self, duration: Duration) {
         log::info!("The arena will be start in {}", duration.as_secs_f32());
-        //println!("3..."); //TODO
+        println!("Initializing arena in");
+        self.event_queue.sender().send_with_priority(Event::WaitingArena(duration));
+    }
+
+    fn process_waiting_arena(&mut self, duration: Duration) {
+        println!("{}...", duration.as_secs_f32());
+        let interval = Duration::from_secs(1);
+        if duration > interval {
+            let remaining_time = duration - interval;
+            self.event_queue.sender().send_with_timer(Event::WaitingArena(remaining_time), interval);
+        }
     }
 
     fn process_start_arena(&mut self) {
