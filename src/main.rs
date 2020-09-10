@@ -15,23 +15,22 @@ mod session;
 mod game;
 
 
-use clap::{self, App};
+use clap::{self, App, AppSettings};
 
 fn main() {
     let matches = App::new(clap::crate_name!())
         .version(clap::crate_version!())
         .author(clap::crate_authors!())
         .about(clap::crate_description!())
+        .setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(app::client::configure_cli())
         .subcommand(app::server::configure_cli())
         .get_matches();
 
-    if let (name, Some(matches)) = matches.subcommand() {
-        match name {
-            "client" => app::client::run(matches),
-            "server" => app::server::run(matches),
-            _ => unreachable!(),
-        }
+    match matches.subcommand() {
+        ("client", Some(matches)) => app::client::run(matches),
+        ("server", Some(matches)) => app::server::run(matches),
+        _ => unreachable!(),
     }
 }
 

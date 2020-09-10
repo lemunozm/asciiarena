@@ -5,9 +5,8 @@ use crate::game::{Game};
 use crate::util::{self};
 
 use message_io::events::{EventQueue};
-use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint};
+use message_io::network::{NetworkManager, NetEvent, Endpoint};
 
-use std::net::{SocketAddr};
 use std::time::{Duration};
 
 #[derive(Debug)]
@@ -46,12 +45,13 @@ impl ServerManager {
         let network_sender = event_queue.sender().clone();
         ctrlc::set_handler(move || network_sender.send_with_priority(Event::Close)).unwrap();
 
-        if let None = network.listen(SocketAddr::from(([0, 0, 0, 0], config.tcp_port)), TransportProtocol::Tcp) {
+        let network_interface = "0.0.0.0";
+        if let Err(_) = network.listen_tcp((network_interface, config.tcp_port)) {
             log::error!("Can not run server on tcp port {}", config.tcp_port);
             return None;
         }
 
-        if let None = network.listen(SocketAddr::from(([0, 0, 0, 0], config.udp_port)), TransportProtocol::Udp) {
+        if let Err(_) = network.listen_udp((network_interface, config.udp_port)) {
             log::error!("Can not run server on udp port {}", config.udp_port);
             return None;
         }
@@ -73,7 +73,7 @@ impl ServerManager {
             match event {
                 Event::Network(net_event) => match net_event {
                     NetEvent::Message(endpoint, message) => {
-                        log::trace!("Message from {}", self.network.endpoint_remote_address(endpoint).unwrap());
+                        log::trace!("Message from {}", endpoint.addr());
                         match message {
                             ClientMessage::Version(client_version) => {
                                 self.process_version(endpoint, &client_version);
@@ -86,7 +86,7 @@ impl ServerManager {
                             }
                         }
                     },
-                    NetEvent::AddedEndpoint(_, _) => (),
+                    NetEvent::AddedEndpoint(_) => (),
                     NetEvent::RemovedEndpoint(endpoint) => {
                         if self.game.is_some() {
                             if let Some(session) = self.room.notify_lost_endpoint(endpoint) {
@@ -95,7 +95,9 @@ impl ServerManager {
                         }
                         else {
                             if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
-                                log::info!("Player '{}' logout, current players: {} ", session.name(), util::format_player_names(self.room.sessions().map(|session| session.name())));
+                                log::info!("Player '{}' logout, current players: {} ", session.name(),
+                                    util::format_player_names(self.room.sessions().map(|session| session.name())));
+
                                 let endpoints = self.room.connected_endpoints(HintEndpoint::OnlySafe);
                                 let player_names = self.room.sessions().map(|session| session.name().to_string()).collect();
                                 self.network.send_all(endpoints, ServerMessage::PlayerListUpdated(player_names)).ok();
@@ -131,9 +133,9 @@ impl ServerManager {
                 log::warn!("Incompatible client version. Client: {}. Server: {}. Rejected", client_version, version::current()),
         };
 
-        self.network.send(endpoint, ServerMessage::Version(version::current().to_string(), compatibility));
+        self.network.send(endpoint, ServerMessage::Version(version::current().to_string(), compatibility)).unwrap();
         if let Compatibility::None = compatibility {
-            self.network.remove_endpoint(endpoint);
+            self.network.remove_resource(endpoint.resource_id()).unwrap();
         }
     }
 
@@ -146,7 +148,7 @@ impl ServerManager {
             logged_players: self.room.sessions().map(|session| session.name().to_string()).collect(),
         };
 
-        self.network.send(endpoint, ServerMessage::ServerInfo(info));
+        self.network.send(endpoint, ServerMessage::ServerInfo(info)).unwrap();
     }
 
     fn process_login(&mut self, endpoint: Endpoint, player_name: &str) {
@@ -177,8 +179,8 @@ impl ServerManager {
             }
         };
 
-        log::trace!("{} with player name '{}' attempts to login. Status: {:?}", self.network.endpoint_remote_address(endpoint).unwrap(), player_name, status);
-        self.network.send(endpoint, ServerMessage::LoginStatus(status));
+        log::trace!("{} with player name '{}' attempts to login. Status: {:?}", endpoint.addr(), player_name, status);
+        self.network.send(endpoint, ServerMessage::LoginStatus(status)).unwrap();
 
         match status {
             LoginStatus::Logged(_) => {
@@ -191,14 +193,13 @@ impl ServerManager {
             },
             LoginStatus::Reconnected(_) => {
                 if self.game.is_some() {
-                    self.network.send(endpoint, ServerMessage::StartGame);
-                    self.network.send(endpoint, ServerMessage::PrepareArena(Duration::from_secs(0))); //Check from the duration time
+                    self.network.send(endpoint, ServerMessage::StartGame).unwrap();
+                    self.network.send(endpoint, ServerMessage::PrepareArena(Duration::from_secs(0))).unwrap(); //Check from the duration time
                     //if duration time == 0 (already started), send StartArena
                 }
             },
             _ => (),
         }
-
     }
 
     fn process_start_game(&mut self) {

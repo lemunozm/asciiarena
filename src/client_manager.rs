@@ -3,7 +3,7 @@ use crate::version::{self, Compatibility};
 use crate::util::{self};
 
 use message_io::events::{EventQueue};
-use message_io::network::{NetworkManager, NetEvent, TransportProtocol, Endpoint};
+use message_io::network::{NetworkManager, NetEvent, Endpoint};
 
 use std::net::{IpAddr, SocketAddr};
 use std::io::{self, BufRead};
@@ -53,41 +53,43 @@ impl ClientManager {
         let network_sender = event_queue.sender().clone();
         ctrlc::set_handler(move || network_sender.send_with_priority(Event::Close(ClosingReason::Forced))).unwrap();
 
-        if let Some((tcp_endpoint, _)) = network.connect(addr, TransportProtocol::Tcp) {
-            log::info!("Connected to server by tcp on {}", addr);
-            println!("Connect to server!");
-            Some(ClientManager {
-                event_queue,
-                network,
-                player_name: player_name.map(|s| s.to_string()),
-                server_info: None,
-                connection: ConnectionInfo {
-                    ip: addr.ip(),
-                    udp_port: None,
-                    tcp: tcp_endpoint,
-                    udp: None,
-                    udp_confirmed: false,
-                    session_token: None,
-                },
+        match network.connect_tcp(addr) {
+            Ok(tcp_endpoint) => {
+                log::info!("Connected to server by tcp on {}", addr);
+                println!("Connect to server!");
+                Some(ClientManager {
+                    event_queue,
+                    network,
+                    player_name: player_name.map(|s| s.to_string()),
+                    server_info: None,
+                    connection: ConnectionInfo {
+                        ip: addr.ip(),
+                        udp_port: None,
+                        tcp: tcp_endpoint,
+                        udp: None,
+                        udp_confirmed: false,
+                        session_token: None,
+                    },
 
-            })
-        }
-        else {
-            log::error!("Could not connect to server by tcp on {}", addr);
-            println!("Could not connect to server on {}", addr);
-            None
+                })
+            },
+            Err(_) => {
+                log::error!("Could not connect to server by tcp on {}", addr);
+                println!("Could not connect to server on {}", addr);
+                None
+            }
         }
     }
 
     pub fn run(&mut self) -> ClosingReason {
-        self.network.send(self.connection.tcp, ClientMessage::Version(version::current().to_string()));
+        self.network.send(self.connection.tcp, ClientMessage::Version(version::current().to_string())).unwrap();
         loop {
             let event = self.event_queue.receive();
             log::trace!("[Process event] - {:?}", event);
             match event {
                 Event::Network(net_event) => match net_event {
                     NetEvent::Message(endpoint, message) => {
-                        log::trace!("Message from {}", self.network.endpoint_remote_address(endpoint).unwrap());
+                        log::trace!("Message from {}", endpoint.addr());
                         match message {
                             ServerMessage::Version(server_version, server_side_compatibility) => {
                                 self.process_version(&server_version, server_side_compatibility);
@@ -112,7 +114,7 @@ impl ClientManager {
                             },
                         }
                     },
-                    NetEvent::AddedEndpoint(_, _) => unreachable!(),
+                    NetEvent::AddedEndpoint(_) => unreachable!(),
                     NetEvent::RemovedEndpoint(_) => {
                         println!("Connection lost with the server");
                         self.event_queue.sender().send_with_priority(Event::Close(ClosingReason::ConnectionLost))
@@ -151,7 +153,7 @@ impl ClientManager {
             }
         }
         if compatibility.is_compatible() {
-            self.network.send(self.connection.tcp, ClientMessage::RequestServerInfo);
+            self.network.send(self.connection.tcp, ClientMessage::RequestServerInfo).unwrap();
         }
     }
 
@@ -221,7 +223,7 @@ impl ClientManager {
         }
 
         let name = self.player_name.clone().unwrap().clone();
-        self.network.send(self.connection.tcp, ClientMessage::Login(name));
+        self.network.send(self.connection.tcp, ClientMessage::Login(name)).unwrap();
     }
 
     fn process_start_game(&mut self) {
