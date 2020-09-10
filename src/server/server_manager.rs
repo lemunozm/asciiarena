@@ -1,7 +1,8 @@
+use super::session::{Room, SessionCreationResult, HintEndpoint};
+use super::game::{Game};
+
 use crate::message::{ClientMessage, ServerMessage, ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
-use crate::session::{Room, SessionCreationResult, HintEndpoint};
-use crate::game::{Game};
 use crate::util::{self};
 
 use message_io::events::{EventQueue};

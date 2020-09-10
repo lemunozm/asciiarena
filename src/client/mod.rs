@@ -1,4 +1,7 @@
-use crate::client_manager::{ClientManager};
+mod client_manager;
+
+use client_manager::{ClientManager};
+
 use crate::logger::{self};
 
 use clap::{App, Arg, ArgMatches};

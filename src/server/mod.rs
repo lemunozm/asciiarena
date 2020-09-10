@@ -1,4 +1,9 @@
-use crate::server_manager::{ServerManager, ServerConfig};
+mod server_manager;
+mod session;
+mod game;
+
+use server_manager::{ServerManager, ServerConfig};
+
 use crate::logger::{self};
 
 use clap::{App, Arg, ArgMatches};
