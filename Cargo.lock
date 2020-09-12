@@ -18,6 +18,7 @@ dependencies = [
  "colored",
  "ctrlc",
  "fern",
+ "lazy_static",
  "log",
  "message-io",
  "rand",

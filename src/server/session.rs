@@ -11,11 +11,6 @@ pub enum SessionCreationResult {
     Full,
 }
 
-pub enum HintEndpoint {
-    OnlySafe,
-    PreferedFast,
-}
-
 pub struct Room<E> {
     sessions: HashMap<SessionToken, PlayerSession<E>>,
     size: usize,
@@ -29,6 +24,10 @@ where E: Eq
             sessions: HashMap::new(),
             size,
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.sessions.clear();
     }
 
     pub fn size(&self) -> usize {
@@ -118,17 +117,15 @@ where E: Eq
         }
     }
 
-    pub fn connected_endpoints(&self, hint: HintEndpoint) -> impl Iterator<Item = &E> {
+    pub fn safe_endpoints(&self) -> impl Iterator<Item = &E> {
         self.sessions()
-            .map(move |session| {
-                match hint {
-                    HintEndpoint::OnlySafe => session.safe_endpoint(),
-                    HintEndpoint::PreferedFast => match session.fast_endpoint().is_some() {
-                        true => session.fast_endpoint(),
-                        false => session.safe_endpoint(),
-                    }
-                }.as_ref()
-            })
+            .map(|session| session.safe_endpoint().as_ref())
+            .filter_map(|e| e) // Only connected endpoints
+    }
+
+    pub fn fast_endpoints(&self) -> impl Iterator<Item = &E> {
+        self.sessions()
+            .map(|session| session.fast_endpoint().as_ref())
             .filter_map(|e| e) // Only connected endpoints
     }
 

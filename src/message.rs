@@ -13,9 +13,13 @@ use std::time::{Duration};
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ClientMessage {
     Version(String),
-    Login(String),
     RequestServerInfo,
+
+    Login(String),
     //UdpHello(SessionToken),
+
+    Move, //direction
+    Skill, //id
 }
 
 /// Messages that Server sends to Client
@@ -23,12 +27,19 @@ pub enum ClientMessage {
 pub enum ServerMessage {
     Version(String, Compatibility),
     ServerInfo(ServerInfo),
+
     LoginStatus(LoginStatus),
     PlayerListUpdated(Vec<String>),
     //UdpHello(SessionToken),
+
     StartGame,
+    EndGame, //points
+
     PrepareArena(Duration),
     StartArena,
+    EndArena, //winners
+
+    Step, //arena state
 }
 
 // ===================================================

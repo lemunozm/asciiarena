@@ -106,11 +106,20 @@ impl ClientManager {
                             ServerMessage::StartGame => {
                                 self.process_start_game();
                             },
+                            ServerMessage::EndGame => {
+                                //TODO
+                            },
                             ServerMessage::PrepareArena(duration) => {
                                 self.process_prepare_arena(duration);
                             },
                             ServerMessage::StartArena => {
                                 self.process_start_arena();
+                            },
+                            ServerMessage::EndArena => {
+                                //TODO
+                            },
+                            ServerMessage::Step => {
+                                //TODO
                             },
                         }
                     },
