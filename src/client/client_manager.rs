@@ -169,7 +169,7 @@ impl ClientManager {
     fn process_server_info(&mut self, info: ServerInfo) {
         log::info!("Server info: {:?}", info);
         println!("Game info:");
-        println!(" - Current players: {} ({} of {})", util::format_player_names(&info.logged_players), info.logged_players.len(), info.players_number);
+        println!(" - Current players: {} ({} of {})", util::format::player_names(&info.logged_players), info.logged_players.len(), info.players_number);
         println!(" - Winner points: {}", info.winner_points);
         println!(" - Map size: {}x{}", info.map_size, info.map_size);
 
@@ -213,8 +213,8 @@ impl ClientManager {
     fn process_notify_new_player(&mut self, player_names: Vec<String>) {
         let mut info = self.server_info.as_mut().unwrap();
         info.logged_players = player_names;
-        log::info!("Player list updated: {}", util::format_player_names(&info.logged_players));
-        println!("Player list updated: {} ({} of {})", util::format_player_names(&info.logged_players), info.logged_players.len(), info.players_number);
+        log::info!("Player list updated: {}", util::format::player_names(&info.logged_players));
+        println!("Player list updated: {} ({} of {})", util::format::player_names(&info.logged_players), info.logged_players.len(), info.players_number);
     }
 
     fn process_login(&mut self) {

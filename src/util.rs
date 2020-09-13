@@ -2,6 +2,8 @@ use crate::vec2::Vec2;
 
 use serde::{Serialize, Deserialize};
 
+use std::collections::{HashMap};
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum Direction {
     Up, Down, Left, Right, None,
@@ -31,22 +33,34 @@ impl Direction {
 
 pub type SessionToken = usize;
 
-pub fn format_player_names<I: IntoIterator<Item = S>, S: AsRef<str> + Ord>(players: I) -> String {
-    let mut players: Vec<S> = players.into_iter().collect();
-    players.sort();
-
-    let mut formatted = String::new();
-    let mut it = players.into_iter();
-    if let Some(name) = it.next() {
-        formatted.push_str(name.as_ref());
-        for name in it {
-            formatted.push_str(&format!(", {}", name.as_ref()));
-        }
-    }
-    formatted
-}
-
 pub fn is_valid_player_name(name: &str) -> bool {
     name.len() == 1 && name.chars().all(|c| c.is_ascii_uppercase())
 }
+
+pub mod format {
+    pub fn player_names<S: AsRef<str> + Ord>(players: impl IntoIterator<Item = S>) -> String {
+        let mut formatted = String::new();
+        let mut it = players.into_iter();
+        if let Some(name) = it.next() {
+            formatted.push_str(name.as_ref());
+            for name in it {
+                formatted.push_str(&format!(", {}", name.as_ref()));
+            }
+        }
+        formatted
+    }
+
+    pub fn player_points<S: AsRef<str> + Ord>(player_points: impl IntoIterator<Item = (S, usize)>) -> String {
+        let mut formatted = String::new();
+        let mut it = player_points.into_iter();
+        if let Some((player, points)) = it.next() {
+            formatted.push_str(&format!("{}: {}", player.as_ref(), points));
+            for (player, points) in it {
+                formatted.push_str(&format!(", {}: {}", player.as_ref(), points));
+            }
+        }
+        formatted
+    }
+}
+
 

@@ -21,15 +21,28 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
             .possible_values(&logger::LOG_LEVELS)
             .help("Sets the log level of verbosity")
         )
+        .arg(Arg::with_name("players")
+            .long("players")
+            .short("p")
+            .default_value("2")
+            .validator(|value| {
+                match value.parse::<u32>() {
+                    Ok(number) => if number < 1 { Err("The value must be > 1".into()) } else { Ok(()) },
+                    Err(_) => Err("The value must be a number".into())
+                }
+            })
+            .help("Number of players (> 1). The game will not start until the number of players is reached.")
+        )
 }
 
 pub fn run(matches: &ArgMatches) {
     logger::init(matches.value_of("log").unwrap().parse().unwrap());
 
+
     let config = ServerConfig {
         tcp_port: 3001,
         udp_port: 3001,
-        players_number: 3,
+        players_number: matches.value_of("players").unwrap().parse().unwrap(),
         map_size: 30,
         winner_points: 15,
         arena_waiting: Duration::from_secs(3),

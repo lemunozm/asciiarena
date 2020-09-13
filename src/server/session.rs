@@ -159,18 +159,6 @@ pub struct PlayerSession<E> {
 }
 
 impl<E> PlayerSession<E> {
-    pub fn is_connected(&self) -> bool {
-        self.safe_endpoint.is_some()
-    }
-
-    pub fn has_udp(&self) -> bool {
-        self.fast_endpoint.is_some()
-    }
-
-    pub fn has_connection_lost(&self) -> bool {
-        self.safe_endpoint.is_none()
-    }
-
     pub fn name(&self) -> &str {
         &self.name
     }

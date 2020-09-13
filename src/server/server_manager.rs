@@ -8,6 +8,8 @@ use crate::util::{self};
 use message_io::events::{EventQueue};
 use message_io::network::{NetworkManager, NetEvent, Endpoint};
 
+use itertools::{Itertools};
+
 use std::time::{Duration, Instant};
 
 lazy_static! {
@@ -64,7 +66,7 @@ impl ServerManager {
             return None;
         }
 
-        log::info!("Server running on tcp ports {} (tcp) and {} (udp)", config.tcp_port, config.udp_port);
+        log::info!("Server running on tcp ports {} (tcp) and {} (udp) for {} players", config.tcp_port, config.udp_port, config.players_number);
         Some(ServerManager {
             event_queue,
             network,
@@ -140,7 +142,7 @@ impl ServerManager {
                 log::warn!("Incompatible client version. Client: {}. Server: {}. Rejected", client_version, version::current()),
         };
 
-        self.network.send(endpoint, ServerMessage::Version(version::current().to_string(), compatibility)).unwrap();
+        self.network.send(endpoint, ServerMessage::Version(version::current().into(), compatibility)).unwrap();
         if let Compatibility::None = compatibility {
             self.network.remove_resource(endpoint.resource_id()).unwrap();
         }
@@ -152,7 +154,7 @@ impl ServerManager {
             players_number: self.config.players_number as u8,
             map_size: self.config.map_size as u16,
             winner_points: self.config.winner_points as u16,
-            logged_players: self.room.sessions().map(|session| session.name().to_string()).collect(),
+            logged_players: self.room.sessions().map(|session| session.name().into()).collect(),
         };
 
         self.network.send(endpoint, ServerMessage::ServerInfo(info)).unwrap();
@@ -167,8 +169,8 @@ impl ServerManager {
         else {
             match self.room.create_session(player_name, endpoint) {
                 SessionCreationResult::Created(token) => {
-                    let player_names = self.room.sessions().map(|session| session.name().to_string());
-                    log::info!("New player logged: {}, current players: {}", player_name, util::format_player_names(player_names));
+                    let player_names = self.room.sessions().map(|session| session.name().to_string()).sorted();
+                    log::info!("New player logged: {}, current players: {}", player_name, util::format::player_names(player_names));
                     LoginStatus::Logged(token)
                 }
                 SessionCreationResult::Recycled(token) => {
@@ -191,8 +193,8 @@ impl ServerManager {
 
         match status {
             LoginStatus::Logged(_) => {
+                let player_names = self.room.sessions().map(|session| session.name().into()).collect();
                 let endpoints = self.room.safe_endpoints().filter(|&&e| e != endpoint);
-                let player_names = self.room.sessions().map(|session| session.name().to_string()).collect();
                 self.network.send_all(endpoints, ServerMessage::PlayerListUpdated(player_names)).ok();
 
                 if self.game.is_none() && self.room.is_full() {
@@ -218,11 +220,11 @@ impl ServerManager {
 
     fn process_create_game(&mut self) {
         log::info!("Starting new game");
-        let game = Game::new(self.config.winner_points);
+        let player_names = self.room.sessions().map(|session| session.name().into());
+        let game = Game::new(player_names, self.config.winner_points);
         self.game = Some(game);
 
-        let endpoints = self.room.safe_endpoints();
-        self.network.send_all(endpoints, ServerMessage::StartGame).ok();
+        self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartGame).ok();
 
         self.event_queue.sender().send(Event::CreateArena);
     }
@@ -232,8 +234,7 @@ impl ServerManager {
         let arena = game.create_new_arena();
         log::info!("Initializing arena {} in {} seconds...", arena.id(), self.config.arena_waiting.as_secs_f32());
 
-        let endpoints = self.room.safe_endpoints();
-        self.network.send_all(endpoints, ServerMessage::PrepareArena(self.config.arena_waiting)).ok();
+        self.network.send_all(self.room.safe_endpoints(), ServerMessage::PrepareArena(self.config.arena_waiting)).ok();
 
         self.event_queue.sender().send_with_timer(Event::StartArena, self.config.arena_waiting);
         self.timestamp_last_arena_creation = Some(Instant::now());
@@ -244,29 +245,28 @@ impl ServerManager {
         let arena = game.arena().unwrap();
         log::info!("Start arena {}", arena.id());
 
-        let endpoints = self.room.safe_endpoints();
-        self.network.send_all(endpoints, ServerMessage::StartArena).ok();
+        self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartArena).ok();
 
         self.event_queue.sender().send(Event::GameStep);
     }
 
     fn process_game_step(&mut self) {
         let game = self.game.as_mut().unwrap();
-        log::info!("Processing step");
 
+        log::info!("Processing step"); //should be trace
         game.step();
 
         let arena = game.arena().unwrap();
-        let endpoints = self.room.fast_endpoints();
-        self.network.send_all(endpoints, ServerMessage::Step).ok();
+        self.network.send_all(self.room.fast_endpoints(), ServerMessage::Step).ok();
 
         if arena.has_finished() {
-            let endpoints = self.room.safe_endpoints();
-            self.network.send_all(endpoints, ServerMessage::EndArena).ok();
+            log::info!("End arena {}. Raking: {}", arena.id(), util::format::player_names(arena.ranking()));
+            log::info!("Game points: {}", util::format::player_points(game.pole()));
+            self.network.send_all(self.room.safe_endpoints(), ServerMessage::EndArena).ok();
 
             if game.has_finished() {
-                let endpoints = self.room.safe_endpoints();
-                self.network.send_all(endpoints, ServerMessage::EndGame).ok();
+                log::info!("End game");
+                self.network.send_all(self.room.safe_endpoints(), ServerMessage::EndGame).ok();
 
                 self.event_queue.sender().send(Event::Reset);
             }
@@ -280,6 +280,7 @@ impl ServerManager {
     }
 
     fn process_reset(&mut self) {
+        log::info!("Reset server");
         self.game = None;
         self.room.clear();
     }
@@ -293,11 +294,10 @@ impl ServerManager {
         else {
             if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
                 log::info!("Player '{}' logout, current players: {} ", session.name(),
-                    util::format_player_names(self.room.sessions().map(|session| session.name())));
+                    util::format::player_names(self.room.sessions().map(|session| session.name()).sorted()));
 
-                let player_names = self.room.sessions().map(|session| session.name().to_string()).collect();
-                let endpoints = self.room.safe_endpoints();
-                self.network.send_all(endpoints, ServerMessage::PlayerListUpdated(player_names)).ok();
+                let player_names = self.room.sessions().map(|session| session.name().into()).collect();
+                self.network.send_all(self.room.safe_endpoints(), ServerMessage::PlayerListUpdated(player_names)).ok();
             }
         }
     }
