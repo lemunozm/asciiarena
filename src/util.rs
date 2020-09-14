@@ -1,8 +1,6 @@
-use crate::vec2::Vec2;
+//use crate::vec2::Vec2;
 
 use serde::{Serialize, Deserialize};
-
-use std::collections::{HashMap};
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum Direction {
@@ -10,6 +8,7 @@ pub enum Direction {
 }
 
 impl Direction {
+    /*
     pub fn vec2(&self) -> Vec2 {
         match *self {
             Direction::Up => Vec2::y(-1.0),
@@ -29,6 +28,7 @@ impl Direction {
             Direction::None => Direction::None,
         }
     }
+    */
 }
 
 pub type SessionToken = usize;

@@ -7,6 +7,7 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
+    /*
     pub fn zero() -> Vec2 {
         Vec2 {x: 0.0, y: 0.0}
     }
@@ -39,6 +40,7 @@ impl Vec2 {
     pub fn square_length(&self) -> f32 {
         self.x * self.x + self.y * self.y
     }
+    */
 }
 
 impl Add for Vec2 {

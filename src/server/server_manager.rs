@@ -172,19 +172,19 @@ impl ServerManager {
                     let player_names = self.room.sessions().map(|session| session.name().to_string()).sorted();
                     log::info!("New player logged: {}, current players: {}", player_name, util::format::player_names(player_names));
                     LoginStatus::Logged(token)
-                }
+                },
                 SessionCreationResult::Recycled(token) => {
                     log::info!("Player '{}' reconnected", player_name);
                     LoginStatus::Reconnected(token)
-                }
+                },
                 SessionCreationResult::AlreadyLogged => {
                     log::warn!("Player '{}' has tried to login but the name is already logged", player_name);
                     LoginStatus::AlreadyLogged
-                }
+                },
                 SessionCreationResult::Full => {
                     log::warn!("Player '{}' has tried to login but the player limit has been reached", player_name);
                     LoginStatus::PlayerLimit
-                }
+                },
             }
         };
 
@@ -253,7 +253,7 @@ impl ServerManager {
     fn process_game_step(&mut self) {
         let game = self.game.as_mut().unwrap();
 
-        log::info!("Processing step"); //should be trace
+        log::info!("Processing step"); //TODO: should be trace
         game.step();
 
         let arena = game.arena().unwrap();
@@ -262,11 +262,11 @@ impl ServerManager {
         if arena.has_finished() {
             log::info!("End arena {}. Raking: {}", arena.id(), util::format::player_names(arena.ranking()));
             log::info!("Game points: {}", util::format::player_points(game.pole()));
-            self.network.send_all(self.room.safe_endpoints(), ServerMessage::EndArena).ok();
+            self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishArena).ok();
 
             if game.has_finished() {
                 log::info!("End game");
-                self.network.send_all(self.room.safe_endpoints(), ServerMessage::EndGame).ok();
+                self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishGame).ok();
 
                 self.event_queue.sender().send(Event::Reset);
             }

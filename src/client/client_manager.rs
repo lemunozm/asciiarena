@@ -106,8 +106,8 @@ impl ClientManager {
                             ServerMessage::StartGame => {
                                 self.process_start_game();
                             },
-                            ServerMessage::EndGame => {
-                                //TODO
+                            ServerMessage::FinishGame => {
+                                self.process_finish_game();
                             },
                             ServerMessage::PrepareArena(duration) => {
                                 self.process_prepare_arena(duration);
@@ -115,11 +115,11 @@ impl ClientManager {
                             ServerMessage::StartArena => {
                                 self.process_start_arena();
                             },
-                            ServerMessage::EndArena => {
-                                //TODO
+                            ServerMessage::FinishArena => {
+                                self.process_finish_arena();
                             },
                             ServerMessage::Step => {
-                                //TODO
+                                self.process_step();
                             },
                         }
                     },
@@ -240,6 +240,12 @@ impl ClientManager {
         println!("Players ready!");
     }
 
+    fn process_finish_game(&mut self) {
+        log::info!("Finish game");
+        println!("DEBUG: Finish game");
+        // In this state, the client needs to login again if want to continue playing
+    }
+
     fn process_prepare_arena(&mut self, duration: Duration) {
         log::info!("The arena will be start in {}", duration.as_secs_f32());
         println!("Initializing arena in");
@@ -250,13 +256,27 @@ impl ClientManager {
         println!("{}...", duration.as_secs_f32());
         let interval = Duration::from_secs(1);
         if duration > interval {
-            let remaining_time = duration - interval;
+            let remaining_time = match duration.subsec_millis() {
+                0 => duration - interval,
+                _ => Duration::from_secs(duration.as_secs()),
+            };
             self.event_queue.sender().send_with_timer(Event::WaitingArena(remaining_time), interval);
         }
     }
 
     fn process_start_arena(&mut self) {
-        log::info!("Start arena 1");
+        log::info!("Start arena");
+        println!("DEBUG: Start arena");
+    }
+
+    fn process_finish_arena(&mut self) {
+        log::info!("Finish arena");
+        println!("DEBUG: Finish arena");
+    }
+
+    fn process_step(&mut self) {
+        log::info!("Process step");
+        println!("DEBUG: Step");
     }
 }
 

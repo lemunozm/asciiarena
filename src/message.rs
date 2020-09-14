@@ -33,11 +33,11 @@ pub enum ServerMessage {
     //UdpHello(SessionToken),
 
     StartGame,
-    EndGame, //points
+    FinishGame, //points
 
     PrepareArena(Duration),
     StartArena,
-    EndArena, //winners
+    FinishArena, //winners
 
     Step, //arena state
 }

@@ -27,7 +27,7 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
             .default_value("2")
             .validator(|value| {
                 match value.parse::<u32>() {
-                    Ok(number) => if number < 1 { Err("The value must be > 1".into()) } else { Ok(()) },
+                    Ok(number) => if number <= 0 { Err("The value must be > 0".into()) } else { Ok(()) },
                     Err(_) => Err("The value must be a number".into())
                 }
             })
