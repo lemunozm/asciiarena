@@ -1,9 +1,9 @@
 use super::session::{Room, SessionCreationResult};
 use super::game::{Game};
 
-use crate::message::{ClientMessage, ServerMessage, ServerInfo, LoginStatus};
+use crate::message::{ClientMessage, ServerMessage, ServerInfo, LoginStatus, LoggedKind};
 use crate::version::{self, Compatibility};
-use crate::util::{self};
+use crate::util::{self, SessionToken};
 
 use message_io::events::{EventQueue};
 use message_io::network::{NetworkManager, NetEvent, Endpoint};
@@ -99,6 +99,12 @@ impl ServerManager {
                             ClientMessage::Login(player_name) => {
                                 self.process_login(endpoint, &player_name);
                             },
+                            ClientMessage::ConnectUdp(session_token) => {
+                                self.process_connect_udp(endpoint, session_token);
+                            },
+                            ClientMessage::TrustUdp => {
+                                self.process_trust_udp(endpoint);
+                            },
                             ClientMessage::Move => {
                                 //TODO
                             },
@@ -171,11 +177,11 @@ impl ServerManager {
                 SessionCreationResult::Created(token) => {
                     let player_names = self.room.sessions().map(|session| session.name().to_string()).sorted();
                     log::info!("New player logged: {}, current players: {}", player_name, util::format::player_names(player_names));
-                    LoginStatus::Logged(token)
+                    LoginStatus::Logged(token, LoggedKind::FirstTime)
                 },
                 SessionCreationResult::Recycled(token) => {
                     log::info!("Player '{}' reconnected", player_name);
-                    LoginStatus::Reconnected(token)
+                    LoginStatus::Logged(token, LoggedKind::Reconnection)
                 },
                 SessionCreationResult::AlreadyLogged => {
                     log::warn!("Player '{}' has tried to login but the name is already logged", player_name);
@@ -191,30 +197,52 @@ impl ServerManager {
         log::trace!("{} with player name '{}' attempts to login. Status: {:?}", endpoint.addr(), player_name, status);
         self.network.send(endpoint, ServerMessage::LoginStatus(status)).unwrap();
 
-        match status {
-            LoginStatus::Logged(_) => {
-                let player_names = self.room.sessions().map(|session| session.name().into()).collect();
-                let endpoints = self.room.safe_endpoints().filter(|&&e| e != endpoint);
-                self.network.send_all(endpoints, ServerMessage::PlayerListUpdated(player_names)).ok();
+        if let LoginStatus::Logged(_, kind) = status { // First time connection
+            match kind {
+                LoggedKind::FirstTime => {
+                    let player_names = self.room.sessions().map(|session| session.name().into()).collect();
+                    let endpoints = self.room.safe_endpoints().filter(|&&e| e != endpoint);
+                    self.network.send_all(endpoints, ServerMessage::PlayerListUpdated(player_names)).ok();
 
-                if self.game.is_none() && self.room.is_full() {
-                    self.event_queue.sender().send(Event::CreateGame);
-                }
-            },
-            LoginStatus::Reconnected(_) => {
-                if self.game.is_some() {
-                    self.network.send(endpoint, ServerMessage::StartGame).unwrap();
-
-                    let timestamp = self.timestamp_last_arena_creation.as_ref().unwrap();
-                    let duration_since_arena_creation = Instant::now().duration_since(*timestamp);
-                    if let Some(waiting) = self.config.arena_waiting.checked_sub(duration_since_arena_creation) {
-                        self.network.send(endpoint, ServerMessage::PrepareArena(waiting)).unwrap();
+                    if self.game.is_none() && self.room.is_full() {
+                        self.event_queue.sender().send(Event::CreateGame);
                     }
+                },
+                LoggedKind::Reconnection => {
+                    if self.game.is_some() {
+                        self.network.send(endpoint, ServerMessage::StartGame).unwrap();
 
-                    self.network.send(endpoint, ServerMessage::StartArena).unwrap();
+                        let timestamp = self.timestamp_last_arena_creation.as_ref().unwrap();
+                        let duration_since_arena_creation = Instant::now().duration_since(*timestamp);
+                        if let Some(waiting) = self.config.arena_waiting.checked_sub(duration_since_arena_creation) {
+                            self.network.send(endpoint, ServerMessage::PrepareArena(waiting)).unwrap();
+                        }
+
+                        self.network.send(endpoint, ServerMessage::StartArena).unwrap();
+                    }
                 }
+            }
+        }
+    }
+
+    fn process_connect_udp(&mut self, udp_endpoint: Endpoint, session_token: SessionToken) {
+        match self.room.session_mut(session_token) {
+            Some(session) => {
+                log::trace!("Attached udp endpoint to session '{}'", session_token);
+                session.set_untrusted_fast_endpoint(udp_endpoint);
+                self.network.send(udp_endpoint, ServerMessage::UdpConnected).unwrap();
+            }
+            None => log::warn!("Attempt to attach udp endpoint to non-existent session '{}'", session_token),
+        }
+    }
+
+    fn process_trust_udp(&mut self, related_tcp_endpoint: Endpoint) {
+        match self.room.session_by_endpoint_mut(related_tcp_endpoint) {
+            Some(session) => match session.trust_in_fast_endpoint() {
+                Some(_) => log::trace!("Trusted udp endpoint for session '{}'", session.token()),
+                None => log::error!("Attempt to trust into a non-existent udp endpoint. Session '{}'", session.token()),
             },
-            _ => (),
+            None => log::error!("Attempt to trust an udp endpoint in an non-existent session"),
         }
     }
 
@@ -257,7 +285,7 @@ impl ServerManager {
         game.step();
 
         let arena = game.arena().unwrap();
-        self.network.send_all(self.room.fast_endpoints(), ServerMessage::Step).ok();
+        self.network.send_all(self.room.faster_endpoints(), ServerMessage::Step).ok();
 
         if arena.has_finished() {
             log::info!("End arena {}. Raking: {}", arena.id(), util::format::player_names(arena.ranking()));
@@ -287,7 +315,8 @@ impl ServerManager {
 
     fn process_disconnection(&mut self, endpoint: Endpoint) {
         if self.game.is_some() {
-            if let Some(session) = self.room.notify_lost_endpoint(endpoint) {
+            if let Some(session) = self.room.session_by_endpoint_mut(endpoint) {
+                session.disconnect();
                 log::info!("Player '{}' disconnected", session.name());
             }
         }

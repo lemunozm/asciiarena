@@ -12,12 +12,18 @@ use std::time::{Duration};
 /// Messages that Client sends to Server
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ClientMessage {
+    // Messages out of login
     Version(String),
     RequestServerInfo,
 
+    // Login messages
     Login(String),
-    //UdpHello(SessionToken),
 
+    // Udp handshake
+    ConnectUdp(SessionToken),
+    TrustUdp,
+
+    // Arena real time messages
     Move, //direction
     Skill, //id
 }
@@ -25,20 +31,27 @@ pub enum ClientMessage {
 /// Messages that Server sends to Client
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ServerMessage {
+    // Messages out of login
     Version(String, Compatibility),
     ServerInfo(ServerInfo),
 
+    // Login messages
     LoginStatus(LoginStatus),
     PlayerListUpdated(Vec<String>),
-    //UdpHello(SessionToken),
 
+    // Udp handshake
+    UdpConnected,
+
+    // Game level messages
     StartGame,
     FinishGame, //points
 
+    // Arena prelude level messages
     PrepareArena(Duration),
     StartArena,
     FinishArena, //winners
 
+    // Arena real time messages
     Step, //arena state
 }
 
@@ -46,9 +59,14 @@ pub enum ServerMessage {
 //     Composable message pieces
 // ===================================================
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub enum LoggedKind {
+    FirstTime,
+    Reconnection,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum LoginStatus {
-    Logged(SessionToken),
-    Reconnected(SessionToken),
+    Logged(SessionToken, LoggedKind),
     InvalidPlayerName,
     AlreadyLogged,
     PlayerLimit,

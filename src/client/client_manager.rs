@@ -1,4 +1,4 @@
-use crate::message::{ClientMessage, ServerMessage, LoginStatus, ServerInfo};
+use crate::message::{ClientMessage, ServerMessage, LoginStatus, ServerInfo, LoggedKind};
 use crate::version::{self, Compatibility};
 use crate::util::{self};
 
@@ -18,11 +18,19 @@ pub enum ClosingReason {
     ServerFull,
 }
 
+const UDP_HANDSHAKE_MAX_ATTEMPS: usize = 10;
+pub enum UdpHandshake {
+    Disabled,
+    Attempt(usize),
+    Confirmed,
+}
+
 #[derive(Debug)]
 enum Event {
     Network(NetEvent<ServerMessage>),
     Login,
     WaitingArena(Duration),
+    HelloUdp,
     Close(ClosingReason),
 }
 
@@ -31,7 +39,7 @@ struct ConnectionInfo {
     udp_port: Option<u16>,
     tcp: Endpoint,
     udp: Option<Endpoint>,
-    udp_confirmed: bool,
+    udp_handshake: UdpHandshake,
     session_token: Option<usize>,
 }
 
@@ -67,7 +75,7 @@ impl ClientManager {
                         udp_port: None,
                         tcp: tcp_endpoint,
                         udp: None,
-                        udp_confirmed: false,
+                        udp_handshake: UdpHandshake::Disabled,
                         session_token: None,
                     },
 
@@ -99,6 +107,9 @@ impl ClientManager {
                             }
                             ServerMessage::LoginStatus(status) => {
                                 self.process_login_status(status);
+                            }
+                            ServerMessage::UdpConnected => {
+                                self.process_udp_connected();
                             }
                             ServerMessage::PlayerListUpdated(players) => {
                                 self.process_notify_new_player(players);
@@ -134,6 +145,9 @@ impl ClientManager {
                 },
                 Event::WaitingArena(duration) => {
                     self.process_waiting_arena(duration);
+                },
+                Event::HelloUdp => {
+                    self.process_hello_udp();
                 },
                 Event::Close(reason) => {
                     log::info!("Closing client. Reason: {:?}", reason);
@@ -178,18 +192,41 @@ impl ClientManager {
         self.event_queue.sender().send(Event::Login);
     }
 
+    fn process_login(&mut self) {
+        if self.player_name.is_none() {
+            println!("Choose a character (an unique letter from A to Z): ");
+            let possible_name = io::stdin().lock().lines().next().unwrap().unwrap();
+            if util::is_valid_player_name(&possible_name) {
+                self.player_name = Some(possible_name);
+            }
+            else {
+                println!("Character name '{}' not valid, try again", possible_name);
+                log::warn!("Character name '{}' not valid", possible_name);
+                return self.event_queue.sender().send(Event::Login);
+            }
+        }
+
+        let name = self.player_name.clone().unwrap().clone();
+        self.network.send(self.connection.tcp, ClientMessage::Login(name)).unwrap();
+    }
+
     fn process_login_status(&mut self, status: LoginStatus) {
         let player_name = self.player_name.as_ref().unwrap();
         match status {
-            LoginStatus::Logged(token) => {
-                log::info!("Logged with name '{}' successful", player_name);
-                println!("Logged!");
+            LoginStatus::Logged(token, kind) => {
+                let kind_str = match kind {
+                    LoggedKind::FirstTime => "Logged",
+                    LoggedKind::Reconnection => "Reconnected",
+                };
+                log::info!("{} with name '{}' successful. Token Id: {}", kind_str, player_name, token);
+                println!("{}!", kind_str);
+
+                let udp_port = *self.connection.udp_port.as_ref().unwrap();
                 self.connection.session_token = Some(token);
-            },
-            LoginStatus::Reconnected(token) => {
-                log::info!("Reconnected with name '{}' successful", player_name);
-                println!("Reconnected!");
-                self.connection.session_token = Some(token);
+                self.connection.udp = Some(self.network.connect_udp((self.connection.ip, udp_port)).unwrap());
+                log::info!("Connection by udp on port {}", udp_port);
+                self.connection.udp_handshake = UdpHandshake::Attempt(0);
+                self.event_queue.sender().send(Event::HelloUdp);
             },
             LoginStatus::InvalidPlayerName => {
                 log::warn!("Invalid character name {}", player_name);
@@ -210,29 +247,39 @@ impl ClientManager {
         }
     }
 
+    fn process_hello_udp(&mut self) {
+        match self.connection.session_token {
+            Some(token) => match self.connection.udp {
+                Some(udp_endpoint) => match self.connection.udp_handshake {
+                    UdpHandshake::Attempt(i) if i < UDP_HANDSHAKE_MAX_ATTEMPS => {
+                        log::warn!("Udp handshake attempt: {}", i);
+                        self.network.send(udp_endpoint, ClientMessage::ConnectUdp(token)).unwrap();
+                        self.connection.udp_handshake = UdpHandshake::Attempt(i + 1);
+                        let next_message_timer = Duration::from_millis((i * i) as u64 + 1);
+                        self.event_queue.sender().send_with_timer(Event::HelloUdp, next_message_timer);
+                    }
+                    UdpHandshake::Attempt(_) => log::warn!("Unable to communicate by udp."),
+                    UdpHandshake::Confirmed => log::warn!("hello udp with a confirmed handshake"),
+                    UdpHandshake::Disabled => log::warn!("hello udp with a disabled handshake"),
+                },
+                None => log::warn!("Attempt to send hello udp without known endpoint"),
+            },
+            None => log::warn!("Attempt to send hello udp without logged session"),
+        }
+    }
+
+    fn process_udp_connected(&mut self) {
+        log::info!("Udp successful connected");
+        println!("Udp connected!");
+        self.network.send(self.connection.tcp, ClientMessage::TrustUdp).unwrap();
+        self.connection.udp_handshake = UdpHandshake::Confirmed;
+    }
+
     fn process_notify_new_player(&mut self, player_names: Vec<String>) {
         let mut info = self.server_info.as_mut().unwrap();
         info.logged_players = player_names;
         log::info!("Player list updated: {}", util::format::player_names(&info.logged_players));
         println!("Player list updated: {} ({} of {})", util::format::player_names(&info.logged_players), info.logged_players.len(), info.players_number);
-    }
-
-    fn process_login(&mut self) {
-        if self.player_name.is_none() {
-            println!("Choose a character (an unique letter from A to Z): ");
-            let possible_name = io::stdin().lock().lines().next().unwrap().unwrap();
-            if util::is_valid_player_name(&possible_name) {
-                self.player_name = Some(possible_name);
-            }
-            else {
-                println!("Character name '{}' not valid, try again", possible_name);
-                log::warn!("Character name '{}' not valid", possible_name);
-                return self.event_queue.sender().send(Event::Login);
-            }
-        }
-
-        let name = self.player_name.clone().unwrap().clone();
-        self.network.send(self.connection.tcp, ClientMessage::Login(name)).unwrap();
     }
 
     fn process_start_game(&mut self) {
@@ -243,7 +290,7 @@ impl ClientManager {
     fn process_finish_game(&mut self) {
         log::info!("Finish game");
         println!("DEBUG: Finish game");
-        // In this state, the client needs to login again if want to continue playing
+        self.connection.udp_handshake = UdpHandshake::Disabled;
     }
 
     fn process_prepare_arena(&mut self, duration: Duration) {

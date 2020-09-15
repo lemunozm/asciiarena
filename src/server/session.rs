@@ -30,14 +30,6 @@ where E: Eq
         self.sessions.clear();
     }
 
-    pub fn size(&self) -> usize {
-        self.sessions.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.sessions.is_empty()
-    }
-
     pub fn is_full(&self) -> bool {
         self.sessions.len() == self.size
     }
@@ -50,48 +42,34 @@ where E: Eq
         self.sessions.get(&token)
     }
 
-    pub fn remove_session(&mut self, token: SessionToken) -> Option<PlayerSession<E>> {
-        self.sessions.remove(&token)
+    pub fn session_mut(&mut self, token: SessionToken) -> Option<&mut PlayerSession<E>> {
+        self.sessions.get_mut(&token)
     }
 
     pub fn remove_session_by_endpoint(&mut self, endpoint: E) -> Option<PlayerSession<E>> {
         if let Some(session) = self.session_by_endpoint(endpoint) {
             let token = session.token();
-            self.remove_session(token)
+            self.sessions.remove(&token)
         }
         else { None }
     }
 
-    pub fn session_by_endpoint(&self, endpoint: E) -> Option<&PlayerSession<E>> {
+    pub fn session_by_endpoint(&self, safe_endpoint: E) -> Option<&PlayerSession<E>> {
         self.sessions.values().find(|session| {
-            [session.safe_endpoint().as_ref(), session.fast_endpoint().as_ref()]
-                .iter()
-                .filter_map(|&e| e)
-                .find(|e| **e == endpoint)
-                .is_some()
+            match session.safe_endpoint() {
+                Some(endpoint) if *endpoint == safe_endpoint => true,
+                _ => false,
+            }
         })
     }
 
-    pub fn notify_lost_endpoint(&mut self, endpoint: E) -> Option<&PlayerSession<E>> {
-        for (_, session) in &mut self.sessions {
-            if let Some(safe_endpoint) = session.safe_endpoint() {
-                if *safe_endpoint == endpoint {
-                    session.safe_endpoint = None;
-                    return Some(session)
-                }
+    pub fn session_by_endpoint_mut(&mut self, safe_endpoint: E) -> Option<&mut PlayerSession<E>> {
+        self.sessions.values_mut().find(|session| {
+            match session.safe_endpoint() {
+                Some(endpoint) if *endpoint == safe_endpoint => true,
+                _ => false,
             }
-            if let Some(fast_endpoint) = session.fast_endpoint() {
-                if *fast_endpoint == endpoint {
-                    session.fast_endpoint = None;
-                    return Some(session)
-                }
-            }
-        }
-        None
-    }
-
-    pub fn add_fast_endpoint(&mut self, token: SessionToken, fast_endpoint: E) -> Option<()> {
-        self.sessions.get_mut(&token).map(|session| session.fast_endpoint = Some(fast_endpoint))
+        })
     }
 
     pub fn create_session(&mut self, name: &str, safe_endpoint: E) -> SessionCreationResult {
@@ -103,7 +81,7 @@ where E: Eq
                 let token = session.token();
                 self.sessions.remove(&token);
                 let new_token = self.generate_unique_token();
-                self.add_session(new_token, name, safe_endpoint);
+                self.sessions.insert(token, PlayerSession::new(token, name, safe_endpoint));
                 SessionCreationResult::Recycled(new_token)
             }
         }
@@ -112,7 +90,7 @@ where E: Eq
         }
         else {
             let new_token = self.generate_unique_token();
-            self.add_session(new_token, name, safe_endpoint);
+            self.sessions.insert(new_token, PlayerSession::new(new_token, name, safe_endpoint));
             SessionCreationResult::Created(new_token)
         }
     }
@@ -123,21 +101,16 @@ where E: Eq
             .filter_map(|e| e) // Only connected endpoints
     }
 
-    pub fn fast_endpoints(&self) -> impl Iterator<Item = &E> {
+    /// Try to return the fast endpoint, if this is not possible, the safe endpoint is returned.
+    pub fn faster_endpoints(&self) -> impl Iterator<Item = &E> {
         self.sessions()
-            .map(|session| session.fast_endpoint().as_ref())
+            .map(|session| {
+                match session.trusted_fast_endpoint() {
+                    Some(fast_endpoint) => Some(fast_endpoint),
+                    None => session.safe_endpoint().as_ref(),
+                }
+            })
             .filter_map(|e| e) // Only connected endpoints
-    }
-
-    fn add_session(&mut self, token: SessionToken, name: &str, safe_endpoint: E) {
-        let session = PlayerSession {
-            token,
-            name: name.to_string(),
-            safe_endpoint: Some(safe_endpoint),
-            fast_endpoint: None,
-        };
-
-        self.sessions.insert(token, session);
     }
 
     fn generate_unique_token(&self) -> SessionToken {
@@ -156,9 +129,20 @@ pub struct PlayerSession<E> {
     name: String,
     safe_endpoint: Option<E>,
     fast_endpoint: Option<E>,
+    is_fast_endpoint_trusted: bool,
 }
 
 impl<E> PlayerSession<E> {
+    fn new(token: SessionToken, name: &str, safe_endpoint: E) -> PlayerSession<E> {
+        PlayerSession {
+            token,
+            name: name.into(),
+            safe_endpoint: Some(safe_endpoint),
+            fast_endpoint: None,
+            is_fast_endpoint_trusted: false,
+        }
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -171,8 +155,29 @@ impl<E> PlayerSession<E> {
         &self.safe_endpoint
     }
 
-    pub fn fast_endpoint(&self) -> &Option<E> {
+    pub fn trusted_fast_endpoint(&self) -> &Option<E> {
+        match self.is_fast_endpoint_trusted {
+            true => &self.fast_endpoint,
+            false => &None,
+        }
+    }
+
+    pub fn set_untrusted_fast_endpoint(&mut self, endpoint: E) {
+        self.fast_endpoint = Some(endpoint);
+        self.is_fast_endpoint_trusted = false;
+    }
+
+    pub fn trust_in_fast_endpoint(&mut self) -> &Option<E> {
+        if self.fast_endpoint.is_some() {
+            self.is_fast_endpoint_trusted = true;
+        }
         &self.fast_endpoint
+    }
+
+    pub fn disconnect(&mut self) {
+        self.safe_endpoint = None;
+        self.fast_endpoint = None;
+        self.is_fast_endpoint_trusted = false;
     }
 }
 
