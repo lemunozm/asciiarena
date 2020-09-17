@@ -38,10 +38,6 @@ where E: Eq
         self.sessions.values()
     }
 
-    pub fn session(&self, token: SessionToken) -> Option<&PlayerSession<E>> {
-        self.sessions.get(&token)
-    }
-
     pub fn session_mut(&mut self, token: SessionToken) -> Option<&mut PlayerSession<E>> {
         self.sessions.get_mut(&token)
     }
@@ -73,16 +69,13 @@ where E: Eq
     }
 
     pub fn create_session(&mut self, name: &str, safe_endpoint: E) -> SessionCreationResult {
-        if let Some(session) = self.sessions.values().find(|session| session.name() == name) {
+        if let Some(session) = self.sessions.values_mut().find(|session| session.name() == name) {
             if session.safe_endpoint().is_some() {
                 SessionCreationResult::AlreadyLogged
             }
             else {
-                let token = session.token();
-                self.sessions.remove(&token);
-                let new_token = self.generate_unique_token();
-                self.sessions.insert(token, PlayerSession::new(token, name, safe_endpoint));
-                SessionCreationResult::Recycled(new_token)
+                session.set_safe_endpoint(safe_endpoint);
+                SessionCreationResult::Recycled(session.token())
             }
         }
         else if self.is_full() {
@@ -160,6 +153,10 @@ impl<E> PlayerSession<E> {
             true => &self.fast_endpoint,
             false => &None,
         }
+    }
+
+    fn set_safe_endpoint(&mut self, endpoint: E) {
+        self.safe_endpoint = Some(endpoint);
     }
 
     pub fn set_untrusted_fast_endpoint(&mut self, endpoint: E) {

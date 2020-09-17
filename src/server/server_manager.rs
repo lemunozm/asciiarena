@@ -169,6 +169,7 @@ impl ServerManager {
             logged_players: self.room.sessions().map(|session| session.name().into()).collect(),
         };
 
+        log::trace!("Client {} has subscribed to server info", endpoint.addr());
         self.server_info_subscriptions.insert(endpoint);
         self.network.send(endpoint, ServerMessage::StaticServerInfo(info)).unwrap();
     }
@@ -338,7 +339,9 @@ impl ServerManager {
     }
 
     fn process_disconnection(&mut self, endpoint: Endpoint) {
-        self.server_info_subscriptions.remove(&endpoint);
+        if self.server_info_subscriptions.remove(&endpoint) {
+            log::trace!("Client {} has unsubscribed to server info", endpoint.addr());
+        }
         self.process_logout(endpoint);
     }
 }
