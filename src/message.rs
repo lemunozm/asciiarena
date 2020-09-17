@@ -18,6 +18,7 @@ pub enum ClientMessage {
 
     // Login messages
     Login(String),
+    Logout,
 
     // Udp handshake
     ConnectUdp(SessionToken),

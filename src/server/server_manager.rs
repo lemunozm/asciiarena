@@ -99,6 +99,9 @@ impl ServerManager {
                             ClientMessage::Login(player_name) => {
                                 self.process_login(endpoint, &player_name);
                             },
+                            ClientMessage::Logout => {
+                                self.process_disconnection(endpoint);
+                            },
                             ClientMessage::ConnectUdp(session_token) => {
                                 self.process_connect_udp(endpoint, session_token);
                             },
