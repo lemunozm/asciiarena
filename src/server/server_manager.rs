@@ -11,6 +11,7 @@ use message_io::network::{NetworkManager, NetEvent, Endpoint};
 use itertools::{Itertools};
 
 use std::time::{Duration, Instant};
+use std::collections::{HashSet};
 
 lazy_static! {
     static ref GAME_STEP_DURATION: Duration = Duration::from_secs_f32(1.0 / 30.0);
@@ -39,6 +40,7 @@ pub struct ServerConfig {
 pub struct ServerManager {
     event_queue: EventQueue<Event>,
     network: NetworkManager,
+    server_info_subscriptions: HashSet<Endpoint>,
     room: Room<Endpoint>,
     game: Option<Game>,
     timestamp_last_arena_creation: Option<Instant>,
@@ -70,6 +72,7 @@ impl ServerManager {
         Some(ServerManager {
             event_queue,
             network,
+            server_info_subscriptions: HashSet::new(),
             room: Room::new(config.players_number),
             game: None,
             timestamp_last_arena_creation: None,
@@ -93,14 +96,14 @@ impl ServerManager {
                             ClientMessage::Version(client_version) => {
                                 self.process_version(endpoint, &client_version);
                             },
-                            ClientMessage::RequestServerInfo => {
-                                self.process_request_server_info(endpoint);
+                            ClientMessage::SubscribeServerInfo => {
+                                self.process_subscribe_server_info(endpoint);
                             },
                             ClientMessage::Login(player_name) => {
                                 self.process_login(endpoint, &player_name);
                             },
                             ClientMessage::Logout => {
-                                self.process_disconnection(endpoint);
+                                self.process_logout(endpoint);
                             },
                             ClientMessage::ConnectUdp(session_token) => {
                                 self.process_connect_udp(endpoint, session_token);
@@ -157,7 +160,7 @@ impl ServerManager {
         }
     }
 
-    fn process_request_server_info(&mut self, endpoint: Endpoint) {
+    fn process_subscribe_server_info(&mut self, endpoint: Endpoint) {
         let info = ServerInfo {
             udp_port: self.config.udp_port,
             players_number: self.config.players_number as u8,
@@ -166,7 +169,8 @@ impl ServerManager {
             logged_players: self.room.sessions().map(|session| session.name().into()).collect(),
         };
 
-        self.network.send(endpoint, ServerMessage::ServerInfo(info)).unwrap();
+        self.server_info_subscriptions.insert(endpoint);
+        self.network.send(endpoint, ServerMessage::StaticServerInfo(info)).unwrap();
     }
 
     fn process_login(&mut self, endpoint: Endpoint, player_name: &str) {
@@ -204,8 +208,7 @@ impl ServerManager {
             match kind {
                 LoggedKind::FirstTime => {
                     let player_names = self.room.sessions().map(|session| session.name().into()).collect();
-                    let endpoints = self.room.safe_endpoints().filter(|&&e| e != endpoint);
-                    self.network.send_all(endpoints, ServerMessage::PlayerListUpdated(player_names)).ok();
+                    self.network.send_all(self.server_info_subscriptions.iter(), ServerMessage::DynamicServerInfo(player_names)).ok();
 
                     if self.game.is_none() && self.room.is_full() {
                         self.event_queue.sender().send(Event::CreateGame);
@@ -224,6 +227,24 @@ impl ServerManager {
                         self.network.send(endpoint, ServerMessage::StartArena).unwrap();
                     }
                 }
+            }
+        }
+    }
+
+    fn process_logout(&mut self, endpoint: Endpoint) {
+        if self.game.is_some() {
+            if let Some(session) = self.room.session_by_endpoint_mut(endpoint) {
+                session.disconnect();
+                log::info!("Player '{}' disconnected", session.name());
+            }
+        }
+        else {
+            if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
+                log::info!("Player '{}' logout, current players: {} ", session.name(),
+                    util::format::player_names(self.room.sessions().map(|session| session.name()).sorted()));
+
+                let player_names = self.room.sessions().map(|session| session.name().into()).collect();
+                self.network.send_all(self.server_info_subscriptions.iter(), ServerMessage::DynamicServerInfo(player_names)).ok();
             }
         }
     }
@@ -317,21 +338,8 @@ impl ServerManager {
     }
 
     fn process_disconnection(&mut self, endpoint: Endpoint) {
-        if self.game.is_some() {
-            if let Some(session) = self.room.session_by_endpoint_mut(endpoint) {
-                session.disconnect();
-                log::info!("Player '{}' disconnected", session.name());
-            }
-        }
-        else {
-            if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
-                log::info!("Player '{}' logout, current players: {} ", session.name(),
-                    util::format::player_names(self.room.sessions().map(|session| session.name()).sorted()));
-
-                let player_names = self.room.sessions().map(|session| session.name().into()).collect();
-                self.network.send_all(self.room.safe_endpoints(), ServerMessage::PlayerListUpdated(player_names)).ok();
-            }
-        }
+        self.server_info_subscriptions.remove(&endpoint);
+        self.process_logout(endpoint);
     }
 }
 

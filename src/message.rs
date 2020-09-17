@@ -14,7 +14,7 @@ use std::time::{Duration};
 pub enum ClientMessage {
     // Messages out of login
     Version(String),
-    RequestServerInfo,
+    SubscribeServerInfo,
 
     // Login messages
     Login(String),
@@ -34,11 +34,13 @@ pub enum ClientMessage {
 pub enum ServerMessage {
     // Messages out of login
     Version(String, Compatibility),
-    ServerInfo(ServerInfo),
+
+    // Server info
+    StaticServerInfo(ServerInfo),
+    DynamicServerInfo(Vec<String>), //player list
 
     // Login messages
     LoginStatus(LoginStatus),
-    PlayerListUpdated(Vec<String>),
 
     // Udp handshake
     UdpConnected,

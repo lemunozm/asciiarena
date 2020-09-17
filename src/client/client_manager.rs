@@ -101,19 +101,19 @@ impl ClientManager {
                         match message {
                             ServerMessage::Version(server_version, server_side_compatibility) => {
                                 self.process_version(&server_version, server_side_compatibility);
-                            }
-                            ServerMessage::ServerInfo(info) => {
-                                self.process_server_info(info);
-                            }
+                            },
+                            ServerMessage::StaticServerInfo(info) => {
+                                self.process_static_server_info(info);
+                            },
+                            ServerMessage::DynamicServerInfo(players) => {
+                                self.process_dynamic_server_info(players);
+                            },
                             ServerMessage::LoginStatus(status) => {
                                 self.process_login_status(status);
-                            }
+                            },
                             ServerMessage::UdpConnected => {
                                 self.process_udp_connected();
-                            }
-                            ServerMessage::PlayerListUpdated(players) => {
-                                self.process_notify_new_player(players);
-                            }
+                            },
                             ServerMessage::StartGame => {
                                 self.process_start_game();
                             },
@@ -176,11 +176,11 @@ impl ClientManager {
             }
         }
         if compatibility.is_compatible() {
-            self.network.send(self.connection.tcp, ClientMessage::RequestServerInfo).unwrap();
+            self.network.send(self.connection.tcp, ClientMessage::SubscribeServerInfo).unwrap();
         }
     }
 
-    fn process_server_info(&mut self, info: ServerInfo) {
+    fn process_static_server_info(&mut self, info: ServerInfo) {
         log::info!("Server info: {:?}", info);
         println!("Game info:");
         println!(" - Current players: {} ({} of {})", util::format::player_names(&info.logged_players), info.logged_players.len(), info.players_number);
@@ -275,7 +275,7 @@ impl ClientManager {
         self.connection.udp_handshake = UdpHandshake::Confirmed;
     }
 
-    fn process_notify_new_player(&mut self, player_names: Vec<String>) {
+    fn process_dynamic_server_info(&mut self, player_names: Vec<String>) {
         let mut info = self.server_info.as_mut().unwrap();
         info.logged_players = player_names;
         log::info!("Player list updated: {}", util::format::player_names(&info.logged_players));
