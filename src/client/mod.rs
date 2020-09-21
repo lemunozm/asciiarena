@@ -1,6 +1,8 @@
-mod client_manager;
+mod application;
+mod connection;
+mod frontend;
 
-use client_manager::{ClientManager};
+use application::{Application};
 
 use crate::logger::{self};
 
@@ -29,7 +31,5 @@ pub fn run(matches: &ArgMatches) {
     let server_addr = "127.0.0.1:3001".parse().unwrap();
     let player_name = matches.value_of("name");
 
-    if let Some(mut client_manager) = ClientManager::new(server_addr, player_name) {
-        client_manager.run();
-    }
+    Application::new(server_addr, player_name).run();
 }

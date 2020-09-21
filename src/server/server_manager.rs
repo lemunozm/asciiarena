@@ -5,7 +5,7 @@ use crate::message::{ClientMessage, ServerMessage, ServerInfo, LoginStatus, Logg
 use crate::version::{self, Compatibility};
 use crate::util::{self, SessionToken};
 
-use message_io::events::{EventQueue};
+use message_io::events::{EventQueue, Senderable};
 use message_io::network::{NetworkManager, NetEvent, Endpoint};
 
 use itertools::{Itertools};
@@ -171,7 +171,7 @@ impl ServerManager {
 
         log::trace!("Client {} has subscribed to server info", endpoint.addr());
         self.server_info_subscriptions.insert(endpoint);
-        self.network.send(endpoint, ServerMessage::StaticServerInfo(info)).unwrap();
+        self.network.send(endpoint, ServerMessage::ServerInfo(info)).unwrap();
     }
 
     fn process_login(&mut self, endpoint: Endpoint, player_name: &str) {
@@ -203,7 +203,7 @@ impl ServerManager {
         };
 
         log::trace!("{} with player name '{}' attempts to login. Status: {:?}", endpoint.addr(), player_name, status);
-        self.network.send(endpoint, ServerMessage::LoginStatus(status)).unwrap();
+        self.network.send(endpoint, ServerMessage::LoginStatus(player_name.into(), status)).unwrap();
 
         if let LoginStatus::Logged(_, kind) = status { // First time connection
             match kind {

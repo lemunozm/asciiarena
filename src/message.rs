@@ -36,11 +36,11 @@ pub enum ServerMessage {
     Version(String, Compatibility),
 
     // Server info
-    StaticServerInfo(ServerInfo),
+    ServerInfo(ServerInfo),
     DynamicServerInfo(Vec<String>), //player list
 
     // Login messages
-    LoginStatus(LoginStatus),
+    LoginStatus(String, LoginStatus), //player_name, status
 
     // Udp handshake
     UdpConnected,
