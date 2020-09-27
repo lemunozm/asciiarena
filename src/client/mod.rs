@@ -1,7 +1,10 @@
 mod application;
-mod store;
+mod events;
+mod state;
+mod actions;
 mod connection;
 mod frontend;
+mod util;
 
 use application::{Application};
 
