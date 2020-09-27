@@ -1,4 +1,5 @@
 mod application;
+mod store;
 mod connection;
 mod frontend;
 

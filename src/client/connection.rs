@@ -53,13 +53,13 @@ struct ConnectionInfo {
 pub struct ServerConnection {
     network: NetworkManager,
     connection: ConnectionInfo,
-    sender: Box<dyn Senderable<ServerEvent>>
+    event_sender: Box<dyn Senderable<ServerEvent>>
 }
 
 impl ServerConnection {
-    pub fn new<S>(addr: SocketAddr, sender: S) -> ServerConnection
+    pub fn new<S>(addr: SocketAddr, event_sender: S) -> ServerConnection
     where S: Senderable<ServerEvent> + Send + 'static + Clone {
-        let network_sender = sender.clone();
+        let network_sender = event_sender.clone();
         let network = NetworkManager::new(move |net_event| {
             network_sender.send(ServerEvent::Internal(InternalEvent::Network(net_event)))
         });
@@ -74,7 +74,7 @@ impl ServerConnection {
                 has_udp_hasdshake: false,
                 session_token: None,
             },
-            sender: Box::new(sender),
+            event_sender: Box::new(event_sender),
         }
     }
 
@@ -128,7 +128,7 @@ impl ServerConnection {
             InternalEvent::Network(net_event) => match net_event {
                 NetEvent::AddedEndpoint(_) => unreachable!(),
                 NetEvent::RemovedEndpoint(_) => {
-                    self.sender.send_with_priority(ServerEvent::Disconnected)
+                    self.event_sender.send_with_priority(ServerEvent::Disconnected)
                 },
                 NetEvent::Message(endpoint, message) => {
                     log::trace!("Message from {}", endpoint.addr());
@@ -187,18 +187,18 @@ impl ServerConnection {
             }
         }
 
-        self.sender.send(ServerEvent::CheckedVersion(server_version, server_side_compatibility));
+        self.event_sender.send(ServerEvent::CheckedVersion(server_version, server_side_compatibility));
     }
 
     fn process_server_info(&mut self, info: ServerInfo) {
         log::info!("Server info: {:?}", info);
         self.connection.udp_port = Some(info.udp_port);
-        self.sender.send(ServerEvent::ServerInfo(info));
+        self.event_sender.send(ServerEvent::ServerInfo(info));
     }
 
     fn process_dynamic_server_info(&mut self, player_names: Vec<String>) {
         log::info!("Player list updated: {}", util::format::player_names(&player_names));
-        self.sender.send(ServerEvent::PlayerListUpdated(player_names));
+        self.event_sender.send(ServerEvent::PlayerListUpdated(player_names));
     }
 
     fn process_login_status(&mut self, player_name: String, status: LoginStatus) {
@@ -214,7 +214,7 @@ impl ServerConnection {
                 self.connection.session_token = Some(token);
                 self.connection.udp = Some(self.network.connect_udp((self.connection.ip, udp_port)).unwrap());
                 log::info!("Connection by udp on port {}", udp_port);
-                self.sender.send(ServerEvent::Internal(InternalEvent::HelloUdp(0)));
+                self.event_sender.send(ServerEvent::Internal(InternalEvent::HelloUdp(0)));
             },
             LoginStatus::InvalidPlayerName => {
                 log::warn!("Invalid character name {}", player_name);
@@ -226,7 +226,7 @@ impl ServerConnection {
                 log::error!("Server full");
             },
         }
-        self.sender.send(ServerEvent::LoginStatus(player_name, status));
+        self.event_sender.send(ServerEvent::LoginStatus(player_name, status));
     }
 
     fn process_hello_udp(&mut self, attempt: usize) {
@@ -238,7 +238,7 @@ impl ServerConnection {
                             log::trace!("Udp handshake attempt: {}", attempt);
                             self.network.send(udp_endpoint, ClientMessage::ConnectUdp(token)).unwrap();
                             let next_message_timer = Duration::from_millis((attempt * attempt) as u64 + 1);
-                            self.sender.send_with_timer(ServerEvent::Internal(InternalEvent::HelloUdp(attempt + 1)), next_message_timer);
+                            self.event_sender.send_with_timer(ServerEvent::Internal(InternalEvent::HelloUdp(attempt + 1)), next_message_timer);
                         }
                         else {
                             log::warn!("Unable to communicate by udp.");
@@ -255,38 +255,38 @@ impl ServerConnection {
         self.network.send(tcp, ClientMessage::TrustUdp).unwrap();
         self.connection.has_udp_hasdshake = true;
         log::info!("Udp successful connected");
-        self.sender.send(ServerEvent::UdpReachable);
+        self.event_sender.send(ServerEvent::UdpReachable);
     }
 
     fn process_start_game(&mut self) {
         log::info!("Start game");
-        self.sender.send(ServerEvent::StartGame);
+        self.event_sender.send(ServerEvent::StartGame);
     }
 
     fn process_finish_game(&mut self) {
         log::info!("Finish game");
         self.connection.has_udp_hasdshake = false;
-        self.sender.send(ServerEvent::FinishGame);
+        self.event_sender.send(ServerEvent::FinishGame);
     }
 
     fn process_prepare_arena(&mut self, duration: Duration) {
         log::info!("The arena will be start in {}", duration.as_secs_f32());
-        self.sender.send(ServerEvent::PrepareArena(duration));
+        self.event_sender.send(ServerEvent::PrepareArena(duration));
     }
 
     fn process_start_arena(&mut self) {
         log::info!("Start arena");
-        self.sender.send(ServerEvent::StartArena);
+        self.event_sender.send(ServerEvent::StartArena);
     }
 
     fn process_finish_arena(&mut self) {
         log::info!("Finish arena");
-        self.sender.send(ServerEvent::FinishArena);
+        self.event_sender.send(ServerEvent::FinishArena);
     }
 
     fn process_arena_step(&mut self) {
         log::info!("Process arena step");
-        self.sender.send(ServerEvent::ArenaStep);
+        self.event_sender.send(ServerEvent::ArenaStep);
     }
 }
 
