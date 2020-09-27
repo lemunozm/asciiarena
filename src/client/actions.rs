@@ -1,7 +1,7 @@
 use crate::version::{self, Compatibility};
 
 use super::events::{AppEvent, ClosingReason, ServerEvent, ServerInfo, LoginStatus};
-use super::util::store::{Actionable, Mutator};
+use super::util::store::{Actionable, StateManager};
 use super::state::{State};
 
 use message_io::events::{EventSender, Senderable};
@@ -62,22 +62,22 @@ impl Actionable for ActionManager {
     type State = State;
     type Action = Action;
 
-    fn dispatch(&mut self, state: &State, mutator: &mut Mutator<State>, action: Action) {
+    fn dispatch(&mut self, state: &mut StateManager<State>, action: Action) {
         log::trace!("Dispatch: {:?}", action);
         match action {
 
             Action::Connected => {
-                mutator.mutate(|state| state.server_mut().set_connected(true));
+                state.mutate(|state| state.server_mut().set_connected(true));
                 self.server_call(ApiCall::CheckVersion(version::current().into()));
             },
 
             Action::Disconnected => {
-                mutator.mutate(|state| state.server_mut().set_connected(false));
+                state.mutate(|state| state.server_mut().set_connected(false));
                 self.close(ClosingReason::ConnectionLost);
             },
 
             Action::CheckedVersion(server_version, compatibility) => {
-                mutator.mutate(|state| {
+                state.mutate(|state| {
                     state.server_mut().set_version_info(server_version, compatibility);
                 });
 
@@ -90,7 +90,7 @@ impl Actionable for ActionManager {
             },
 
             Action::ServerInfo(info) => {
-                self.dispatch(state, mutator, Action::Login);
+                self.dispatch(state, Action::Login);
             },
 
             Action::PlayerListUpdated(player_names) => {
@@ -98,7 +98,7 @@ impl Actionable for ActionManager {
             },
 
             Action::Login => {
-                let player_name = state
+                let player_name = state.get()
                     .player_name()
                     .expect("The player name must be already defined")
                     .into();
@@ -107,7 +107,7 @@ impl Actionable for ActionManager {
             },
 
             Action::UpdatePlayerName(player_name) => {
-                mutator.mutate(|state| state.set_player_name(player_name));
+                state.mutate(|state| state.set_player_name(player_name));
             },
 
             Action::LoginStatus(player_name, status) => {
