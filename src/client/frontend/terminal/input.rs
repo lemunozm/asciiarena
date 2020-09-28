@@ -14,10 +14,10 @@ pub struct Input {
 }
 
 impl InputBase for Input {
-    type InputEvent = TermEvent;
+    type Event = TermEvent;
 
     fn new<S>(store: Store<ActionManager>, input_sender: S) -> Input
-    where S: Senderable<Self::InputEvent> + Send + 'static + Clone {
+    where S: Senderable<Self::Event> + Send + 'static + Clone {
         let _event_collector = TerminalEventCollector::new(move |terminal_event| {
             input_sender.send(terminal_event)
         });
@@ -28,7 +28,7 @@ impl InputBase for Input {
         }
     }
 
-    fn process_event(&mut self, event: Self::InputEvent) {
+    fn process_event(&mut self, event: Self::Event) {
         match event {
             TermEvent::Key(KeyEvent{code, modifiers}) => match code {
                 KeyCode::Esc => {

@@ -1,12 +1,13 @@
-use super::events::{AppEvent, ClosingReason, ServerEvent, ServerInfo, LoginStatus};
 use super::util::store::{Actionable, StateManager};
 use super::state::{State};
 
+use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
 
-use message_io::events::{EventSender, Senderable};
+use message_io::events::{Senderable};
 
 use std::time::{Duration};
+use std::net::{SocketAddr};
 
 /// Event API to control the connection
 #[derive(Debug)]
@@ -19,26 +20,42 @@ pub enum ApiCall {
     CastSkill,
 }
 
+/// Event API to close the application
+#[derive(Debug)]
+pub enum ClosingReason {
+    ServerNotFound(SocketAddr),
+    Forced, //Ctrl-c
+    ConnectionLost,
+    IncompatibleVersions,
+}
+
+pub enum ActionableEvent {
+    Api(ApiCall),
+    Close(ClosingReason),
+}
+
 pub struct ActionManager {
-    event_sender: EventSender<AppEvent>,
+    event_sender: Box<dyn Senderable<ActionableEvent>>,
 }
 
 impl ActionManager {
-    pub fn new(event_sender: EventSender<AppEvent>) -> ActionManager {
+    pub fn new<S>(event_sender: S) -> ActionManager
+    where S: Senderable<ActionableEvent> + Send + 'static + Clone {
         ActionManager {
-            event_sender: event_sender,
+            event_sender: Box::new(event_sender),
         }
     }
 
     fn server_call(&mut self, api_call: ApiCall) {
-        self.event_sender.send_with_priority(AppEvent::Server(ServerEvent::Api(api_call)));
+        self.event_sender.send_with_priority(ActionableEvent::Api(api_call));
     }
 
     fn close_app(&mut self, reason: ClosingReason) {
-        self.event_sender.send_with_priority(AppEvent::Close(reason))
+        self.event_sender.send_with_priority(ActionableEvent::Close(reason))
     }
 }
 
+/// Action API
 #[derive(Debug)]
 pub enum Action {
     Connected,

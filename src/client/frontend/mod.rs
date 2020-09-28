@@ -7,11 +7,11 @@ pub use super::util::store::{Store, StateManager};
 use message_io::events::{Senderable};
 
 pub trait Input {
-    type InputEvent;
+    type Event: std::fmt::Debug + Send + 'static;
 
     fn new<S>(store: Store<ActionManager>, input_sender: S) -> Self
-    where S: Senderable<Self::InputEvent> + Send + 'static + Clone;
-    fn process_event(&mut self, event: Self::InputEvent);
+    where S: Senderable<Self::Event> + Send + 'static + Clone;
+    fn process_event(&mut self, event: Self::Event);
 }
 
 pub trait Renderer {
@@ -20,7 +20,7 @@ pub trait Renderer {
 }
 
 pub trait Viewport {
-    type Renderer;
+    type Renderer: Renderer;
 
     fn new_full_screen() -> Self;
     fn open(&mut self);
@@ -29,6 +29,6 @@ pub trait Viewport {
 }
 
 pub trait Frontend {
-    type Input;
-    type Viewport;
+    type Input: Input;
+    type Viewport: Viewport;
 }
