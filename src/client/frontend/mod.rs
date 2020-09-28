@@ -1,6 +1,6 @@
 pub mod terminal;
 
-pub use super::actions::{ActionManager, Dispatcher};
+pub use super::actions::{Dispatcher};
 pub use super::state::{State};
 pub use super::util::store::{StateManager};
 
@@ -17,9 +17,8 @@ pub trait Viewport {
     type Renderer: Renderer;
 
     fn new_full_screen() -> Self;
-    fn open(&mut self);
+    fn open(&mut self) -> Self::Renderer;
     fn close(&mut self);
-    fn create_renderer(&mut self) -> Self::Renderer;
 }
 
 pub trait Frontend {

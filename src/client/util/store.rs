@@ -10,7 +10,7 @@ pub trait Actionable {
 pub struct Store<A> where A: Actionable {
     state: Rc<RefCell<A::State>>,
     action_manager: Rc<RefCell<A>>,
-    mutator: Rc<RefCell<StateManager<A::State>>>,
+    state_manager: Rc<RefCell<StateManager<A::State>>>,
 }
 
 impl<A: Actionable> Store<A> {
@@ -19,14 +19,14 @@ impl<A: Actionable> Store<A> {
         Store {
             state: state.clone(),
             action_manager : Rc::new(RefCell::new(action_manager)),
-            mutator: Rc::new(RefCell::new(StateManager::new(state))),
+            state_manager: Rc::new(RefCell::new(StateManager::new(state))),
         }
     }
 
     pub fn dispatch(&mut self, action: A::Action) {
         self.action_manager
             .borrow_mut()
-            .dispatch(&mut self.mutator.borrow_mut(), action);
+            .dispatch(&mut self.state_manager.borrow_mut(), action);
     }
 
     pub fn state(&self) -> Ref<'_, A::State> {
@@ -34,7 +34,11 @@ impl<A: Actionable> Store<A> {
     }
 
     pub fn mutation_count(&self) -> usize {
-        self.mutator.borrow().mutation_count()
+        self.state_manager.borrow().mutation_count()
+    }
+
+    pub fn state_manager(&self) -> Ref<'_, StateManager<A::State>> {
+        self.state_manager.borrow()
     }
 }
 
@@ -43,7 +47,7 @@ impl<A: Actionable> Clone for Store<A> {
         Self {
             state: self.state.clone(),
             action_manager: self.action_manager.clone(),
-            mutator: self.mutator.clone(),
+            state_manager: self.state_manager.clone(),
         }
     }
 }

@@ -11,15 +11,11 @@ impl ViewportBase for Viewport {
         Viewport { }
     }
 
-    fn open(&mut self) {
-
+    fn open(&mut self) -> Self::Renderer {
+       Self::Renderer::new()
     }
 
     fn close(&mut self) {
 
-    }
-
-    fn create_renderer(&mut self) -> Self::Renderer {
-       Self::Renderer::new()
     }
 }

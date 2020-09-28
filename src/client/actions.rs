@@ -7,18 +7,6 @@ use crate::version::{self, Compatibility};
 use std::time::{Duration};
 use std::net::{SocketAddr};
 
-pub trait ServerApi {
-    fn call(&mut self, api_call: ApiCall);
-}
-
-pub trait Dispatcher: Send + Sync {
-    fn dispatch(&mut self, action: Action);
-}
-
-pub trait Closer: Send {
-    fn close(&mut self, reason: ClosingReason);
-}
-
 /// Event API to control the connection
 #[derive(Debug)]
 pub enum ApiCall {
@@ -31,6 +19,11 @@ pub enum ApiCall {
     CastSkill,
 }
 
+pub trait ServerApi {
+    fn call(&mut self, api_call: ApiCall);
+}
+
+
 /// Event API to close the application
 #[derive(Debug)]
 pub enum ClosingReason {
@@ -38,6 +31,10 @@ pub enum ClosingReason {
     Forced, //Ctrl-c
     ConnectionLost,
     IncompatibleVersions,
+}
+
+pub trait Closer: Send {
+    fn close(&mut self, reason: ClosingReason);
 }
 
 /// Action API
@@ -69,16 +66,21 @@ pub enum ConnectionResult {
     NotFound,
 }
 
+pub trait Dispatcher: Send + Sync {
+    fn dispatch(&mut self, action: Action);
+}
+
+
 pub struct ActionManager {
     closer: Box<dyn Closer>,
-    server_api: Box<dyn ServerApi>,
+    server: Box<dyn ServerApi>,
 }
 
 impl ActionManager {
-    pub fn new(closer: impl Closer + 'static, api: impl ServerApi + 'static) -> ActionManager {
+    pub fn new(closer: impl Closer + 'static, server: impl ServerApi + 'static) -> ActionManager {
         ActionManager {
             closer: Box::new(closer),
-            server_api: Box::new(api),
+            server: Box::new(server),
         }
     }
 }
@@ -92,14 +94,14 @@ impl Actionable for ActionManager {
         match action {
 
             Action::StartApp => {
-                self.server_api.call(ApiCall::Connect(state.get().server().addr()));
+                self.server.call(ApiCall::Connect(state.get().server().addr()));
             },
 
             Action::ConnectionResult(result)  => {
                 match result {
                     ConnectionResult::Connected => {
                         state.mutate(|state| state.server_mut().set_connected(true));
-                        self.server_api.call(ApiCall::CheckVersion(version::current().into()));
+                        self.server.call(ApiCall::CheckVersion(version::current().into()));
                     },
                     ConnectionResult::NotFound => (),
                 }
@@ -116,7 +118,7 @@ impl Actionable for ActionManager {
                 });
 
                 if compatibility.is_compatible() {
-                    self.server_api.call(ApiCall::SubscribeInfo);
+                    self.server.call(ApiCall::SubscribeInfo);
                 }
                 else {
                     self.closer.close(ClosingReason::IncompatibleVersions);
@@ -137,7 +139,7 @@ impl Actionable for ActionManager {
                     .expect("The player name must be already defined")
                     .into();
 
-                self.server_api.call(ApiCall::Login(player_name));
+                self.server.call(ApiCall::Login(player_name));
             },
 
             Action::UpdatePlayerName(player_name) => {

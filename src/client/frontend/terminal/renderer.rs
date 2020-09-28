@@ -11,5 +11,6 @@ impl RendererBase for Renderer {
     }
 
     fn render(&mut self, state: &StateManager<State>) {
+        println!("Attempt to render");
     }
 }

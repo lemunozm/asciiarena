@@ -6,7 +6,7 @@ use crate::client::frontend::{Input};
 use crossterm::event::{Event as TermEvent, KeyEvent, KeyCode, KeyModifiers};
 
 pub struct TerminalInput {
-    _event_collector: TerminalEventCollector, // Keep because we need its internal thread running
+    _event_collector: TerminalEventCollector, // Kept because we need its internal thread running
 }
 
 impl TerminalInput {

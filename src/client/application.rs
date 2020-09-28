@@ -8,6 +8,7 @@ use super::frontend::{Frontend, Viewport, Renderer, Input};
 use message_io::events::{EventSender, EventQueue};
 
 use std::net::{SocketAddr};
+use std::time::{Duration};
 
 #[derive(Debug)]
 pub enum AppEvent {
@@ -19,9 +20,10 @@ pub enum AppEvent {
 pub struct Application<F: Frontend> {
     event_queue: EventQueue<AppEvent>,
     store: Store<ActionManager>,
-    server: ServerProxy,
+    _server: ServerProxy, // Kept because we need its internal thread running
     viewport: F::Viewport,
-    input: F::Input,
+    _input: F::Input, // Kept because we need its internal thread running
+
 }
 
 impl<F: Frontend> Application<F> {
@@ -38,16 +40,18 @@ impl<F: Frontend> Application<F> {
         Application {
             event_queue,
             store: Store::new(state, actions),
-            server,
+            _server: server,
             viewport: F::Viewport::new_full_screen(),
-            input: F::Input::new(action_dispatcher.clone()),
+            _input: F::Input::new(action_dispatcher.clone()),
         }
     }
 
     pub fn run(&mut self) -> ClosingReason {
+        let mut renderer = self.viewport.open();
         self.store.dispatch(Action::StartApp);
+        self.event_queue.sender().send(AppEvent::Draw);
 
-        loop {
+        let close_reason = loop {
             let event = self.event_queue.receive();
             log::trace!("[Process event] - {:?}", event);
             match event {
@@ -55,14 +59,17 @@ impl<F: Frontend> Application<F> {
                     self.store.dispatch(action);
                 },
                 AppEvent::Draw => {
-                    //render
+                    renderer.render(&self.store.state_manager());
+                    self.event_queue.sender().send_with_timer(AppEvent::Draw, Duration::from_millis(1000));
                 },
                 AppEvent::Close(reason) => {
                     log::info!("Closing client. Reason: {:?}", reason);
                     break reason
                 },
             }
-        }
+        };
+        self.viewport.close();
+        close_reason
     }
 }
 
