@@ -1,17 +1,11 @@
 pub mod terminal;
 
-pub use super::actions::{ActionManager};
+pub use super::actions::{ActionManager, Dispatcher};
 pub use super::state::{State};
-pub use super::util::store::{Store, StateManager};
-
-use message_io::events::{Senderable};
+pub use super::util::store::{StateManager};
 
 pub trait Input {
-    type Event: std::fmt::Debug + Send + 'static;
-
-    fn new<S>(store: Store<ActionManager>, input_sender: S) -> Self
-    where S: Senderable<Self::Event> + Send + 'static + Clone;
-    fn process_event(&mut self, event: Self::Event);
+    fn new(actions: impl Dispatcher + 'static) -> Self;
 }
 
 pub trait Renderer {

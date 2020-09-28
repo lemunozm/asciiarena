@@ -1,47 +1,39 @@
 use super::events::{TerminalEventCollector};
 
-use crate::client::actions::{ActionManager, Action};
-use crate::client::util::store::{Store};
-use crate::client::frontend::{Input as InputBase};
-
-use message_io::events::{Senderable};
+use crate::client::actions::{Action, Dispatcher};
+use crate::client::frontend::{Input};
 
 use crossterm::event::{Event as TermEvent, KeyEvent, KeyCode, KeyModifiers};
 
-pub struct Input {
-    store: Store<ActionManager>,
+pub struct TerminalInput {
     _event_collector: TerminalEventCollector, // Keep because we need its internal thread running
 }
 
-impl InputBase for Input {
-    type Event = TermEvent;
-
-    fn new<S>(store: Store<ActionManager>, input_sender: S) -> Input
-    where S: Senderable<Self::Event> + Send + 'static + Clone {
-        let _event_collector = TerminalEventCollector::new(move |terminal_event| {
-            input_sender.send(terminal_event)
-        });
-
-        Input {
-            store,
-            _event_collector,
-        }
-    }
-
-    fn process_event(&mut self, event: Self::Event) {
+impl TerminalInput {
+    fn process_event(event: TermEvent, actions: &mut dyn Dispatcher) {
         match event {
             TermEvent::Key(KeyEvent{code, modifiers}) => match code {
                 KeyCode::Esc => {
-                    self.store.dispatch(Action::Close);
+                    actions.dispatch(Action::Close);
                 },
                 KeyCode::Char(character) => {
                     if character == 'c' && modifiers.contains(KeyModifiers::CONTROL) {
-                        self.store.dispatch(Action::Close);
+                        actions.dispatch(Action::Close);
                     }
                 },
                 _ => (),
             }
             _ => (),
-        }
+        };
+    }
+}
+
+impl Input for TerminalInput {
+    fn new(mut actions: impl Dispatcher + 'static) -> TerminalInput {
+        let _event_collector = TerminalEventCollector::new(move |event| {
+            Self::process_event(event, &mut actions);
+        });
+
+        TerminalInput { _event_collector, }
     }
 }

@@ -12,12 +12,25 @@ use std::net::{SocketAddr};
 /// Event API to control the connection
 #[derive(Debug)]
 pub enum ApiCall {
+    Connect(SocketAddr),
     CheckVersion(String),
     SubscribeInfo,
     Login(String),
     Logout,
     MovePlayer,
     CastSkill,
+}
+
+pub trait ServerApi {
+    fn call(&mut self, api_call: ApiCall);
+}
+
+pub trait Dispatcher: Send + Sync {
+    fn dispatch(&mut self, action: Action);
+}
+
+pub trait Closer: Send {
+    fn close(&mut self, reason: ClosingReason);
 }
 
 /// Event API to close the application
@@ -29,36 +42,31 @@ pub enum ClosingReason {
     IncompatibleVersions,
 }
 
-pub enum ActionableEvent {
-    Api(ApiCall),
-    Close(ClosingReason),
-}
-
 pub struct ActionManager {
-    event_sender: Box<dyn Senderable<ActionableEvent>>,
+    closer: Box<dyn Closer>,
+    server_api: Box<dyn ServerApi>,
 }
 
 impl ActionManager {
-    pub fn new<S>(event_sender: S) -> ActionManager
-    where S: Senderable<ActionableEvent> + Send + 'static + Clone {
+    pub fn new(closer: impl Closer + 'static, api: impl ServerApi + 'static) -> ActionManager {
         ActionManager {
-            event_sender: Box::new(event_sender),
+            closer: Box::new(closer),
+            server_api: Box::new(api),
         }
-    }
-
-    fn server_call(&mut self, api_call: ApiCall) {
-        self.event_sender.send_with_priority(ActionableEvent::Api(api_call));
-    }
-
-    fn close_app(&mut self, reason: ClosingReason) {
-        self.event_sender.send_with_priority(ActionableEvent::Close(reason))
     }
 }
 
 /// Action API
 #[derive(Debug)]
-pub enum Action {
+pub enum ConnectionResult {
     Connected,
+    NotFound,
+}
+
+#[derive(Debug)]
+pub enum Action {
+    StartApp,
+    ConnectionResult(ConnectionResult),
     Disconnected,
     CheckedVersion(String, Compatibility),
     ServerInfo(ServerInfo),
@@ -84,14 +92,23 @@ impl Actionable for ActionManager {
         log::trace!("Dispatch: {:?}", action);
         match action {
 
-            Action::Connected => {
-                state.mutate(|state| state.server_mut().set_connected(true));
-                self.server_call(ApiCall::CheckVersion(version::current().into()));
+            Action::StartApp => {
+                self.server_api.call(ApiCall::Connect(state.get().server().addr()));
+            },
+
+            Action::ConnectionResult(result)  => {
+                match result {
+                    ConnectionResult::Connected => {
+                        state.mutate(|state| state.server_mut().set_connected(true));
+                        self.server_api.call(ApiCall::CheckVersion(version::current().into()));
+                    },
+                    ConnectionResult::NotFound => (),
+                }
             },
 
             Action::Disconnected => {
                 state.mutate(|state| state.server_mut().set_connected(false));
-                self.close_app(ClosingReason::ConnectionLost);
+                self.closer.close(ClosingReason::ConnectionLost);
             },
 
             Action::CheckedVersion(server_version, compatibility) => {
@@ -100,10 +117,10 @@ impl Actionable for ActionManager {
                 });
 
                 if compatibility.is_compatible() {
-                    self.server_call(ApiCall::SubscribeInfo);
+                    self.server_api.call(ApiCall::SubscribeInfo);
                 }
                 else {
-                    self.close_app(ClosingReason::IncompatibleVersions);
+                    self.closer.close(ClosingReason::IncompatibleVersions);
                 }
             },
 
@@ -121,7 +138,7 @@ impl Actionable for ActionManager {
                     .expect("The player name must be already defined")
                     .into();
 
-                self.server_call(ApiCall::Login(player_name));
+                self.server_api.call(ApiCall::Login(player_name));
             },
 
             Action::UpdatePlayerName(player_name) => {
@@ -170,7 +187,7 @@ impl Actionable for ActionManager {
                 //TODO
             },
             Action::Close => {
-                self.close_app(ClosingReason::Forced)
+                self.closer.close(ClosingReason::Forced)
             },
         }
     }

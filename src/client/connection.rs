@@ -3,34 +3,73 @@ use crate::message::{ClientMessage, ServerMessage, LoggedKind};
 use crate::version::{self, Compatibility};
 use crate::util::{self};
 
-use super::util::store::{Store};
-use super::actions::{ActionManager, Action, ApiCall};
+use super::actions::{Action, ServerApi, ApiCall, Dispatcher, ConnectionResult};
 
-use message_io::events::{Senderable};
+use message_io::events::{EventQueue, EventSender, Senderable};
 use message_io::network::{NetworkManager, NetEvent, Endpoint};
 
 use std::net::{IpAddr, SocketAddr};
+use std::thread::{self, JoinHandle};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::time::{Duration};
 
-
 const UDP_HANDSHAKE_MAX_ATTEMPS: usize = 10;
-
-#[derive(Debug)]
-pub enum ConnectionResult {
-    Connected,
-    NotFound,
-}
+const EVENT_SAMPLING_TIMEOUT: u64 = 50; //ms
 
 #[derive(Debug)]
 pub enum InternalEvent {
-    Network(NetEvent<ServerMessage>),
-    HelloUdp(usize),
 }
 
 #[derive(Debug)]
 pub enum ServerEvent {
     Api(ApiCall),
-    Internal(InternalEvent),
+    Network(NetEvent<ServerMessage>),
+    HelloUdp(usize),
+}
+
+pub struct ServerProxy {
+    proxy_thread_running: Arc<AtomicBool>,
+    proxy_thread_handle: Option<JoinHandle<()>>,
+    event_sender: EventSender<ServerEvent>,
+}
+
+impl ServerProxy {
+    pub fn new(actions: impl Dispatcher + 'static) -> ServerProxy {
+        let mut event_queue = EventQueue::new();
+        let event_sender = event_queue.sender().clone();
+        let internal_event_sender = event_queue.sender().clone();
+
+        let proxy_thread_running = Arc::new(AtomicBool::new(true));
+        let proxy_thread_handle = {
+            let running = proxy_thread_running.clone();
+            let timeout = Duration::from_millis(EVENT_SAMPLING_TIMEOUT);
+            let mut server_connection = ServerConnection::new(internal_event_sender, actions);
+            thread::Builder::new().name("asciiarena: server event collector".into()).spawn(move || {
+                while running.load(Ordering::Relaxed) {
+                    if let Some(event) = event_queue.receive_event_timeout(timeout) {
+                        server_connection.process_event(event);
+                    }
+                }
+            })
+        }.unwrap();
+
+        ServerProxy {
+            proxy_thread_running,
+            proxy_thread_handle: Some(proxy_thread_handle),
+            event_sender,
+        }
+    }
+
+    pub fn api(&mut self) -> impl ServerApi {
+        return ServerApiImpl::new(self.event_sender.clone())
+    }
+}
+
+impl Drop for ServerProxy {
+    fn drop(&mut self) {
+        self.proxy_thread_running.store(false, Ordering::Relaxed);
+        self.proxy_thread_handle.take().unwrap().join().unwrap();
+    }
 }
 
 struct ConnectionInfo {
@@ -42,22 +81,22 @@ struct ConnectionInfo {
     session_token: Option<usize>,
 }
 
-pub struct ServerConnection {
+struct ServerConnection {
+    event_sender: EventSender<ServerEvent>,
     network: NetworkManager,
     connection: ConnectionInfo,
-    store: Store<ActionManager>,
-    event_sender: Box<dyn Senderable<InternalEvent>>
+    actions: Box<dyn Dispatcher>,
 }
 
 impl ServerConnection {
-    pub fn new<S>(store: Store<ActionManager>, event_sender: S) -> ServerConnection
-    where S: Senderable<InternalEvent> + Send + 'static + Clone {
+    pub fn new(event_sender: EventSender<ServerEvent>, actions: impl Dispatcher + 'static) -> ServerConnection {
         let network_sender = event_sender.clone();
         let network = NetworkManager::new(move |net_event| {
-            network_sender.send(InternalEvent::Network(net_event))
+            network_sender.send(ServerEvent::Network(net_event))
         });
 
         ServerConnection {
+            event_sender,
             network,
             connection: ConnectionInfo {
                 ip: None,
@@ -67,8 +106,7 @@ impl ServerConnection {
                 has_udp_hasdshake: false,
                 session_token: None,
             },
-            store,
-            event_sender: Box::new(event_sender),
+            actions: Box::new(actions),
         }
     }
 
@@ -90,74 +128,81 @@ impl ServerConnection {
     pub fn process_event(&mut self, event: ServerEvent) {
         match event {
             ServerEvent::Api(api_event) => {
-                let tcp = *self.connection.tcp.as_ref().unwrap();
                 match api_event {
+                    ApiCall::Connect(addr) => {
+                        let result = self.connect(addr);
+                        self.actions.dispatch(Action::ConnectionResult(result));
+                    },
                     ApiCall::CheckVersion(version) => {
+                        let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::Version(version)).unwrap();
-                    }
+                    },
                     ApiCall::SubscribeInfo => {
+                        let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::SubscribeServerInfo).unwrap();
                     },
                     ApiCall::Login(player_name) => {
+                        let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::Login(player_name)).unwrap();
                     },
                     ApiCall::Logout => {
+                        let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::Logout).unwrap();
                     },
                     ApiCall::MovePlayer => {
+                        let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::Move).unwrap();
                     },
                     ApiCall::CastSkill => {
+                        let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::Skill).unwrap();
                     },
                 }
             },
-            ServerEvent::Internal(internal_event) => match internal_event {
-                InternalEvent::HelloUdp(attempt) => {
-                    self.process_hello_udp(attempt);
-                }
-                InternalEvent::Network(net_event) => match net_event {
-                    NetEvent::AddedEndpoint(_) => unreachable!(),
-                    NetEvent::RemovedEndpoint(_) => {
-                        self.store.dispatch(Action::Disconnected);
+            ServerEvent::Network(net_event) => match net_event {
+                NetEvent::Message(_, message) => match message {
+                    ServerMessage::Version(server_version, server_side_compatibility) => {
+                        self.process_version(server_version, server_side_compatibility);
                     },
-                    NetEvent::Message(_, message) => match message {
-                        ServerMessage::Version(server_version, server_side_compatibility) => {
-                            self.process_version(server_version, server_side_compatibility);
-                        },
-                        ServerMessage::ServerInfo(info) => {
-                            self.process_server_info(info);
-                        },
-                        ServerMessage::DynamicServerInfo(players) => {
-                            self.process_dynamic_server_info(players);
-                        },
-                        ServerMessage::LoginStatus(player, status) => {
-                            self.process_login_status(player, status);
-                        },
-                        ServerMessage::UdpConnected => {
-                            self.process_udp_connected();
-                        },
-                        ServerMessage::StartGame => {
-                            self.process_start_game();
-                        },
-                        ServerMessage::FinishGame => {
-                            self.process_finish_game();
-                        },
-                        ServerMessage::PrepareArena(duration) => {
-                            self.process_prepare_arena(duration);
-                        },
-                        ServerMessage::StartArena => {
-                            self.process_start_arena();
-                        },
-                        ServerMessage::FinishArena => {
-                            self.process_finish_arena();
-                        },
-                        ServerMessage::Step => {
-                            self.process_arena_step();
-                        },
+                    ServerMessage::ServerInfo(info) => {
+                        self.process_server_info(info);
+                    },
+                    ServerMessage::DynamicServerInfo(players) => {
+                        self.process_dynamic_server_info(players);
+                    },
+                    ServerMessage::LoginStatus(player, status) => {
+                        self.process_login_status(player, status);
+                    },
+                    ServerMessage::UdpConnected => {
+                        self.process_udp_connected();
+                    },
+                    ServerMessage::StartGame => {
+                        self.process_start_game();
+                    },
+                    ServerMessage::FinishGame => {
+                        self.process_finish_game();
+                    },
+                    ServerMessage::PrepareArena(duration) => {
+                        self.process_prepare_arena(duration);
+                    },
+                    ServerMessage::StartArena => {
+                        self.process_start_arena();
+                    },
+                    ServerMessage::FinishArena => {
+                        self.process_finish_arena();
+                    },
+                    ServerMessage::Step => {
+                        self.process_arena_step();
                     },
                 },
-            }
+                NetEvent::AddedEndpoint(_) => unreachable!(),
+                NetEvent::RemovedEndpoint(_) => {
+                    self.actions.dispatch(Action::Disconnected);
+                },
+            },
+            ServerEvent::HelloUdp(attempt) => {
+                self.process_hello_udp(attempt);
+            },
         }
     }
 
@@ -176,18 +221,18 @@ impl ServerConnection {
             }
         }
 
-        self.store.dispatch(Action::CheckedVersion(server_version, compatibility));
+        self.actions.dispatch(Action::CheckedVersion(server_version, compatibility));
     }
 
     fn process_server_info(&mut self, info: ServerInfo) {
         log::info!("Server info: {:?}", info);
         self.connection.udp_port = Some(info.udp_port);
-        self.store.dispatch(Action::ServerInfo(info));
+        self.actions.dispatch(Action::ServerInfo(info));
     }
 
     fn process_dynamic_server_info(&mut self, player_names: Vec<String>) {
         log::info!("Player list updated: {}", util::format::player_names(&player_names));
-        self.store.dispatch(Action::PlayerListUpdated(player_names));
+        self.actions.dispatch(Action::PlayerListUpdated(player_names));
     }
 
     fn process_login_status(&mut self, player_name: String, status: LoginStatus) {
@@ -204,7 +249,7 @@ impl ServerConnection {
                 self.connection.session_token = Some(token);
                 self.connection.udp = Some(self.network.connect_udp((ip, udp_port)).unwrap());
                 log::info!("Connection by udp on port {}", udp_port);
-                self.event_sender.send(InternalEvent::HelloUdp(0));
+                self.event_sender.send(ServerEvent::HelloUdp(0));
             },
             LoginStatus::InvalidPlayerName => {
                 log::warn!("Invalid character name {}", player_name);
@@ -216,7 +261,7 @@ impl ServerConnection {
                 log::error!("Server full");
             },
         }
-        self.store.dispatch(Action::LoginStatus(player_name, status));
+        self.actions.dispatch(Action::LoginStatus(player_name, status));
     }
 
     fn process_hello_udp(&mut self, attempt: usize) {
@@ -228,7 +273,7 @@ impl ServerConnection {
                             log::trace!("Udp handshake attempt: {}", attempt);
                             self.network.send(udp_endpoint, ClientMessage::ConnectUdp(token)).unwrap();
                             let next_message_timer = Duration::from_millis((attempt * attempt) as u64 + 1);
-                            self.event_sender.send_with_timer(InternalEvent::HelloUdp(attempt + 1), next_message_timer);
+                            self.event_sender.send_with_timer(ServerEvent::HelloUdp(attempt + 1), next_message_timer);
                         }
                         else {
                             log::warn!("Unable to communicate by udp.");
@@ -245,38 +290,53 @@ impl ServerConnection {
         self.network.send(tcp, ClientMessage::TrustUdp).unwrap();
         self.connection.has_udp_hasdshake = true;
         log::info!("Udp successful reachable");
-        self.store.dispatch(Action::UdpReachable);
+        self.actions.dispatch(Action::UdpReachable);
     }
 
     fn process_start_game(&mut self) {
         log::info!("Start game");
-        self.store.dispatch(Action::StartGame);
+        self.actions.dispatch(Action::StartGame);
     }
 
     fn process_finish_game(&mut self) {
         log::info!("Finish game");
         self.connection.has_udp_hasdshake = false;
-        self.store.dispatch(Action::FinishGame);
+        self.actions.dispatch(Action::FinishGame);
     }
 
     fn process_prepare_arena(&mut self, duration: Duration) {
         log::info!("The arena will be start in {}", duration.as_secs_f32());
-        self.store.dispatch(Action::PrepareArena(duration));
+        self.actions.dispatch(Action::PrepareArena(duration));
     }
 
     fn process_start_arena(&mut self) {
         log::info!("Start arena");
-        self.store.dispatch(Action::StartArena);
+        self.actions.dispatch(Action::StartArena);
     }
 
     fn process_finish_arena(&mut self) {
         log::info!("Finish arena");
-        self.store.dispatch(Action::FinishArena);
+        self.actions.dispatch(Action::FinishArena);
     }
 
     fn process_arena_step(&mut self) {
         log::info!("Process arena step");
-        self.store.dispatch(Action::ArenaStep);
+        self.actions.dispatch(Action::ArenaStep);
     }
 }
 
+struct ServerApiImpl {
+    api_sender: EventSender<ServerEvent>,
+}
+
+impl ServerApiImpl {
+    fn new(sender: EventSender<ServerEvent>) -> ServerApiImpl {
+        ServerApiImpl { api_sender: sender }
+    }
+}
+
+impl ServerApi for ServerApiImpl {
+    fn call(&mut self, api_call: ApiCall) {
+        self.api_sender.send(ServerEvent::Api(api_call));
+    }
+}

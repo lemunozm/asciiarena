@@ -12,13 +12,13 @@ pub struct TerminalEventCollector {
 }
 
 impl TerminalEventCollector {
-    pub fn new<C>(event_callback: C) -> TerminalEventCollector
-    where C: Fn(Event) + Send + 'static {
+    pub fn new<C>(mut event_callback: C) -> TerminalEventCollector
+    where C: FnMut(Event) + Send + 'static {
         let collector_thread_running = Arc::new(AtomicBool::new(true));
         let collector_thread_handle = {
             let running = collector_thread_running.clone();
             let timeout = Duration::from_millis(EVENT_SAMPLING_TIMEOUT);
-            thread::Builder::new().name("termchat: terminal event collector".into()).spawn(move || {
+            thread::Builder::new().name("asciiarena: terminal event collector".into()).spawn(move || {
                 while running.load(Ordering::Relaxed) {
                     if crossterm::event::poll(timeout).unwrap() {
                         let event = crossterm::event::read().unwrap();
