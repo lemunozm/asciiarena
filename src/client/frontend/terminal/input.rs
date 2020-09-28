@@ -2,32 +2,33 @@ use super::events::{TerminalEventCollector};
 
 use crate::client::actions::{ActionManager, Action};
 use crate::client::util::store::{Store};
+use crate::client::frontend::{Input as InputBase};
 
 use message_io::events::{Senderable};
 
 use crossterm::event::{Event as TermEvent, KeyEvent, KeyCode, KeyModifiers};
 
-pub type InputEvent = TermEvent;
-
 pub struct Input {
     store: Store<ActionManager>,
-    event_collector: TerminalEventCollector,
+    _event_collector: TerminalEventCollector, // Keep because we need its internal thread running
 }
 
-impl Input {
-    pub fn new<S>(store: Store<ActionManager>, input_sender: S) -> Input
-    where S: Senderable<InputEvent> + Send + 'static + Clone {
-        let event_collector = TerminalEventCollector::new(move |terminal_event| {
+impl InputBase for Input {
+    type InputEvent = TermEvent;
+
+    fn new<S>(store: Store<ActionManager>, input_sender: S) -> Input
+    where S: Senderable<Self::InputEvent> + Send + 'static + Clone {
+        let _event_collector = TerminalEventCollector::new(move |terminal_event| {
             input_sender.send(terminal_event)
         });
 
         Input {
             store,
-            event_collector,
+            _event_collector,
         }
     }
 
-    pub fn process_event(&mut self, event: InputEvent) {
+    fn process_event(&mut self, event: Self::InputEvent) {
         match event {
             TermEvent::Key(KeyEvent{code, modifiers}) => match code {
                 KeyCode::Esc => {
