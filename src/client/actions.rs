@@ -1,8 +1,8 @@
-use crate::version::{self, Compatibility};
-
 use super::events::{AppEvent, ClosingReason, ServerEvent, ServerInfo, LoginStatus};
 use super::util::store::{Actionable, StateManager};
 use super::state::{State};
+
+use crate::version::{self, Compatibility};
 
 use message_io::events::{EventSender, Senderable};
 
@@ -34,7 +34,7 @@ impl ActionManager {
         self.event_sender.send_with_priority(AppEvent::Server(ServerEvent::Api(api_call)));
     }
 
-    fn close(&mut self, reason: ClosingReason) {
+    fn close_app(&mut self, reason: ClosingReason) {
         self.event_sender.send_with_priority(AppEvent::Close(reason))
     }
 }
@@ -56,6 +56,7 @@ pub enum Action {
     StartArena,
     FinishArena,
     ArenaStep,
+    Close,
 }
 
 impl Actionable for ActionManager {
@@ -73,7 +74,7 @@ impl Actionable for ActionManager {
 
             Action::Disconnected => {
                 state.mutate(|state| state.server_mut().set_connected(false));
-                self.close(ClosingReason::ConnectionLost);
+                self.close_app(ClosingReason::ConnectionLost);
             },
 
             Action::CheckedVersion(server_version, compatibility) => {
@@ -85,7 +86,7 @@ impl Actionable for ActionManager {
                     self.server_call(ApiCall::SubscribeInfo);
                 }
                 else {
-                    self.close(ClosingReason::IncompatibleVersions);
+                    self.close_app(ClosingReason::IncompatibleVersions);
                 }
             },
 
@@ -150,6 +151,9 @@ impl Actionable for ActionManager {
             Action::ArenaStep => {
                 println!("step");
                 //TODO
+            },
+            Action::Close => {
+                self.close_app(ClosingReason::Forced)
             },
         }
     }

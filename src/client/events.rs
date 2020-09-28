@@ -5,7 +5,7 @@ use std::net::{SocketAddr};
 #[derive(Debug)]
 pub enum ClosingReason {
     ServerNotFound(SocketAddr),
-    //Forced, //Ctrl-c
+    Forced, //Ctrl-c
     ConnectionLost,
     IncompatibleVersions,
 }
