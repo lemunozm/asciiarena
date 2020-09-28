@@ -5,7 +5,7 @@ use crate::util::{self};
 
 use super::actions::{Action, ServerApi, ApiCall, Dispatcher, ConnectionResult};
 
-use message_io::events::{EventQueue, EventSender, Senderable};
+use message_io::events::{EventQueue, EventSender};
 use message_io::network::{NetworkManager, NetEvent, Endpoint};
 
 use std::net::{IpAddr, SocketAddr};
@@ -61,7 +61,7 @@ impl ServerProxy {
     }
 
     pub fn api(&mut self) -> impl ServerApi {
-        return ServerApiImpl::new(self.event_sender.clone())
+        return ServerApiImpl { sender: self.event_sender.clone() }
     }
 }
 
@@ -326,17 +326,11 @@ impl ServerConnection {
 }
 
 struct ServerApiImpl {
-    api_sender: EventSender<ServerEvent>,
-}
-
-impl ServerApiImpl {
-    fn new(sender: EventSender<ServerEvent>) -> ServerApiImpl {
-        ServerApiImpl { api_sender: sender }
-    }
+    sender: EventSender<ServerEvent>,
 }
 
 impl ServerApi for ServerApiImpl {
     fn call(&mut self, api_call: ApiCall) {
-        self.api_sender.send(ServerEvent::Api(api_call));
+        self.sender.send(ServerEvent::Api(api_call));
     }
 }

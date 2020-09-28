@@ -5,7 +5,7 @@ use crate::message::{ClientMessage, ServerMessage, ServerInfo, LoginStatus, Logg
 use crate::version::{self, Compatibility};
 use crate::util::{self, SessionToken};
 
-use message_io::events::{EventQueue, Senderable};
+use message_io::events::{EventQueue};
 use message_io::network::{NetworkManager, NetEvent, Endpoint};
 
 use itertools::{Itertools};

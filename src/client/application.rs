@@ -5,7 +5,7 @@ use super::state::{State};
 
 use super::frontend::{Frontend, Viewport, Renderer, Input};
 
-use message_io::events::{EventSender, EventQueue, Senderable};
+use message_io::events::{EventSender, EventQueue};
 
 use std::net::{SocketAddr};
 
@@ -28,11 +28,11 @@ impl<F: Frontend> Application<F> {
     pub fn new(server_addr: SocketAddr, player_name: Option<&str>) -> Application<F> {
         let mut event_queue = EventQueue::new();
 
-        let action_dispatcher = ActionDispatcher::new(event_queue.sender().clone());
+        let action_dispatcher = ActionDispatcher { sender: event_queue.sender().clone() };
         let mut server = ServerProxy::new(action_dispatcher.clone());
 
         let state = State::new(server_addr, player_name);
-        let closer = AppCloser::new(event_queue.sender().clone());
+        let closer = AppCloser { sender: event_queue.sender().clone() };
         let actions = ActionManager::new(closer, server.api());
 
         Application {
@@ -68,33 +68,21 @@ impl<F: Frontend> Application<F> {
 
 #[derive(Clone)]
 pub struct ActionDispatcher {
-    event_sender: EventSender<AppEvent>
-}
-
-impl ActionDispatcher {
-    fn new(event_sender: EventSender<AppEvent>) -> ActionDispatcher {
-        ActionDispatcher { event_sender }
-    }
+    sender: EventSender<AppEvent>
 }
 
 impl Dispatcher for ActionDispatcher {
     fn dispatch(&mut self, action: Action) {
-        self.event_sender.send(AppEvent::Action(action));
+        self.sender.send(AppEvent::Action(action));
     }
 }
 
 pub struct AppCloser {
-    event_sender: EventSender<AppEvent>
-}
-
-impl AppCloser {
-    fn new(event_sender: EventSender<AppEvent>) -> AppCloser {
-        AppCloser { event_sender }
-    }
+    sender: EventSender<AppEvent>
 }
 
 impl Closer for AppCloser {
     fn close(&mut self, reason: ClosingReason) {
-        self.event_sender.send(AppEvent::Close(reason));
+        self.sender.send_with_priority(AppEvent::Close(reason));
     }
 }

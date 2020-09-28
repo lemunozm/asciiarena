@@ -4,22 +4,8 @@ use super::state::{State};
 use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
 
-use message_io::events::{Senderable};
-
 use std::time::{Duration};
 use std::net::{SocketAddr};
-
-/// Event API to control the connection
-#[derive(Debug)]
-pub enum ApiCall {
-    Connect(SocketAddr),
-    CheckVersion(String),
-    SubscribeInfo,
-    Login(String),
-    Logout,
-    MovePlayer,
-    CastSkill,
-}
 
 pub trait ServerApi {
     fn call(&mut self, api_call: ApiCall);
@@ -33,6 +19,18 @@ pub trait Closer: Send {
     fn close(&mut self, reason: ClosingReason);
 }
 
+/// Event API to control the connection
+#[derive(Debug)]
+pub enum ApiCall {
+    Connect(SocketAddr),
+    CheckVersion(String),
+    SubscribeInfo,
+    Login(String),
+    Logout,
+    MovePlayer,
+    CastSkill,
+}
+
 /// Event API to close the application
 #[derive(Debug)]
 pub enum ClosingReason {
@@ -42,27 +40,7 @@ pub enum ClosingReason {
     IncompatibleVersions,
 }
 
-pub struct ActionManager {
-    closer: Box<dyn Closer>,
-    server_api: Box<dyn ServerApi>,
-}
-
-impl ActionManager {
-    pub fn new(closer: impl Closer + 'static, api: impl ServerApi + 'static) -> ActionManager {
-        ActionManager {
-            closer: Box::new(closer),
-            server_api: Box::new(api),
-        }
-    }
-}
-
 /// Action API
-#[derive(Debug)]
-pub enum ConnectionResult {
-    Connected,
-    NotFound,
-}
-
 #[derive(Debug)]
 pub enum Action {
     StartApp,
@@ -82,6 +60,27 @@ pub enum Action {
     FinishArena,
     ArenaStep,
     Close,
+}
+
+/// Action API utils
+#[derive(Debug)]
+pub enum ConnectionResult {
+    Connected,
+    NotFound,
+}
+
+pub struct ActionManager {
+    closer: Box<dyn Closer>,
+    server_api: Box<dyn ServerApi>,
+}
+
+impl ActionManager {
+    pub fn new(closer: impl Closer + 'static, api: impl ServerApi + 'static) -> ActionManager {
+        ActionManager {
+            closer: Box::new(closer),
+            server_api: Box::new(api),
+        }
+    }
 }
 
 impl Actionable for ActionManager {
