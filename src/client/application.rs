@@ -3,7 +3,7 @@ use super::util::store::{Store};
 use super::actions::{ActionManager, Action, Dispatcher, Closer, ClosingReason};
 use super::state::{State};
 
-use super::frontend::{Frontend, Viewport, Renderer, Input};
+use super::frontend::{Frontend, Renderer};
 
 use message_io::events::{EventSender, EventQueue};
 
@@ -21,9 +21,7 @@ pub struct Application<F: Frontend> {
     event_queue: EventQueue<AppEvent>,
     store: Store<ActionManager>,
     _server: ServerProxy, // Kept because we need its internal thread running
-    viewport: F::Viewport,
     _input: F::Input, // Kept because we need its internal thread running
-
 }
 
 impl<F: Frontend> Application<F> {
@@ -41,17 +39,16 @@ impl<F: Frontend> Application<F> {
             event_queue,
             store: Store::new(state, actions),
             _server: server,
-            viewport: F::Viewport::new_full_screen(),
-            _input: F::Input::new(action_dispatcher.clone()),
+            _input: F::init_input(action_dispatcher.clone()),
         }
     }
 
     pub fn run(&mut self) -> ClosingReason {
-        let mut renderer = self.viewport.open();
+        let mut renderer = F::init_renderer();
         self.store.dispatch(Action::StartApp);
         self.event_queue.sender().send(AppEvent::Draw);
 
-        let close_reason = loop {
+        loop {
             let event = self.event_queue.receive();
             log::trace!("[Process event] - {:?}", event);
             match event {
@@ -67,9 +64,7 @@ impl<F: Frontend> Application<F> {
                     break reason
                 },
             }
-        };
-        self.viewport.close();
-        close_reason
+        }
     }
 }
 

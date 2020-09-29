@@ -4,24 +4,14 @@ pub use super::actions::{Dispatcher};
 pub use super::state::{State};
 pub use super::util::store::{StateManager};
 
-pub trait Input {
-    fn new(actions: impl Dispatcher + 'static) -> Self;
-}
-
-pub trait Renderer {
-    fn new() -> Self;
+pub trait Renderer: Drop {
     fn render(&mut self, state: &StateManager<State>);
 }
 
-pub trait Viewport {
+pub trait Frontend {
+    type Input;
     type Renderer: Renderer;
 
-    fn new_full_screen() -> Self;
-    fn open(&mut self) -> Self::Renderer;
-    fn close(&mut self);
-}
-
-pub trait Frontend {
-    type Input: Input;
-    type Viewport: Viewport;
+    fn init_input(actions: impl Dispatcher + 'static) -> Self::Input;
+    fn init_renderer() -> Self::Renderer;
 }
