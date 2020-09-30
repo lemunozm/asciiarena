@@ -184,7 +184,6 @@ impl Actionable for ActionManager {
             },
 
             Action::ArenaStep => {
-                println!("step");
                 //TODO
             },
             Action::Close => {

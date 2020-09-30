@@ -44,10 +44,10 @@ impl<F: Frontend> Application<F> {
     }
 
     pub fn run(&mut self) -> ClosingReason {
-        let mut renderer = F::init_renderer();
         self.store.dispatch(Action::StartApp);
         self.event_queue.sender().send(AppEvent::Draw);
 
+        let mut renderer = F::init_renderer();
         loop {
             let event = self.event_queue.receive();
             log::trace!("[Process event] - {:?}", event);
@@ -57,7 +57,7 @@ impl<F: Frontend> Application<F> {
                 },
                 AppEvent::Draw => {
                     renderer.render(&self.store.state_manager());
-                    self.event_queue.sender().send_with_timer(AppEvent::Draw, Duration::from_millis(1000));
+                    self.event_queue.sender().send_with_timer(AppEvent::Draw, Duration::from_millis(200));
                 },
                 AppEvent::Close(reason) => {
                     log::info!("Closing client. Reason: {:?}", reason);
