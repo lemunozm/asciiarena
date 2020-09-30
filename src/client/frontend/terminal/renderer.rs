@@ -70,6 +70,7 @@ impl Renderer for TerminalRenderer {
             let layout = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
+                    Constraint::Min(MAIN_TITLE.chars().filter(|&c| c == '\n').count() as u16),
                     Constraint::Percentage(100),
                 ].as_ref())
                 .split(ui_space);

@@ -30,6 +30,9 @@ impl TerminalInput {
                 },
                 _ => (),
             }
+            TermEvent::Resize(width, height) => {
+                actions.dispatch(Action::ResizeWindow(width as usize, height as usize));
+            }
             _ => (),
         };
     }

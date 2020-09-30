@@ -23,7 +23,6 @@ pub trait ServerApi {
     fn call(&mut self, api_call: ApiCall);
 }
 
-
 /// Event API to close the application
 #[derive(Debug)]
 pub enum ClosingReason {
@@ -33,7 +32,7 @@ pub enum ClosingReason {
     IncompatibleVersions,
 }
 
-pub trait Closer: Send {
+pub trait AppController: Send {
     fn close(&mut self, reason: ClosingReason);
 }
 
@@ -56,6 +55,7 @@ pub enum Action {
     StartArena,
     FinishArena,
     ArenaStep,
+    ResizeWindow(usize, usize),
     Close,
 }
 
@@ -72,14 +72,14 @@ pub trait Dispatcher: Send + Sync {
 
 
 pub struct ActionManager {
-    closer: Box<dyn Closer>,
+    app: Box<dyn AppController>,
     server: Box<dyn ServerApi>,
 }
 
 impl ActionManager {
-    pub fn new(closer: impl Closer + 'static, server: impl ServerApi + 'static) -> ActionManager {
+    pub fn new(app: impl AppController + 'static, server: impl ServerApi + 'static) -> ActionManager {
         ActionManager {
-            closer: Box::new(closer),
+            app: Box::new(app),
             server: Box::new(server),
         }
     }
@@ -109,7 +109,7 @@ impl Actionable for ActionManager {
 
             Action::Disconnected => {
                 state.mutate(|state| state.server_mut().set_connected(false));
-                self.closer.close(ClosingReason::ConnectionLost);
+                self.app.close(ClosingReason::ConnectionLost);
             },
 
             Action::CheckedVersion(server_version, compatibility) => {
@@ -121,7 +121,7 @@ impl Actionable for ActionManager {
                     self.server.call(ApiCall::SubscribeInfo);
                 }
                 else {
-                    self.closer.close(ClosingReason::IncompatibleVersions);
+                    self.app.close(ClosingReason::IncompatibleVersions);
                 }
             },
 
@@ -156,7 +156,7 @@ impl Actionable for ActionManager {
                     },
                     LoginStatus::PlayerLimit => {
                     },
-                }
+                };
             },
 
             Action::UdpReachable => {
@@ -186,8 +186,9 @@ impl Actionable for ActionManager {
             Action::ArenaStep => {
                 //TODO
             },
+            Action::ResizeWindow(_, _) => {},
             Action::Close => {
-                self.closer.close(ClosingReason::Forced)
+                self.app.close(ClosingReason::Forced);
             },
         }
     }

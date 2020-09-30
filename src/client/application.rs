@@ -1,6 +1,6 @@
 use super::connection::{ServerProxy};
 use super::util::store::{Store};
-use super::actions::{ActionManager, Action, Dispatcher, Closer, ClosingReason};
+use super::actions::{ActionManager, Action, Dispatcher, AppController, ClosingReason};
 use super::state::{State};
 
 use super::frontend::{Frontend, Renderer};
@@ -9,6 +9,10 @@ use message_io::events::{EventSender, EventQueue};
 
 use std::net::{SocketAddr};
 use std::time::{Duration};
+
+lazy_static! {
+    static ref APP_FRAME_DURATION: Duration = Duration::from_secs_f32(1.0 / 30.0);
+}
 
 #[derive(Debug)]
 pub enum AppEvent {
@@ -32,8 +36,8 @@ impl<F: Frontend> Application<F> {
         let mut server = ServerProxy::new(action_dispatcher.clone());
 
         let state = State::new(server_addr, player_name);
-        let closer = AppCloser { sender: event_queue.sender().clone() };
-        let actions = ActionManager::new(closer, server.api());
+        let app_controller = ApplicationController { sender: event_queue.sender().clone() };
+        let actions = ActionManager::new(app_controller, server.api());
 
         Application {
             event_queue,
@@ -57,7 +61,7 @@ impl<F: Frontend> Application<F> {
                 },
                 AppEvent::Draw => {
                     renderer.render(&self.store.state_manager());
-                    self.event_queue.sender().send_with_timer(AppEvent::Draw, Duration::from_millis(200));
+                    self.event_queue.sender().send_with_timer(AppEvent::Draw, *APP_FRAME_DURATION);
                 },
                 AppEvent::Close(reason) => {
                     log::info!("Closing client. Reason: {:?}", reason);
@@ -79,11 +83,11 @@ impl Dispatcher for ActionDispatcher {
     }
 }
 
-pub struct AppCloser {
+pub struct ApplicationController {
     sender: EventSender<AppEvent>
 }
 
-impl Closer for AppCloser {
+impl AppController for ApplicationController {
     fn close(&mut self, reason: ClosingReason) {
         self.sender.send_with_priority(AppEvent::Close(reason));
     }
