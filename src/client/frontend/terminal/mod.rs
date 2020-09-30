@@ -1,6 +1,7 @@
 pub mod renderer;
 pub mod input;
 pub mod events;
+pub mod gui;
 
 use crate::client::frontend::{Frontend};
 use crate::client::actions::{Dispatcher};
