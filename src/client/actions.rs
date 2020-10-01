@@ -106,17 +106,7 @@ impl Actionable for ActionManager {
 
             Action::Disconnected => {
                 state.mutate(|state| {
-                    if let Some(VersionInfo {version: _, compatibility}) = state.server().version_info() {
-                        if compatibility.is_compatible() {
-                            state.server_mut().reset_version_info();
-                        }
-                        else {
-                            state.server_mut().set_connection_status(ConnectionStatus::VersionError);
-                        }
-                    }
-                    else {
-                        state.server_mut().set_connection_status(ConnectionStatus::Lost);
-                    }
+                    state.server_mut().set_connection_status(ConnectionStatus::Lost);
                 });
             },
 

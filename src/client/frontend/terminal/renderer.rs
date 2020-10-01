@@ -37,7 +37,7 @@ impl Renderer for TerminalRenderer {
 
         terminal.draw(|frame: &mut Frame<CrosstermBackend<Stdout>>| {
             let menu_space = util::centered_space(frame.size(), menu::DIMENSION);
-            menu.draw(&mut Context::new(state, frame), menu_space);
+            menu.draw(&mut Context::new(&state.get(), frame), menu_space);
 
         }).unwrap();
     }

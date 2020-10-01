@@ -17,7 +17,7 @@ r"  /  _  \   ______ ____ |__|__| /  _  \_______   ____   ____ _____    ", "\n",
 r" /  /_\  \ /  ___// ___\|  |  |/  /_\  \_  __ \_/ __ \ /    \\__  \   ", "\n",
 r"/    |    \\___ \\  \___|  |  /    |    \  | \/\  ___/|   |  \/ __ \_ ", "\n",
 r"\____|__  /______>\_____>__|__\____|__  /__|    \_____>___|__(______/ ", "\n",
-r"        \/                            \/                              ", "\n",
+r"        \/                            \/", "\n",
 );
 pub const DIMENSION: (u16, u16) = (70, 22);
 
@@ -33,10 +33,10 @@ impl Menu {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(MAIN_TITLE.chars().filter(|&c| c == '\n').count() as u16),
+                Constraint::Length(3), // Margin
+                Constraint::Length(2),
                 Constraint::Length(2), // Margin
-                Constraint::Length(3),
-                Constraint::Length(2), // Margin
-                Constraint::Min(0),
+                Constraint::Length(7),
                 Constraint::Length(1), // Margin
                 Constraint::Length(1),
             ].as_ref())
@@ -44,11 +44,13 @@ impl Menu {
 
         self.draw_menu_panel(ctx, gui_layout[0]);
 
+        let version_space = Rect::new(gui_layout[0].x + 54, gui_layout[0].y + 6, 14, 1);
+        self.draw_version_panel(ctx, version_space);
+
         let client_layout = Layout::default()
             .direction(Direction::Vertical)
             .horizontal_margin(4)
             .constraints([
-                Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
             ].as_ref())
@@ -75,39 +77,46 @@ impl Menu {
     fn draw_menu_panel(&self, ctx: &mut Context, space: Rect) {
         let main_title = Paragraph::new(MAIN_TITLE)
             .style(Style::default().add_modifier(Modifier::BOLD))
-            .alignment(Alignment::Center);
+            .alignment(Alignment::Left);
 
         ctx.frame.render_widget(main_title, space);
     }
 
     fn draw_client_info_panel(&self, ctx: &mut Context, spaces: Vec<Rect>) {
-       self.draw_version_panel(ctx, spaces[0]);
-       self.draw_server_address_panel(ctx, spaces[1]);
-       self.draw_player_name_panel(ctx, spaces[2]);
+        self.draw_server_address_panel(ctx, spaces[0]);
+        self.draw_player_name_panel(ctx, spaces[1]);
     }
 
     fn draw_version_panel(&self, ctx: &mut Context, space: Rect) {
-        let message = format!("Client version:  {}", version::current());
-        let left_panel = Paragraph::new(message.as_str()).alignment(Alignment::Left);
+        let message = format!("version: {}", version::current());
+        let left = Span::styled(message, Style::default().fg(Color::Gray));
+        let left_panel = Paragraph::new(left).alignment(Alignment::Left);
         ctx.frame.render_widget(left_panel, space);
     }
 
     fn draw_server_address_panel(&self, ctx: &mut Context, space: Rect) {
+        let addr = ctx.state.server().addr();
         let server_addrees = Spans::from(vec![
             Span::raw("Server address:  "),
-            Span::styled(ctx.state.get().server().addr().to_string(),
-                Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(addr.to_string(), Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
         let left_panel = Paragraph::new(server_addrees).alignment(Alignment::Left);
         ctx.frame.render_widget(left_panel, space);
 
-        let (message, hint_color) = match ctx.state.get().server().connection_status() {
+        let (message, hint_color) = match ctx.state.server().connection_status() {
             ConnectionStatus::Connected => ("Connected", Color::LightGreen),
             ConnectionStatus::NotConnected => ("Not connected", Color::Yellow),
             ConnectionStatus::NotFound => ("Server not found", Color::LightRed),
-            ConnectionStatus::VersionError => ("Version error", Color::LightRed),
-            ConnectionStatus::Lost => ("Connection lost", Color::LightRed),
+            ConnectionStatus::Lost => {
+                let mut pair = ("Connection lost", Color::LightRed);
+                if let Some(VersionInfo {version: _, compatibility}) = ctx.state.server().version_info() {
+                    if !compatibility.is_compatible() {
+                        pair = ("Version error", Color::LightRed)
+                    }
+                }
+                pair
+            }
         };
 
         let hint = Span::styled(message, Style::default().fg(hint_color));
@@ -146,24 +155,22 @@ impl Menu {
         let vertical_center_inner = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Percentage(50), // Margin
+                Constraint::Percentage(40), // Margin
                 Constraint::Length(1),
             ].as_ref())
             .split(inner)[1];
 
-        let state = ctx.state.get();
-        if state.server().version_info().is_none() {
-            self.draw_server_info_panel_no_info(ctx, vertical_center_inner);
-        }
-        else {
-            let VersionInfo {version, compatibility} = state.server().version_info().unwrap();
+        if let Some(VersionInfo {version, compatibility}) = ctx.state.server().version_info() {
             if !compatibility.is_compatible() {
-                self.draw_server_info_panel_err_version(ctx, vertical_center_inner, version);
+                return self.draw_server_info_panel_err_version(ctx, vertical_center_inner, version);
             }
-            else {
-                self.draw_server_info_panel_ok(ctx, inner);
+
+            if ctx.state.server().connection_status() == ConnectionStatus::Connected {
+                return self.draw_server_info_panel_ok(ctx, inner);
             }
         }
+
+        self.draw_server_info_panel_no_info(ctx, vertical_center_inner);
     }
 
     fn draw_server_info_panel_no_info(&self, ctx: &mut Context, space: Rect) {
@@ -182,8 +189,7 @@ impl Menu {
     }
 
     fn draw_server_info_panel_ok(&self, ctx: &mut Context, space: Rect){
-        let state = ctx.state.get();
-        let VersionInfo {version, compatibility} = state.server().version_info().unwrap();
+        let VersionInfo {version, compatibility} = ctx.state.server().version_info().unwrap();
 
         let left = Spans::from(vec![
             Span::raw("version:  "),

@@ -40,12 +40,11 @@ impl State {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum ConnectionStatus {
     Connected,
     NotConnected,
     NotFound,
-    VersionError,
     Lost,
 }
 
