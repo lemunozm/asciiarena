@@ -13,7 +13,7 @@ impl State {
             player_name: player_name.map(|name| name.into()),
             server: Server {
                 addr,
-                connected: false,
+                connection_status: ConnectionStatus::NotConnected,
                 version_info: None,
                 game: Game {
                     static_info: None,
@@ -40,6 +40,15 @@ impl State {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum ConnectionStatus {
+    Connected,
+    NotConnected,
+    NotFound,
+    VersionError,
+    Lost,
+}
+
 pub struct VersionInfo {
     pub version: String,
     pub compatibility: Compatibility,
@@ -47,26 +56,30 @@ pub struct VersionInfo {
 
 pub struct Server {
     addr: SocketAddr,
-    connected: bool,
+    connection_status: ConnectionStatus,
     version_info: Option<VersionInfo>,
     game: Game,
 }
 
 impl Server {
-    pub fn set_connected(&mut self, value: bool) {
-        self.connected = value;
+    pub fn set_connection_status(&mut self, status: ConnectionStatus) {
+        self.connection_status = status;
     }
 
     pub fn set_version_info(&mut self, version: String, compatibility: Compatibility) {
         self.version_info = Some(VersionInfo { version, compatibility });
     }
 
+    pub fn reset_version_info(&mut self) {
+        self.version_info = None
+    }
+
     pub fn addr(&self) -> SocketAddr {
         self.addr
     }
 
-    pub fn connected(&self) -> bool {
-        self.connected
+    pub fn connection_status(&self) -> ConnectionStatus {
+        self.connection_status
     }
 
     pub fn version_info(&self) -> Option<&VersionInfo> {

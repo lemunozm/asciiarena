@@ -1,5 +1,5 @@
 use super::util::store::{Actionable, StateManager};
-use super::state::{State};
+use super::state::{State, ConnectionStatus, VersionInfo};
 
 use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
@@ -23,17 +23,8 @@ pub trait ServerApi {
     fn call(&mut self, api_call: ApiCall);
 }
 
-/// Event API to close the application
-#[derive(Debug)]
-pub enum ClosingReason {
-    ServerNotFound(SocketAddr),
-    Forced, //Ctrl-c
-    ConnectionLost,
-    IncompatibleVersions,
-}
-
 pub trait AppController: Send {
-    fn close(&mut self, reason: ClosingReason);
+    fn close(&mut self);
 }
 
 /// Action API
@@ -100,15 +91,33 @@ impl Actionable for ActionManager {
             Action::ConnectionResult(result)  => {
                 match result {
                     ConnectionResult::Connected => {
-                        state.mutate(|state| state.server_mut().set_connected(true));
+                        state.mutate(|state| {
+                            state.server_mut().set_connection_status(ConnectionStatus::Connected)
+                        });
                         self.server.call(ApiCall::CheckVersion(version::current().into()));
                     },
-                    ConnectionResult::NotFound => (),
+                    ConnectionResult::NotFound => {
+                        state.mutate(|state| {
+                            state.server_mut().set_connection_status(ConnectionStatus::NotFound)
+                        });
+                    },
                 }
             },
 
             Action::Disconnected => {
-                state.mutate(|state| state.server_mut().set_connected(false));
+                state.mutate(|state| {
+                    if let Some(VersionInfo {version: _, compatibility}) = state.server().version_info() {
+                        if compatibility.is_compatible() {
+                            state.server_mut().reset_version_info();
+                        }
+                        else {
+                            state.server_mut().set_connection_status(ConnectionStatus::VersionError);
+                        }
+                    }
+                    else {
+                        state.server_mut().set_connection_status(ConnectionStatus::Lost);
+                    }
+                });
             },
 
             Action::CheckedVersion(server_version, compatibility) => {
@@ -184,7 +193,7 @@ impl Actionable for ActionManager {
             },
             Action::ResizeWindow(_, _) => {},
             Action::Close => {
-                self.app.close(ClosingReason::Forced);
+                self.app.close();
             },
         }
     }

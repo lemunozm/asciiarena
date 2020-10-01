@@ -1,6 +1,6 @@
 use super::connection::{ServerProxy};
 use super::util::store::{Store};
-use super::actions::{ActionManager, Action, Dispatcher, AppController, ClosingReason};
+use super::actions::{ActionManager, Action, Dispatcher, AppController};
 use super::state::{State};
 
 use super::frontend::{Frontend, Renderer};
@@ -17,7 +17,7 @@ lazy_static! {
 #[derive(Debug)]
 pub enum AppEvent {
     Action(Action),
-    Close(ClosingReason),
+    Close,
     Draw,
 }
 
@@ -47,7 +47,7 @@ impl<F: Frontend> Application<F> {
         }
     }
 
-    pub fn run(&mut self) -> ClosingReason {
+    pub fn run(&mut self) {
         self.store.dispatch(Action::StartApp);
         self.event_queue.sender().send(AppEvent::Draw);
 
@@ -63,9 +63,9 @@ impl<F: Frontend> Application<F> {
                     renderer.render(&self.store.state_manager());
                     self.event_queue.sender().send_with_timer(AppEvent::Draw, *APP_FRAME_DURATION);
                 },
-                AppEvent::Close(reason) => {
-                    log::info!("Closing client. Reason: {:?}", reason);
-                    break reason
+                AppEvent::Close => {
+                    log::info!("Closing client");
+                    break
                 },
             }
         }
@@ -88,7 +88,7 @@ pub struct ApplicationController {
 }
 
 impl AppController for ApplicationController {
-    fn close(&mut self, reason: ClosingReason) {
-        self.sender.send_with_priority(AppEvent::Close(reason));
+    fn close(&mut self) {
+        self.sender.send_with_priority(AppEvent::Close);
     }
 }

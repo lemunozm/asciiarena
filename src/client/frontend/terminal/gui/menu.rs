@@ -1,11 +1,11 @@
 use super::super::gui::util::{self, Context};
 
-use crate::client::state::{State, VersionInfo};
+use crate::client::state::{State, VersionInfo, ConnectionStatus};
 use crate::client::util::store::{StateManager};
 use crate::version::{self, Compatibility};
 
 use tui::widgets::{Block, Borders, BorderType, Paragraph};
-use tui::layout::{Layout, Constraint, Direction, Rect, Alignment};
+use tui::layout::{Layout, Constraint, Direction, Rect, Alignment, Margin};
 use tui::style::{Style, Modifier, Color};
 use tui::text::{Span, Spans};
 
@@ -47,7 +47,7 @@ impl Menu {
         let client_layout = Layout::default()
             .direction(Direction::Vertical)
             .horizontal_margin(4)
-            .constraints([ //Borrar?
+            .constraints([
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
@@ -81,41 +81,15 @@ impl Menu {
     }
 
     fn draw_client_info_panel(&self, ctx: &mut Context, spaces: Vec<Rect>) {
-       self.draw_server_address_panel(ctx, spaces[0]);
-       self.draw_version_panel(ctx, spaces[1]);
+       self.draw_version_panel(ctx, spaces[0]);
+       self.draw_server_address_panel(ctx, spaces[1]);
        self.draw_player_name_panel(ctx, spaces[2]);
     }
 
     fn draw_version_panel(&self, ctx: &mut Context, space: Rect) {
-        let version = Spans::from(vec![
-            Span::raw("Client version:  "),
-            Span::styled(version::current(), Style::default().add_modifier(Modifier::BOLD)),
-        ]);
-
-        let (message, hint_color) = match ctx.state.get().server().version_info() {
-            Some(VersionInfo {version: _, compatibility}) => match compatibility {
-                Compatibility::Fully => {
-                    ("Compatible", Color::Green)
-                },
-                Compatibility::NotExact => {
-                    ("Compatible", Color::Yellow)
-                },
-                Compatibility::None => {
-                    ("Not compatible", Color::Red)
-                },
-            },
-            None => ("", Color::White)
-        };
-
-        let hint = Spans::from(vec![
-            Span::styled(message, Style::default().fg(hint_color)),
-        ]);
-
-        let left_panel = Paragraph::new(version).alignment(Alignment::Left);
-        let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
-
+        let message = format!("Client version:  {}", version::current());
+        let left_panel = Paragraph::new(message.as_str()).alignment(Alignment::Left);
         ctx.frame.render_widget(left_panel, space);
-        ctx.frame.render_widget(right_panel, space);
     }
 
     fn draw_server_address_panel(&self, ctx: &mut Context, space: Rect) {
@@ -125,15 +99,19 @@ impl Menu {
                 Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
-        let hint_color = Color::Green; //TODO: depends of connection
-        let hint = Spans::from(vec![
-            Span::styled("Connected", Style::default().fg(hint_color)),
-        ]);
-
         let left_panel = Paragraph::new(server_addrees).alignment(Alignment::Left);
-        let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
-
         ctx.frame.render_widget(left_panel, space);
+
+        let (message, hint_color) = match ctx.state.get().server().connection_status() {
+            ConnectionStatus::Connected => ("Connected", Color::LightGreen),
+            ConnectionStatus::NotConnected => ("Not connected", Color::Yellow),
+            ConnectionStatus::NotFound => ("Server not found", Color::LightRed),
+            ConnectionStatus::VersionError => ("Version error", Color::LightRed),
+            ConnectionStatus::Lost => ("Connection lost", Color::LightRed),
+        };
+
+        let hint = Span::styled(message, Style::default().fg(hint_color));
+        let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
         ctx.frame.render_widget(right_panel, space);
     }
 
@@ -143,30 +121,92 @@ impl Menu {
             Span::styled("L", Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
-        let hint_color = Color::Green; //TODO: depends of login status
-        let hint = Spans::from(vec![
-            Span::styled("Valid", Style::default().fg(hint_color)),
-        ]);
-
         let left_panel = Paragraph::new(player_name).alignment(Alignment::Left);
-        let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
-
         ctx.frame.render_widget(left_panel, space);
+
+        let hint_color = Color::LightGreen; //TODO: depends of login status
+        let hint = Span::styled("Valid", Style::default().fg(hint_color));
+        let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
         ctx.frame.render_widget(right_panel, space);
     }
 
     fn draw_server_info_panel(&self, ctx: &mut Context, space: Rect) {
-        let panel = Paragraph::new(" Version:\n Players:\n Map size:\n Winner points:\n UDP port:")
-            .block(Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .title(Span::styled(
-                    "Server info",
-                    Style::default().add_modifier(Modifier::BOLD)
-                )))
-            .alignment(Alignment::Left);
+        let border = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .title(Span::styled(
+                "Server info",
+                Style::default().add_modifier(Modifier::BOLD)
+            ));
 
-        ctx.frame.render_widget(panel, space);
+        ctx.frame.render_widget(border, space);
+
+        let inner = space.inner(&Margin {vertical: 1, horizontal: 2});
+
+        let vertical_center_inner = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(50), // Margin
+                Constraint::Length(1),
+            ].as_ref())
+            .split(inner)[1];
+
+        let state = ctx.state.get();
+        if state.server().version_info().is_none() {
+            self.draw_server_info_panel_no_info(ctx, vertical_center_inner);
+        }
+        else {
+            let VersionInfo {version, compatibility} = state.server().version_info().unwrap();
+            if !compatibility.is_compatible() {
+                self.draw_server_info_panel_err_version(ctx, vertical_center_inner, version);
+            }
+            else {
+                self.draw_server_info_panel_ok(ctx, inner);
+            }
+        }
+    }
+
+    fn draw_server_info_panel_no_info(&self, ctx: &mut Context, space: Rect) {
+        let message = Span::styled("Without information", Style::default().fg(Color::Gray));
+        let right_panel = Paragraph::new(message).alignment(Alignment::Center);
+        ctx.frame.render_widget(right_panel, space);
+    }
+
+    fn draw_server_info_panel_err_version(&self, ctx: &mut Context, space: Rect, version: &str) {
+        let message = Spans::from(vec![
+            Span::styled("Incompatible versions: ", Style::default().fg(Color::LightRed)),
+            Span::styled(version, Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+        ]);
+        let right_panel = Paragraph::new(message).alignment(Alignment::Center);
+        ctx.frame.render_widget(right_panel, space);
+    }
+
+    fn draw_server_info_panel_ok(&self, ctx: &mut Context, space: Rect){
+        let state = ctx.state.get();
+        let VersionInfo {version, compatibility} = state.server().version_info().unwrap();
+
+        let left = Spans::from(vec![
+            Span::raw("version:  "),
+            Span::styled(version, Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("\n"),
+        ]);
+
+        let left_panel = Paragraph::new(left).alignment(Alignment::Left);
+        ctx.frame.render_widget(left_panel, space);
+
+        let compatibility_color = match compatibility {
+            Compatibility::Fully => Color::LightGreen,
+            Compatibility::NotExact => Color::Yellow,
+            Compatibility::None => unreachable!(),
+        };
+
+        let right = Spans::from(vec![
+            Span::styled("compatible", Style::default().fg(compatibility_color)),
+            Span::raw("\n"),
+        ]);
+
+        let right_panel = Paragraph::new(right).alignment(Alignment::Right);
+        ctx.frame.render_widget(right_panel, space);
     }
 
     fn draw_waiting_room_panel(&self, ctx: &mut Context, space: Rect) {
