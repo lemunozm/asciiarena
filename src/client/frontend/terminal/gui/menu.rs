@@ -82,16 +82,16 @@ impl Menu {
         ctx.frame.render_widget(main_title, space);
     }
 
+    fn draw_version_panel(&self, ctx: &mut Context, space: Rect) {
+        let message = format!("version: {}", version::current());
+        let version = Span::styled(message, Style::default().fg(Color::Gray));
+        let panel = Paragraph::new(version).alignment(Alignment::Left);
+        ctx.frame.render_widget(panel, space);
+    }
+
     fn draw_client_info_panel(&self, ctx: &mut Context, spaces: Vec<Rect>) {
         self.draw_server_address_panel(ctx, spaces[0]);
         self.draw_player_name_panel(ctx, spaces[1]);
-    }
-
-    fn draw_version_panel(&self, ctx: &mut Context, space: Rect) {
-        let message = format!("version: {}", version::current());
-        let left = Span::styled(message, Style::default().fg(Color::Gray));
-        let left_panel = Paragraph::new(left).alignment(Alignment::Left);
-        ctx.frame.render_widget(left_panel, space);
     }
 
     fn draw_server_address_panel(&self, ctx: &mut Context, space: Rect) {
@@ -189,12 +189,25 @@ impl Menu {
     }
 
     fn draw_server_info_panel_ok(&self, ctx: &mut Context, space: Rect){
-        let VersionInfo {version, compatibility} = ctx.state.server().version_info().unwrap();
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ].as_ref())
+            .split(space);
 
+        self.draw_server_info_version_panel(ctx, layout[0]);
+        self.draw_server_info_players_panel(ctx, layout[1]);
+    }
+
+    fn draw_server_info_version_panel(&self, ctx: &mut Context, space: Rect) {
+        let VersionInfo {version, compatibility} = ctx.state.server().version_info().unwrap();
         let left = Spans::from(vec![
             Span::raw("version:  "),
             Span::styled(version, Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw("\n"),
         ]);
 
         let left_panel = Paragraph::new(left).alignment(Alignment::Left);
@@ -206,13 +219,48 @@ impl Menu {
             Compatibility::None => unreachable!(),
         };
 
-        let right = Spans::from(vec![
-            Span::styled("compatible", Style::default().fg(compatibility_color)),
-            Span::raw("\n"),
-        ]);
+        let right = Span::styled("compatible", Style::default().fg(compatibility_color));
 
         let right_panel = Paragraph::new(right).alignment(Alignment::Right);
         ctx.frame.render_widget(right_panel, space);
+    }
+
+    fn draw_server_info_players_panel(&self, ctx: &mut Context, space: Rect) {
+        if let Some(static_game_info) = ctx.state.server().game().static_info() {
+
+            let current_players_number = match ctx.state.server().game().dynamic_info() {
+                Some(dynamic_game_info) => dynamic_game_info.logged_players.len(),
+                None => 0,
+            };
+
+            let players_ratio = format!("{}/{}", current_players_number, static_game_info.players_number);
+
+            let left = Spans::from(vec![
+                Span::raw("Players:  "),
+                Span::styled(players_ratio, Style::default().add_modifier(Modifier::BOLD)),
+            ]);
+
+            let left_panel = Paragraph::new(left).alignment(Alignment::Left);
+            ctx.frame.render_widget(left_panel, space);
+
+            let (status_message, status_color) = match current_players_number {
+                n if n == static_game_info.players_number => ("Ready!", Color::LightGreen),
+                _ => ("Waiting...", Color::LightYellow),
+            };
+
+            let right = Span::styled(status_message, Style::default().fg(status_color));
+
+            let right_panel = Paragraph::new(right).alignment(Alignment::Right);
+            ctx.frame.render_widget(right_panel, space);
+        }
+    }
+
+    fn draw_server_info_points_panel(&self, ctx: &mut Context, space: Rect) {
+
+    }
+
+    fn draw_server_info_udp_panel(&self, ctx: &mut Context, space: Rect) {
+
     }
 
     fn draw_waiting_room_panel(&self, ctx: &mut Context, space: Rect) {

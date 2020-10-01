@@ -1,5 +1,5 @@
 use super::util::store::{Actionable, StateManager};
-use super::state::{State, ConnectionStatus, VersionInfo};
+use super::state::{State, ConnectionStatus, VersionInfo, StaticGameInfo};
 
 use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
@@ -121,6 +121,16 @@ impl Actionable for ActionManager {
             },
 
             Action::ServerInfo(info) => {
+                state.mutate(|state| {
+                    let static_info = StaticGameInfo {
+                        players_number: info.players_number as usize,
+                        map_size: info.map_size as usize,
+                        winner_points: info.winner_points as usize,
+                    };
+                    state.server_mut().set_udp_port(info.udp_port);
+                    state.server_mut().game_mut().set_static_info(static_info);
+                    state.server_mut().game_mut().set_dynamic_info(info.logged_players);
+                });
                 self.dispatch(state, Action::Login);
             },
 

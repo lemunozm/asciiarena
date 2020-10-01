@@ -14,6 +14,8 @@ impl State {
             server: Server {
                 addr,
                 connection_status: ConnectionStatus::NotConnected,
+                udp_port: None,
+                udp_confirmed: false,
                 version_info: None,
                 game: Game {
                     static_info: None,
@@ -56,13 +58,39 @@ pub struct VersionInfo {
 pub struct Server {
     addr: SocketAddr,
     connection_status: ConnectionStatus,
+    udp_port: Option<u16>,
+    udp_confirmed: bool,
     version_info: Option<VersionInfo>,
     game: Game,
 }
 
 impl Server {
+    pub fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
     pub fn set_connection_status(&mut self, status: ConnectionStatus) {
         self.connection_status = status;
+    }
+
+    pub fn connection_status(&self) -> ConnectionStatus {
+        self.connection_status
+    }
+
+    pub fn set_udp_port(&mut self, port: u16) {
+        self.udp_port = Some(port)
+    }
+
+    pub fn udp_port(&mut self, port: u16) -> Option<u16> {
+        self.udp_port
+    }
+
+    pub fn confirm_udp_connection(&mut self) {
+        self.udp_confirmed = true;
+    }
+
+    pub fn is_udp_confirmed(&self) -> bool {
+        self.udp_confirmed
     }
 
     pub fn set_version_info(&mut self, version: String, compatibility: Compatibility) {
@@ -73,14 +101,6 @@ impl Server {
         self.version_info = None
     }
 
-    pub fn addr(&self) -> SocketAddr {
-        self.addr
-    }
-
-    pub fn connection_status(&self) -> ConnectionStatus {
-        self.connection_status
-    }
-
     pub fn version_info(&self) -> Option<&VersionInfo> {
         self.version_info.as_ref()
     }
@@ -88,16 +108,20 @@ impl Server {
     pub fn game_mut(&mut self) -> &mut Game {
         &mut self.game
     }
+
+    pub fn game(&self) -> &Game {
+        &self.game
+    }
 }
 
 pub struct StaticGameInfo {
-    players_number: usize,
-    map_size: usize,
-    winner_points: usize,
+    pub players_number: usize,
+    pub map_size: usize,
+    pub winner_points: usize,
 }
 
 pub struct DynamicGameInfo {
-    logged_players: Vec<String>,
+    pub logged_players: Vec<String>,
 }
 
 pub struct Game {
@@ -106,11 +130,19 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn set_static_game_info(&mut self, players_number: usize, map_size: usize, winner_points: usize) {
-        self.static_info = Some(StaticGameInfo { players_number, map_size, winner_points });
+    pub fn set_static_info(&mut self, static_info: StaticGameInfo) {
+        self.static_info = Some(static_info);
     }
 
-    pub fn set_dynamic_game_info(&mut self, logged_players: Vec<String>) {
+    pub fn static_info(&self) -> Option<&StaticGameInfo> {
+        self.static_info.as_ref()
+    }
+
+    pub fn set_dynamic_info(&mut self, logged_players: Vec<String>) {
         self.dynamic_info = Some(DynamicGameInfo { logged_players });
+    }
+
+    pub fn dynamic_info(&self) -> Option<&DynamicGameInfo> {
+        self.dynamic_info.as_ref()
     }
 }
