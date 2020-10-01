@@ -148,8 +148,8 @@ impl ServerManager {
         match compatibility {
             Compatibility::Fully =>
                 log::trace!("Fully compatible versions: {}", client_version),
-            Compatibility::OkOutdated =>
-                log::info!("Compatible client version but differs. Client: {}. Server: {}", client_version, version::current()),
+            Compatibility::NotExact =>
+                log::info!("Compatible client version, but not exact. Client: {}. Server: {}", client_version, version::current()),
             Compatibility::None =>
                 log::warn!("Incompatible client version. Client: {}. Server: {}. Rejected", client_version, version::current()),
         };

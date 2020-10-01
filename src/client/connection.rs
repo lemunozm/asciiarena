@@ -213,8 +213,8 @@ impl ServerConnection {
             Compatibility::Fully => {
                 log::info!("Fully compatible versions {}", version::current());
             }
-            Compatibility::OkOutdated => {
-                log::warn!("Compatible server version but differs. Client: {}. Server: {}", version::current(), server_version);
+            Compatibility::NotExact => {
+                log::warn!("Compatible server version, but not exact. Client: {}. Server: {}", version::current(), server_version);
             }
             Compatibility::None => {
                 log::error!("Incompatible server version. Client: {}. Server: {}", version::current(), server_version);

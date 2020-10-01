@@ -41,8 +41,8 @@ impl State {
 }
 
 pub struct VersionInfo {
-    server_version: String,
-    compatibility: Compatibility,
+    pub version: String,
+    pub compatibility: Compatibility,
 }
 
 pub struct Server {
@@ -57,8 +57,8 @@ impl Server {
         self.connected = value;
     }
 
-    pub fn set_version_info(&mut self, server_version: String, compatibility: Compatibility) {
-        self.version_info = Some(VersionInfo { server_version, compatibility });
+    pub fn set_version_info(&mut self, version: String, compatibility: Compatibility) {
+        self.version_info = Some(VersionInfo { version, compatibility });
     }
 
     pub fn addr(&self) -> SocketAddr {
@@ -67,6 +67,10 @@ impl Server {
 
     pub fn connected(&self) -> bool {
         self.connected
+    }
+
+    pub fn version_info(&self) -> Option<&VersionInfo> {
+        self.version_info.as_ref()
     }
 
     pub fn game_mut(&mut self) -> &mut Game {

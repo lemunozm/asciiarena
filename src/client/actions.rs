@@ -109,7 +109,6 @@ impl Actionable for ActionManager {
 
             Action::Disconnected => {
                 state.mutate(|state| state.server_mut().set_connected(false));
-                self.app.close(ClosingReason::ConnectionLost);
             },
 
             Action::CheckedVersion(server_version, compatibility) => {
@@ -119,9 +118,6 @@ impl Actionable for ActionManager {
 
                 if compatibility.is_compatible() {
                     self.server.call(ApiCall::SubscribeInfo);
-                }
-                else {
-                    self.app.close(ClosingReason::IncompatibleVersions);
                 }
             },
 

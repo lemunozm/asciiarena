@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Compatibility {
     Fully = 2,
-    OkOutdated = 1,
+    NotExact = 1,
     None = 0,
 }
 
@@ -43,13 +43,13 @@ pub fn check(client_tag: &str, server_tag: &str) -> Compatibility {
         Compatibility::None
     }
     else if client_version.number(Patch) != server_version.number(Patch) {
-        Compatibility::OkOutdated
+        Compatibility::NotExact
     }
     else {
         Compatibility::Fully
     }
 }
 
-pub fn current() -> &'static str {
+pub const fn current() -> &'static str {
     crate_version!()
 }
