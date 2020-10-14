@@ -227,14 +227,9 @@ impl Menu {
 
     fn draw_server_info_players_panel(&self, ctx: &mut Context, space: Rect) {
         if let Some(static_game_info) = ctx.state.server().game().static_info() {
-
-            let current_players_number = match ctx.state.server().game().dynamic_info() {
-                Some(dynamic_game_info) => dynamic_game_info.logged_players.len(),
-                None => 0,
-            };
+            let current_players_number = ctx.state.server().game().logged_players().count();
 
             let players_ratio = format!("{}/{}", current_players_number, static_game_info.players_number);
-
             let left = Spans::from(vec![
                 Span::raw("Players:  "),
                 Span::styled(players_ratio, Style::default().add_modifier(Modifier::BOLD)),

@@ -1,5 +1,5 @@
 use super::util::store::{Actionable, StateManager};
-use super::state::{State, ConnectionStatus, VersionInfo, StaticGameInfo};
+use super::state::{State, ConnectionStatus, StaticGameInfo};
 
 use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
@@ -129,13 +129,15 @@ impl Actionable for ActionManager {
                     };
                     state.server_mut().set_udp_port(info.udp_port);
                     state.server_mut().game_mut().set_static_info(static_info);
-                    state.server_mut().game_mut().set_dynamic_info(info.logged_players);
+                    state.server_mut().game_mut().set_logged_players(info.logged_players);
                 });
                 self.dispatch(state, Action::Login);
             },
 
             Action::PlayerListUpdated(player_names) => {
-                //TODO
+                state.mutate(|state| {
+                    state.server_mut().game_mut().set_logged_players(player_names);
+                });
             },
 
             Action::Login => {

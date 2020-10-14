@@ -19,7 +19,7 @@ impl State {
                 version_info: None,
                 game: Game {
                     static_info: None,
-                    dynamic_info: None,
+                    logged_players: Vec::new(),
                 },
             },
         }
@@ -120,13 +120,9 @@ pub struct StaticGameInfo {
     pub winner_points: usize,
 }
 
-pub struct DynamicGameInfo {
-    pub logged_players: Vec<String>,
-}
-
 pub struct Game {
     static_info: Option<StaticGameInfo>,
-    dynamic_info: Option<DynamicGameInfo>,
+    logged_players: Vec<String>,
 }
 
 impl Game {
@@ -138,11 +134,11 @@ impl Game {
         self.static_info.as_ref()
     }
 
-    pub fn set_dynamic_info(&mut self, logged_players: Vec<String>) {
-        self.dynamic_info = Some(DynamicGameInfo { logged_players });
+    pub fn set_logged_players(&mut self, logged_players: Vec<String>) {
+        self.logged_players = logged_players;
     }
 
-    pub fn dynamic_info(&self) -> Option<&DynamicGameInfo> {
-        self.dynamic_info.as_ref()
+    pub fn logged_players(&self) -> impl Iterator<Item = &String> {
+        self.logged_players.iter()
     }
 }
