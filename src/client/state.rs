@@ -1,4 +1,5 @@
 use crate::version::{Compatibility};
+use crate::message::{LoginStatus};
 
 use std::net::{SocketAddr};
 
@@ -20,6 +21,7 @@ impl State {
                 game: Game {
                     static_info: None,
                     logged_players: Vec::new(),
+                    login_status: None,
                 },
             },
         }
@@ -123,11 +125,12 @@ pub struct StaticGameInfo {
 pub struct Game {
     static_info: Option<StaticGameInfo>,
     logged_players: Vec<String>,
+    login_status: Option<LoginStatus>,
 }
 
 impl Game {
-    pub fn set_static_info(&mut self, static_info: StaticGameInfo) {
-        self.static_info = Some(static_info);
+    pub fn set_static_info(&mut self, static_info: Option<StaticGameInfo>) {
+        self.static_info = static_info;
     }
 
     pub fn static_info(&self) -> Option<&StaticGameInfo> {
@@ -140,5 +143,13 @@ impl Game {
 
     pub fn logged_players(&self) -> impl Iterator<Item = &String> {
         self.logged_players.iter()
+    }
+
+    pub fn set_login_status(&mut self, login_status: Option<LoginStatus>) {
+        self.login_status = login_status;
+    }
+
+    pub fn login_status(&self) -> Option<LoginStatus> {
+        self.login_status
     }
 }

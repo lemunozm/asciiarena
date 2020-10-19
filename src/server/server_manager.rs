@@ -285,7 +285,7 @@ impl ServerManager {
     fn process_create_arena(&mut self) {
         let game = self.game.as_mut().unwrap();
         let arena = game.create_new_arena();
-        log::info!("Initializing arena {} in {} seconds...", arena.id(), self.config.arena_waiting.as_secs_f32());
+        log::trace!("Initializing arena {} in {} seconds...", arena.id(), self.config.arena_waiting.as_secs_f32());
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::PrepareArena(self.config.arena_waiting)).ok();
 
@@ -336,6 +336,9 @@ impl ServerManager {
         log::info!("Reset server");
         self.game = None;
         self.room.clear();
+
+        let player_names = self.room.sessions().map(|session| session.name().into()).collect();
+        self.network.send_all(self.server_info_subscriptions.iter(), ServerMessage::DynamicServerInfo(player_names)).ok();
     }
 
     fn process_disconnection(&mut self, endpoint: Endpoint) {

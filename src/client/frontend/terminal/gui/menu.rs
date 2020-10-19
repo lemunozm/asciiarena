@@ -3,6 +3,7 @@ use super::super::gui::util::{self, Context};
 use crate::client::state::{State, VersionInfo, ConnectionStatus};
 use crate::client::util::store::{StateManager};
 use crate::version::{self, Compatibility};
+use crate::message::{LoginStatus};
 
 use tui::widgets::{Block, Borders, BorderType, Paragraph};
 use tui::layout::{Layout, Constraint, Direction, Rect, Alignment, Margin};
@@ -196,17 +197,21 @@ impl Menu {
                 Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Length(1),
+                Constraint::Length(1),
             ].as_ref())
             .split(space);
 
         self.draw_server_info_version_panel(ctx, layout[0]);
-        self.draw_server_info_players_panel(ctx, layout[1]);
+        self.draw_server_info_map_size_panel(ctx, layout[1]);
+        self.draw_server_info_points_panel(ctx, layout[2]);
+        self.draw_server_info_udp_panel(ctx, layout[3]);
+        self.draw_server_info_players_panel(ctx, layout[4]);
     }
 
     fn draw_server_info_version_panel(&self, ctx: &mut Context, space: Rect) {
         let VersionInfo {version, compatibility} = ctx.state.server().version_info().unwrap();
         let left = Spans::from(vec![
-            Span::raw("version:  "),
+            Span::raw("Version:  "),
             Span::styled(version, Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
@@ -219,15 +224,28 @@ impl Menu {
             Compatibility::None => unreachable!(),
         };
 
-        let right = Span::styled("compatible", Style::default().fg(compatibility_color));
+        let right = Span::styled("Compatible", Style::default().fg(compatibility_color));
 
         let right_panel = Paragraph::new(right).alignment(Alignment::Right);
         ctx.frame.render_widget(right_panel, space);
     }
 
+    fn draw_server_info_map_size_panel(&self, ctx: &mut Context, space: Rect) {
+
+    }
+
+    fn draw_server_info_points_panel(&self, ctx: &mut Context, space: Rect) {
+
+    }
+
+    fn draw_server_info_udp_panel(&self, ctx: &mut Context, space: Rect) {
+
+    }
+
     fn draw_server_info_players_panel(&self, ctx: &mut Context, space: Rect) {
         if let Some(static_game_info) = ctx.state.server().game().static_info() {
             let current_players_number = ctx.state.server().game().logged_players().count();
+            let login_status = ctx.state.server().game().login_status();
 
             let players_ratio = format!("{}/{}", current_players_number, static_game_info.players_number);
             let left = Spans::from(vec![
@@ -238,9 +256,17 @@ impl Menu {
             let left_panel = Paragraph::new(left).alignment(Alignment::Left);
             ctx.frame.render_widget(left_panel, space);
 
-            let (status_message, status_color) = match current_players_number {
-                n if n == static_game_info.players_number => ("Ready!", Color::LightGreen),
-                _ => ("Waiting...", Color::LightYellow),
+            let (status_message, status_color) =
+            if current_players_number == static_game_info.players_number {
+                if let Some(LoginStatus::Logged(_, _)) = login_status {
+                    ("Ready!", Color::LightGreen) // TODO: Add a number with the remining time: Ready in 3.. 2.. 1..
+                }
+                else {
+                    ("Completed", Color::LightRed)
+                }
+            }
+            else {
+                ("Waiting...", Color::LightYellow)
             };
 
             let right = Span::styled(status_message, Style::default().fg(status_color));
@@ -248,14 +274,6 @@ impl Menu {
             let right_panel = Paragraph::new(right).alignment(Alignment::Right);
             ctx.frame.render_widget(right_panel, space);
         }
-    }
-
-    fn draw_server_info_points_panel(&self, ctx: &mut Context, space: Rect) {
-
-    }
-
-    fn draw_server_info_udp_panel(&self, ctx: &mut Context, space: Rect) {
-
     }
 
     fn draw_waiting_room_panel(&self, ctx: &mut Context, space: Rect) {

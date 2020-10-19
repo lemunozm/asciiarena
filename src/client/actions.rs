@@ -128,10 +128,13 @@ impl Actionable for ActionManager {
                         winner_points: info.winner_points as usize,
                     };
                     state.server_mut().set_udp_port(info.udp_port);
-                    state.server_mut().game_mut().set_static_info(static_info);
+                    state.server_mut().game_mut().set_static_info(Some(static_info));
                     state.server_mut().game_mut().set_logged_players(info.logged_players);
                 });
-                self.dispatch(state, Action::Login);
+
+                if state.get().player_name().is_some() {
+                    self.dispatch(state, Action::Login);
+                }
             },
 
             Action::PlayerListUpdated(player_names) => {
@@ -153,17 +156,10 @@ impl Actionable for ActionManager {
                 state.mutate(|state| state.set_player_name(player_name));
             },
 
-            Action::LoginStatus(player_name, status) => {
-                match status {
-                    LoginStatus::Logged(_token, _kind) => {
-                    },
-                    LoginStatus::InvalidPlayerName => {
-                    },
-                    LoginStatus::AlreadyLogged => {
-                    },
-                    LoginStatus::PlayerLimit => {
-                    },
-                };
+            Action::LoginStatus(_player_name, status) => {
+                state.mutate(|state| {
+                    state.server_mut().game_mut().set_login_status(Some(status));
+                });
             },
 
             Action::UdpReachable => {
@@ -175,7 +171,10 @@ impl Actionable for ActionManager {
             },
 
             Action::FinishGame => {
-                //TODO
+                state.mutate(|state| {
+                    state.server_mut().game_mut().set_logged_players(Vec::new());
+                    state.server_mut().game_mut().set_login_status(None);
+                });
             },
 
             Action::PrepareArena(duration) => {
