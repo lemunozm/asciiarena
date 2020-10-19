@@ -1,7 +1,6 @@
-use super::super::gui::util::{self, Context};
+use super::super::gui::util::{Context};
 
-use crate::client::state::{State, VersionInfo, ConnectionStatus};
-use crate::client::util::store::{StateManager};
+use crate::client::state::{VersionInfo, ConnectionStatus};
 use crate::version::{self, Compatibility};
 use crate::message::{LoginStatus};
 
@@ -9,8 +8,6 @@ use tui::widgets::{Block, Borders, BorderType, Paragraph};
 use tui::layout::{Layout, Constraint, Direction, Rect, Alignment, Margin};
 use tui::style::{Style, Modifier, Color};
 use tui::text::{Span, Spans};
-
-use std::io::{self, Stdout};
 
 const MAIN_TITLE: &'static str = concat!(
 r"   _____                .__.__   _____                                ", "\n",
@@ -231,7 +228,17 @@ impl Menu {
     }
 
     fn draw_server_info_map_size_panel(&self, ctx: &mut Context, space: Rect) {
+        if let Some(static_game_info) = ctx.state.server().game().static_info() {
+            let map_size = static_game_info.map_size;
+            let dimension = format!("{}x{}", map_size, map_size);
+            let left = Spans::from(vec![
+                Span::raw("Map size: "),
+                Span::styled(dimension, Style::default().add_modifier(Modifier::BOLD)),
+            ]);
 
+            let left_panel = Paragraph::new(left).alignment(Alignment::Left);
+            ctx.frame.render_widget(left_panel, space);
+        }
     }
 
     fn draw_server_info_points_panel(&self, ctx: &mut Context, space: Rect) {
