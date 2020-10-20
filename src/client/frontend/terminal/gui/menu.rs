@@ -242,17 +242,49 @@ impl Menu {
     }
 
     fn draw_server_info_points_panel(&self, ctx: &mut Context, space: Rect) {
+        if let Some(static_game_info) = ctx.state.server().game().static_info() {
+            let points = static_game_info.winner_points.to_string();
+            let left = Spans::from(vec![
+                Span::raw("Points:   "),
+                Span::styled(points, Style::default().add_modifier(Modifier::BOLD)),
+            ]);
 
+            let left_panel = Paragraph::new(left).alignment(Alignment::Left);
+            ctx.frame.render_widget(left_panel, space);
+        }
     }
 
     fn draw_server_info_udp_panel(&self, ctx: &mut Context, space: Rect) {
+        if let Some(udp_port) = ctx.state.server().udp_port() {
+            let left = Spans::from(vec![
+                Span::raw("UDP port: "),
+                Span::styled(udp_port.to_string(), Style::default().add_modifier(Modifier::BOLD)),
+            ]);
 
+            let left_panel = Paragraph::new(left).alignment(Alignment::Left);
+            ctx.frame.render_widget(left_panel, space);
+
+            if let Some(LoginStatus::Logged(..)) = ctx.state.server().game().login_status() {
+                let (status_message, status_color) =
+                match ctx.state.server().is_udp_confirmed() {
+                    Some(value) => match value {
+                        true => ("Available", Color::LightGreen),
+                        false => ("Not available", Color::Yellow),
+                    }
+                    None => ("Checking...", Color::LightYellow)
+                };
+
+                let right = Span::styled(status_message, Style::default().fg(status_color));
+
+                let right_panel = Paragraph::new(right).alignment(Alignment::Right);
+                ctx.frame.render_widget(right_panel, space);
+            }
+        }
     }
 
     fn draw_server_info_players_panel(&self, ctx: &mut Context, space: Rect) {
         if let Some(static_game_info) = ctx.state.server().game().static_info() {
             let current_players_number = ctx.state.server().game().logged_players().count();
-            let login_status = ctx.state.server().game().login_status();
 
             let players_ratio = format!("{}/{}", current_players_number, static_game_info.players_number);
             let left = Spans::from(vec![
@@ -265,7 +297,8 @@ impl Menu {
 
             let (status_message, status_color) =
             if current_players_number == static_game_info.players_number {
-                if let Some(LoginStatus::Logged(_, _)) = login_status {
+                let login_status = ctx.state.server().game().login_status();
+                if let Some(LoginStatus::Logged(..)) = login_status {
                     ("Ready!", Color::LightGreen) // TODO: Add a number with the remining time: Ready in 3.. 2.. 1..
                 }
                 else {

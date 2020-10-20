@@ -277,6 +277,7 @@ impl ServerConnection {
                         }
                         else {
                             log::warn!("Unable to communicate by udp.");
+                            self.actions.dispatch(Action::UdpReachable(false));
                         }
                     None => log::warn!("Attempt to send hello udp without known endpoint"),
                 },
@@ -290,7 +291,7 @@ impl ServerConnection {
         self.network.send(tcp, ClientMessage::TrustUdp).unwrap();
         self.connection.has_udp_hasdshake = true;
         log::info!("Udp successful reachable");
-        self.actions.dispatch(Action::UdpReachable);
+        self.actions.dispatch(Action::UdpReachable(true));
     }
 
     fn process_start_game(&mut self) {

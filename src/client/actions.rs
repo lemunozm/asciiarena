@@ -1,5 +1,5 @@
 use super::util::store::{Actionable, StateManager};
-use super::state::{State, ConnectionStatus, StaticGameInfo};
+use super::state::{State, ConnectionStatus, StaticGameInfo, VersionInfo};
 
 use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
@@ -39,7 +39,7 @@ pub enum Action {
     Login,
     UpdatePlayerName(Option<String>),
     LoginStatus(String, LoginStatus),
-    UdpReachable,
+    UdpReachable(bool),
     StartGame,
     FinishGame,
     PrepareArena(Duration),
@@ -112,7 +112,8 @@ impl Actionable for ActionManager {
 
             Action::CheckedVersion(server_version, compatibility) => {
                 state.mutate(|state| {
-                    state.server_mut().set_version_info(server_version, compatibility);
+                    let version_info = VersionInfo { version: server_version, compatibility };
+                    state.server_mut().set_version_info(Some(version_info));
                 });
 
                 if compatibility.is_compatible() {
@@ -127,7 +128,7 @@ impl Actionable for ActionManager {
                         map_size: info.map_size as usize,
                         winner_points: info.winner_points as usize,
                     };
-                    state.server_mut().set_udp_port(info.udp_port);
+                    state.server_mut().set_udp_port(Some(info.udp_port));
                     state.server_mut().game_mut().set_static_info(Some(static_info));
                     state.server_mut().game_mut().set_logged_players(info.logged_players);
                 });
@@ -162,8 +163,10 @@ impl Actionable for ActionManager {
                 });
             },
 
-            Action::UdpReachable => {
-                //TODO
+            Action::UdpReachable(value) => {
+                state.mutate(|state| {
+                    state.server_mut().confirm_udp_connection(Some(value));
+                });
             },
 
             Action::StartGame => {
@@ -174,6 +177,7 @@ impl Actionable for ActionManager {
                 state.mutate(|state| {
                     state.server_mut().game_mut().set_logged_players(Vec::new());
                     state.server_mut().game_mut().set_login_status(None);
+                    state.server_mut().confirm_udp_connection(None);
                 });
             },
 

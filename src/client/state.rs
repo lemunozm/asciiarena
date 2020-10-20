@@ -16,7 +16,7 @@ impl State {
                 addr,
                 connection_status: ConnectionStatus::NotConnected,
                 udp_port: None,
-                udp_confirmed: false,
+                udp_confirmed: None,
                 version_info: None,
                 game: Game {
                     static_info: None,
@@ -61,7 +61,7 @@ pub struct Server {
     addr: SocketAddr,
     connection_status: ConnectionStatus,
     udp_port: Option<u16>,
-    udp_confirmed: bool,
+    udp_confirmed: Option<bool>,
     version_info: Option<VersionInfo>,
     game: Game,
 }
@@ -79,28 +79,24 @@ impl Server {
         self.connection_status
     }
 
-    pub fn set_udp_port(&mut self, port: u16) {
-        self.udp_port = Some(port)
+    pub fn set_udp_port(&mut self, port: Option<u16>) {
+        self.udp_port = port
     }
 
-    pub fn udp_port(&mut self, port: u16) -> Option<u16> {
+    pub fn udp_port(&self) -> Option<u16> {
         self.udp_port
     }
 
-    pub fn confirm_udp_connection(&mut self) {
-        self.udp_confirmed = true;
+    pub fn confirm_udp_connection(&mut self, value: Option<bool>) {
+        self.udp_confirmed = value;
     }
 
-    pub fn is_udp_confirmed(&self) -> bool {
+    pub fn is_udp_confirmed(&self) -> Option<bool> {
         self.udp_confirmed
     }
 
-    pub fn set_version_info(&mut self, version: String, compatibility: Compatibility) {
-        self.version_info = Some(VersionInfo { version, compatibility });
-    }
-
-    pub fn reset_version_info(&mut self) {
-        self.version_info = None
+    pub fn set_version_info(&mut self, version_info: Option<VersionInfo>) {
+        self.version_info = version_info;
     }
 
     pub fn version_info(&self) -> Option<&VersionInfo> {
