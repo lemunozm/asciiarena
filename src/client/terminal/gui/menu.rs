@@ -93,7 +93,7 @@ impl Menu {
     }
 
     fn draw_server_address_panel(&self, ctx: &mut Context, space: Rect) {
-        let addr = ctx.state.server().addr();
+        let addr = ctx.state.server.addr;
         let server_addrees = Spans::from(vec![
             Span::raw("Server address:  "),
             Span::styled(addr.to_string(), Style::default().add_modifier(Modifier::BOLD)),
@@ -102,13 +102,13 @@ impl Menu {
         let left_panel = Paragraph::new(server_addrees).alignment(Alignment::Left);
         ctx.frame.render_widget(left_panel, space);
 
-        let (message, hint_color) = match ctx.state.server().connection_status() {
+        let (message, hint_color) = match ctx.state.server.connection_status {
             ConnectionStatus::Connected => ("Connected", Color::LightGreen),
             ConnectionStatus::NotConnected => ("Not connected", Color::Yellow),
             ConnectionStatus::NotFound => ("Server not found", Color::LightRed),
             ConnectionStatus::Lost => {
                 let mut pair = ("Connection lost", Color::LightRed);
-                if let Some(VersionInfo {version: _, compatibility}) = ctx.state.server().version_info() {
+                if let Some(VersionInfo {version: _, compatibility}) = ctx.state.server.version_info {
                     if !compatibility.is_compatible() {
                         pair = ("Version error", Color::LightRed)
                     }
@@ -158,12 +158,12 @@ impl Menu {
             ].as_ref())
             .split(inner)[1];
 
-        if let Some(VersionInfo {version, compatibility}) = ctx.state.server().version_info() {
+        if let Some(VersionInfo {version, compatibility}) = &ctx.state.server.version_info {
             if !compatibility.is_compatible() {
-                return self.draw_server_info_panel_err_version(ctx, vertical_center_inner, version);
+                return self.draw_server_info_panel_err_version(ctx, vertical_center_inner, &version);
             }
 
-            if ctx.state.server().connection_status() == ConnectionStatus::Connected {
+            if let ConnectionStatus::Connected = ctx.state.server.connection_status {
                 return self.draw_server_info_panel_ok(ctx, inner);
             }
         }
@@ -206,7 +206,7 @@ impl Menu {
     }
 
     fn draw_server_info_version_panel(&self, ctx: &mut Context, space: Rect) {
-        let VersionInfo {version, compatibility} = ctx.state.server().version_info().unwrap();
+        let VersionInfo {version, compatibility} = ctx.state.server.version_info.as_ref().unwrap();
         let left = Spans::from(vec![
             Span::raw("Version:  "),
             Span::styled(version, Style::default().add_modifier(Modifier::BOLD)),
@@ -228,7 +228,7 @@ impl Menu {
     }
 
     fn draw_server_info_map_size_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(static_game_info) = ctx.state.server().game().static_info() {
+        if let Some(static_game_info) = &ctx.state.server.game.static_info {
             let map_size = static_game_info.map_size;
             let dimension = format!("{}x{}", map_size, map_size);
             let left = Spans::from(vec![
@@ -242,7 +242,7 @@ impl Menu {
     }
 
     fn draw_server_info_points_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(static_game_info) = ctx.state.server().game().static_info() {
+        if let Some(static_game_info) = &ctx.state.server.game.static_info {
             let points = static_game_info.winner_points.to_string();
             let left = Spans::from(vec![
                 Span::raw("Points:   "),
@@ -255,7 +255,7 @@ impl Menu {
     }
 
     fn draw_server_info_udp_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(udp_port) = ctx.state.server().udp_port() {
+        if let Some(udp_port) = ctx.state.server.udp_port {
             let left = Spans::from(vec![
                 Span::raw("UDP port: "),
                 Span::styled(udp_port.to_string(), Style::default().add_modifier(Modifier::BOLD)),
@@ -264,9 +264,9 @@ impl Menu {
             let left_panel = Paragraph::new(left).alignment(Alignment::Left);
             ctx.frame.render_widget(left_panel, space);
 
-            if let Some(LoginStatus::Logged(..)) = ctx.state.server().game().login_status() {
+            if let Some(LoginStatus::Logged(..)) = ctx.state.server.game.login_status {
                 let (status_message, status_color) =
-                match ctx.state.server().is_udp_confirmed() {
+                match ctx.state.server.udp_confirmed {
                     Some(value) => match value {
                         true => ("Available", Color::LightGreen),
                         false => ("Not available", Color::Yellow),
@@ -283,8 +283,8 @@ impl Menu {
     }
 
     fn draw_server_info_players_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(static_game_info) = ctx.state.server().game().static_info() {
-            let current_players_number = ctx.state.server().game().logged_players().count();
+        if let Some(static_game_info) = &ctx.state.server.game.static_info {
+            let current_players_number = ctx.state.server.game.logged_players.len();
 
             let players_ratio = format!("{}/{}", current_players_number, static_game_info.players_number);
             let left = Spans::from(vec![
@@ -297,7 +297,7 @@ impl Menu {
 
             let (status_message, status_color) =
             if current_players_number == static_game_info.players_number {
-                let login_status = ctx.state.server().game().login_status();
+                let login_status = ctx.state.server.game.login_status;
                 if let Some(LoginStatus::Logged(..)) = login_status {
                     ("Ready!", Color::LightGreen) // TODO: Add a number with the remining time: Ready in 3.. 2.. 1..
                 }

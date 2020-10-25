@@ -2,7 +2,6 @@ use super::gui::util::{self, Context};
 use super::gui::menu::{self, Menu};
 
 use crate::client::state::{State};
-use crate::client::util::store::{StateManager};
 
 use crossterm::terminal::{self, EnterAlternateScreen};
 use crossterm::{ExecutableCommand};
@@ -29,12 +28,12 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self, state: &StateManager<State>) {
+    pub fn render(&mut self, state: &State) {
         let &mut Self {ref mut terminal, ref mut menu} = self;
 
         terminal.draw(|frame: &mut Frame<CrosstermBackend<Stdout>>| {
             let menu_space = util::centered_space(frame.size(), menu::DIMENSION);
-            menu.draw(&mut Context::new(&state.get(), frame), menu_space);
+            menu.draw(&mut Context::new(&state, frame), menu_space);
 
         }).unwrap();
     }

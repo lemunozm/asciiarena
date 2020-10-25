@@ -60,7 +60,7 @@ impl Application {
                     self.store.dispatch(action);
                 },
                 AppEvent::Draw => {
-                    renderer.render(&self.store.state_manager());
+                    renderer.render(&self.store.state());
                     self.event_queue.sender().send_with_timer(AppEvent::Draw, *APP_FRAME_DURATION);
                 },
                 AppEvent::Close => {

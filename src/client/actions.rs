@@ -1,8 +1,11 @@
-use super::util::store::{Actionable, StateManager};
-use super::state::{State, ConnectionStatus, StaticGameInfo, VersionInfo};
+use super::util::store::{Actionable};
+use super::state::{State, ConnectionStatus, StaticGameInfo, VersionInfo,
+    gui::Gui, gui::Menu, gui::Game, gui::SelectedPanel};
 
 use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
+
+use crossterm::event::KeyCode;
 
 use std::time::{Duration};
 use std::net::{SocketAddr};
@@ -47,6 +50,7 @@ pub enum Action {
     FinishArena,
     ArenaStep,
     ResizeWindow(usize, usize),
+    KeyPressed(KeyCode),
     Close,
 }
 
@@ -80,41 +84,33 @@ impl Actionable for ActionManager {
     type State = State;
     type Action = Action;
 
-    fn dispatch(&mut self, state: &mut StateManager<State>, action: Action) {
+    fn dispatch(&mut self, state: &mut State, action: Action) {
         log::trace!("Dispatch: {:?}", action);
         match action {
 
             Action::StartApp => {
-                self.server.call(ApiCall::Connect(state.get().server().addr()));
+                self.server.call(ApiCall::Connect(state.server.addr));
             },
 
             Action::ConnectionResult(result)  => {
                 match result {
                     ConnectionResult::Connected => {
-                        state.mutate(|state| {
-                            state.server_mut().set_connection_status(ConnectionStatus::Connected)
-                        });
+                        state.server.connection_status = ConnectionStatus::Connected;
                         self.server.call(ApiCall::CheckVersion(version::current().into()));
                     },
                     ConnectionResult::NotFound => {
-                        state.mutate(|state| {
-                            state.server_mut().set_connection_status(ConnectionStatus::NotFound)
-                        });
+                        state.server.connection_status = ConnectionStatus::NotFound;
                     },
                 }
             },
 
             Action::Disconnected => {
-                state.mutate(|state| {
-                    state.server_mut().set_connection_status(ConnectionStatus::Lost);
-                });
+                state.server.connection_status = ConnectionStatus::Lost;
             },
 
             Action::CheckedVersion(server_version, compatibility) => {
-                state.mutate(|state| {
-                    let version_info = VersionInfo { version: server_version, compatibility };
-                    state.server_mut().set_version_info(Some(version_info));
-                });
+                let version_info = VersionInfo { version: server_version, compatibility };
+                state.server.version_info = Some(version_info);
 
                 if compatibility.is_compatible() {
                     self.server.call(ApiCall::SubscribeInfo);
@@ -122,31 +118,26 @@ impl Actionable for ActionManager {
             },
 
             Action::ServerInfo(info) => {
-                state.mutate(|state| {
-                    let static_info = StaticGameInfo {
-                        players_number: info.players_number as usize,
-                        map_size: info.map_size as usize,
-                        winner_points: info.winner_points as usize,
-                    };
-                    state.server_mut().set_udp_port(Some(info.udp_port));
-                    state.server_mut().game_mut().set_static_info(Some(static_info));
-                    state.server_mut().game_mut().set_logged_players(info.logged_players);
-                });
+                let static_info = StaticGameInfo {
+                    players_number: info.players_number as usize,
+                    map_size: info.map_size as usize,
+                    winner_points: info.winner_points as usize,
+                };
+                state.server.udp_port = Some(info.udp_port);
+                state.server.game.static_info = Some(static_info);
+                state.server.game.logged_players = info.logged_players;
 
-                if state.get().player_name().is_some() {
+                if state.player_name.is_some() {
                     self.dispatch(state, Action::Login);
                 }
             },
 
             Action::PlayerListUpdated(player_names) => {
-                state.mutate(|state| {
-                    state.server_mut().game_mut().set_logged_players(player_names);
-                });
+                state.server.game.logged_players = player_names;
             },
 
             Action::Login => {
-                let player_name = state.get()
-                    .player_name()
+                let player_name = state.player_name.as_ref()
                     .expect("The player name must be already defined")
                     .into();
 
@@ -154,19 +145,15 @@ impl Actionable for ActionManager {
             },
 
             Action::UpdatePlayerName(player_name) => {
-                state.mutate(|state| state.set_player_name(player_name));
+                state.player_name = player_name;
             },
 
             Action::LoginStatus(_player_name, status) => {
-                state.mutate(|state| {
-                    state.server_mut().game_mut().set_login_status(Some(status));
-                });
+                state.server.game.login_status = Some(status);
             },
 
             Action::UdpReachable(value) => {
-                state.mutate(|state| {
-                    state.server_mut().confirm_udp_connection(Some(value));
-                });
+                state.server.udp_confirmed = Some(value);
             },
 
             Action::StartGame => {
@@ -174,15 +161,13 @@ impl Actionable for ActionManager {
             },
 
             Action::FinishGame => {
-                state.mutate(|state| {
-                    state.server_mut().game_mut().set_logged_players(Vec::new());
-                    state.server_mut().game_mut().set_login_status(None);
-                    state.server_mut().confirm_udp_connection(None);
-                });
+                state.server.game.logged_players = Vec::new();
+                state.server.game.login_status = None;
+                state.server.udp_confirmed = None;
             },
 
             Action::PrepareArena(duration) => {
-                //TODO
+                //TOD
             },
 
             Action::StartArena => {
@@ -197,6 +182,19 @@ impl Actionable for ActionManager {
                 //TODO
             },
             Action::ResizeWindow(_, _) => {},
+            Action::KeyPressed(key) => {
+                match state.gui {
+                    Gui::Menu(ref mut menu) => {
+                        match key {
+                            KeyCode::Down => {
+                                menu.selected_panel = SelectedPanel::PlayerName;
+                            },
+                            _ => (),
+                        }
+                    },
+                    Gui::Game(ref game) => { }
+                }
+            },
             Action::Close => {
                 self.app.close();
             },
