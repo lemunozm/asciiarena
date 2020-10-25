@@ -1,7 +1,6 @@
 use super::gui::util::{self, Context};
 use super::gui::menu::{self, Menu};
 
-use crate::client::frontend::{Renderer};
 use crate::client::state::{State};
 use crate::client::util::store::{StateManager};
 
@@ -13,26 +12,24 @@ use tui::backend::{CrosstermBackend};
 
 use std::io::{self, Stdout};
 
-pub struct TerminalRenderer {
+pub struct Renderer {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     menu: Menu,
 }
 
-impl TerminalRenderer {
-    pub fn new() -> TerminalRenderer {
+impl Renderer {
+    pub fn new() -> Renderer {
         terminal::enable_raw_mode().unwrap();
         io::stdout().execute(EnterAlternateScreen).unwrap();
         let terminal = Terminal::new(CrosstermBackend::new(io::stdout())).unwrap();
 
-        TerminalRenderer {
+        Renderer {
             terminal: terminal,
             menu: Menu::new(),
         }
     }
-}
 
-impl Renderer for TerminalRenderer {
-    fn render(&mut self, state: &StateManager<State>) {
+    pub fn render(&mut self, state: &StateManager<State>) {
         let &mut Self {ref mut terminal, ref mut menu} = self;
 
         terminal.draw(|frame: &mut Frame<CrosstermBackend<Stdout>>| {
@@ -43,7 +40,7 @@ impl Renderer for TerminalRenderer {
     }
 }
 
-impl Drop for TerminalRenderer {
+impl Drop for Renderer {
     fn drop(&mut self) {
         io::stdout().execute(terminal::LeaveAlternateScreen).unwrap();
         terminal::disable_raw_mode().unwrap()

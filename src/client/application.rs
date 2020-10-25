@@ -3,7 +3,7 @@ use super::util::store::{Store};
 use super::actions::{ActionManager, Action, Dispatcher, AppController};
 use super::state::{State};
 
-use super::frontend::{Frontend, Renderer};
+use super::terminal::{input::InputDispatcher, renderer::Renderer};
 
 use message_io::events::{EventSender, EventQueue};
 
@@ -21,15 +21,15 @@ pub enum AppEvent {
     Draw,
 }
 
-pub struct Application<F: Frontend> {
+pub struct Application {
     event_queue: EventQueue<AppEvent>,
     store: Store<ActionManager>,
     _server: ServerProxy, // Kept because we need its internal thread running
-    _input: F::Input, // Kept because we need its internal thread running
+    _input: InputDispatcher, // Kept because we need its internal thread running
 }
 
-impl<F: Frontend> Application<F> {
-    pub fn new(server_addr: SocketAddr, player_name: Option<&str>) -> Application<F> {
+impl Application {
+    pub fn new(server_addr: SocketAddr, player_name: Option<&str>) -> Application {
         let mut event_queue = EventQueue::new();
 
         let action_dispatcher = ActionDispatcher { sender: event_queue.sender().clone() };
@@ -43,7 +43,7 @@ impl<F: Frontend> Application<F> {
             event_queue,
             store: Store::new(state, actions),
             _server: server,
-            _input: F::init_input(action_dispatcher.clone()),
+            _input: InputDispatcher::new(action_dispatcher.clone()),
         }
     }
 
@@ -51,7 +51,7 @@ impl<F: Frontend> Application<F> {
         self.store.dispatch(Action::StartApp);
         self.event_queue.sender().send(AppEvent::Draw);
 
-        let mut renderer = F::init_renderer();
+        let mut renderer = Renderer::new();
         loop {
             let event = self.event_queue.receive();
             log::trace!("[Process event] - {:?}", event);

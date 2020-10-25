@@ -2,13 +2,12 @@ mod application;
 mod state;
 mod actions;
 mod connection;
-mod frontend;
+mod terminal;
 mod util;
 
 use application::{Application};
 
 use crate::logger::{self};
-use crate::client::frontend::terminal::{Terminal};
 
 use clap::{App, Arg, ArgMatches};
 
@@ -35,5 +34,5 @@ pub fn run(matches: &ArgMatches) {
     let server_addr = "127.0.0.1:3001".parse().unwrap();
     let player_name = matches.value_of("name");
 
-    Application::<Terminal>::new(server_addr, player_name).run();
+    Application::new(server_addr, player_name).run();
 }

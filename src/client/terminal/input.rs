@@ -4,17 +4,17 @@ use crate::client::actions::{Action, Dispatcher};
 
 use crossterm::event::{Event as TermEvent, KeyEvent, KeyCode, KeyModifiers};
 
-pub struct TerminalInput {
+pub struct InputDispatcher {
     _event_collector: TerminalEventCollector, // Kept because we need its internal thread running
 }
 
-impl TerminalInput {
-    pub fn new(mut actions: impl Dispatcher + 'static) -> TerminalInput {
+impl InputDispatcher {
+    pub fn new(mut actions: impl Dispatcher + 'static) -> InputDispatcher {
         let _event_collector = TerminalEventCollector::new(move |event| {
             Self::process_event(event, &mut actions);
         });
 
-        TerminalInput { _event_collector, }
+        InputDispatcher { _event_collector, }
     }
 
     fn process_event(event: TermEvent, actions: &mut dyn Dispatcher) {
