@@ -31,7 +31,7 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
 
 pub fn run(matches: &ArgMatches) {
     logger::init(matches.value_of("log").unwrap().parse().unwrap());
-    let server_addr = "127.0.0.1:3001".parse().unwrap();
+    let server_addr = /* Some("127.0.0.1:3001".parse().unwrap()); */ None;
     let player_name = matches.value_of("name");
 
     Application::new(server_addr, player_name).run();

@@ -93,10 +93,11 @@ impl Menu {
     }
 
     fn draw_server_address_panel(&self, ctx: &mut Context, space: Rect) {
-        let addr = ctx.state.server.addr;
+        let input_addr = &ctx.state.gui.menu().server_addr_input;
+
         let server_addrees = Spans::from(vec![
             Span::raw("Server address:  "),
-            Span::styled(addr.to_string(), Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(input_addr, Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
         let left_panel = Paragraph::new(server_addrees).alignment(Alignment::Left);

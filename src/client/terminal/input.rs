@@ -19,16 +19,20 @@ impl InputDispatcher {
 
     fn process_event(event: TermEvent, actions: &mut dyn Dispatcher) {
         match event {
-            TermEvent::Key(KeyEvent{code, modifiers}) => match code {
-                KeyCode::Esc => {
-                    actions.dispatch(Action::Close);
-                },
-                KeyCode::Char(character) => {
-                    if character == 'c' && modifiers.contains(KeyModifiers::CONTROL) {
+            TermEvent::Key(key_event) => {
+                let KeyEvent{code, modifiers} = key_event;
+                match code {
+                    KeyCode::Esc => {
                         actions.dispatch(Action::Close);
-                    }
-                },
-                _ => (),
+                    },
+                    KeyCode::Char(character) => {
+                        if character == 'c' && modifiers.contains(KeyModifiers::CONTROL) {
+                            actions.dispatch(Action::Close);
+                        }
+                    },
+                    _ => (),
+                }
+                actions.dispatch(Action::KeyPressed(key_event));
             }
             TermEvent::Resize(width, height) => {
                 actions.dispatch(Action::ResizeWindow(width as usize, height as usize));

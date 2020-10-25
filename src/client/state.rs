@@ -17,7 +17,7 @@ pub struct VersionInfo {
 }
 
 pub struct Server {
-    pub addr: SocketAddr,
+    pub addr: Option<SocketAddr>,
     pub connection_status: ConnectionStatus,
     pub udp_port: Option<u16>,
     pub udp_confirmed: Option<bool>,
@@ -38,25 +38,32 @@ pub struct Game {
 }
 
 pub mod gui {
-    use crossterm::event::KeyCode;
-
-    pub enum SelectedPanel {
-       ServerAddress(usize), //cursor
-       PlayerName,
-       None,
-    }
-
     pub struct Menu {
-        pub selected_panel: SelectedPanel,
+        pub server_addr_input: String,
+        pub server_addr_cursor: Option<usize>,
     }
 
-    pub struct Game {
-
-    }
+    pub struct Game { }
 
     pub enum Gui {
         Menu(Menu),
         Game(Game),
+    }
+
+    impl Gui {
+        pub fn menu(&self) -> &Menu {
+            match self {
+                Gui::Menu(menu) => menu,
+                _ => panic!("Must be a 'Menu'"),
+            }
+        }
+
+        pub fn game(&self) -> &Game {
+            match self {
+                Gui::Game(game) => game,
+                _ => panic!("Must be a 'Game'"),
+            }
+        }
     }
 }
 
@@ -67,7 +74,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(addr: SocketAddr, player_name: Option<&str>) -> State {
+    pub fn new(addr: Option<SocketAddr>, player_name: Option<&str>) -> State {
         State {
             player_name: player_name.map(|name| name.into()),
             server: Server {
@@ -83,7 +90,11 @@ impl State {
                 },
             },
             gui: gui::Gui::Menu(gui::Menu {
-                selected_panel: gui::SelectedPanel::None,
+                server_addr_cursor: None,
+                server_addr_input: match addr {
+                    Some(addr) => addr.to_string(),
+                    None => String::new(),
+                },
             }),
         }
     }

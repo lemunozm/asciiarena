@@ -1,11 +1,11 @@
 use super::util::store::{Actionable};
 use super::state::{State, ConnectionStatus, StaticGameInfo, VersionInfo,
-    gui::Gui, gui::Menu, gui::Game, gui::SelectedPanel};
+    gui::Gui, gui::Menu, gui::Game};
 
 use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
 
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyEvent, KeyCode};
 
 use std::time::{Duration};
 use std::net::{SocketAddr};
@@ -50,7 +50,7 @@ pub enum Action {
     FinishArena,
     ArenaStep,
     ResizeWindow(usize, usize),
-    KeyPressed(KeyCode),
+    KeyPressed(KeyEvent),
     Close,
 }
 
@@ -89,7 +89,9 @@ impl Actionable for ActionManager {
         match action {
 
             Action::StartApp => {
-                self.server.call(ApiCall::Connect(state.server.addr));
+                if let Some(addr) = state.server.addr {
+                    self.server.call(ApiCall::Connect(addr));
+                }
             },
 
             Action::ConnectionResult(result)  => {
@@ -167,7 +169,7 @@ impl Actionable for ActionManager {
             },
 
             Action::PrepareArena(duration) => {
-                //TOD
+                //TODO
             },
 
             Action::StartArena => {
@@ -182,13 +184,23 @@ impl Actionable for ActionManager {
                 //TODO
             },
             Action::ResizeWindow(_, _) => {},
-            Action::KeyPressed(key) => {
+            Action::KeyPressed(key_event) => {
                 match state.gui {
                     Gui::Menu(ref mut menu) => {
-                        match key {
-                            KeyCode::Down => {
-                                menu.selected_panel = SelectedPanel::PlayerName;
-                            },
+                        let KeyEvent{code, modifiers} = key_event;
+                        match code {
+                            KeyCode::Char(character) => {
+                            }
+                            KeyCode::Enter => {
+                            }
+                            KeyCode::Delete => {
+                            }
+                            KeyCode::Backspace => {
+                            }
+                            KeyCode::Left => {
+                            }
+                            KeyCode::Right => {
+                            }
                             _ => (),
                         }
                     },

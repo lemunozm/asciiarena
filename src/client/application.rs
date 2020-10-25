@@ -29,7 +29,7 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new(server_addr: SocketAddr, player_name: Option<&str>) -> Application {
+    pub fn new(server_addr: Option<SocketAddr>, player_name: Option<&str>) -> Application {
         let mut event_queue = EventQueue::new();
 
         let action_dispatcher = ActionDispatcher { sender: event_queue.sender().clone() };
