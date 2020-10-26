@@ -2,12 +2,12 @@ use super::server_proxy::{ServerProxy};
 use super::util::store::{Store};
 use super::actions::{ActionManager, Action, Dispatcher, AppController};
 use super::state::{State};
+pub use super::state::{Config};
 
 use super::terminal::{input::InputDispatcher, renderer::Renderer};
 
 use message_io::events::{EventSender, EventQueue};
 
-use std::net::{SocketAddr};
 use std::time::{Duration};
 
 lazy_static! {
@@ -29,13 +29,13 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new(server_addr: Option<SocketAddr>, player_name: Option<&str>) -> Application {
+    pub fn new(config: Config) -> Application {
         let mut event_queue = EventQueue::new();
 
         let action_dispatcher = ActionDispatcher { sender: event_queue.sender().clone() };
         let mut server = ServerProxy::new(action_dispatcher.clone());
 
-        let state = State::new(server_addr, player_name);
+        let state = State::new(config);
         let app_controller = ApplicationController { sender: event_queue.sender().clone() };
         let actions = ActionManager::new(app_controller, server.api());
 

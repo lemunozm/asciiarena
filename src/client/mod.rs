@@ -6,7 +6,7 @@ mod server_proxy;
 mod terminal;
 mod util;
 
-use application::{Application};
+use application::{Application, Config};
 
 use crate::logger::{self};
 
@@ -32,9 +32,12 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
 
 pub fn run(matches: &ArgMatches) {
     logger::init(matches.value_of("log").unwrap().parse().unwrap());
-    //let server_addr = Some("127.0.0.1:3001".parse().unwrap());
-    let server_addr = None;
-    let player_name = matches.value_of("name");
 
-    Application::new(server_addr, player_name).run();
+    let config = Config {
+        player_name: matches.value_of("name").map(|name| name.into()),
+        //server_addr: Some("127.0.0.1:3001".parse().unwrap()),
+        server_addr: None,
+    };
+
+    Application::new(config).run();
 }

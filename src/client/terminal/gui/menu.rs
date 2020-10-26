@@ -93,11 +93,11 @@ impl Menu {
     }
 
     fn draw_server_address_panel(&self, ctx: &mut Context, space: Rect) {
-        let input_addr = ctx.state.gui.menu().server_addr_input.content();
+        let input_addr = &ctx.state.gui.menu().server_addr_input;
 
         let server_addrees = Spans::from(vec![
             Span::raw("Server address:  "),
-            Span::styled(input_addr, Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(input_addr.content(), Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
         let left_panel = Paragraph::new(server_addrees).alignment(Alignment::Left);
@@ -121,6 +121,10 @@ impl Menu {
         let hint = Span::styled(message, Style::default().fg(hint_color));
         let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
         ctx.frame.render_widget(right_panel, space);
+
+        if let Some(ref cursor) = input_addr.cursor_position() {
+            ctx.frame.set_cursor(space.x + 17 + *cursor as u16, space.y);
+        }
     }
 
     fn draw_player_name_panel(&self, ctx: &mut Context, space: Rect) {

@@ -1,5 +1,5 @@
 use super::util::store::{Actionable};
-use super::state::{State, ConnectionStatus, StaticGameInfo, VersionInfo, Gui, gui};
+use super::state::{State, ConnectionStatus, StaticGameInfo, VersionInfo, Gui};
 
 use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
@@ -133,8 +133,13 @@ impl Actionable for ActionManager {
                 state.server.game.static_info = Some(static_info);
                 state.server.game.logged_players = info.logged_players;
 
-                if state.player_name.is_some() {
-                    self.dispatch(state, Action::Login);
+                match &state.user.player_name {
+                    Some(_) => self.dispatch(state, Action::Login),
+                    None => {
+                        if let Gui::Menu(menu) = &mut state.gui {
+                            menu.player_name_input.focus(true);
+                        }
+                    }
                 }
             },
 
@@ -143,7 +148,7 @@ impl Actionable for ActionManager {
             },
 
             Action::Login => {
-                let player_name = state.player_name.as_ref()
+                let player_name = state.user.player_name.as_ref()
                     .expect("The player name must be already defined")
                     .into();
 
@@ -151,7 +156,7 @@ impl Actionable for ActionManager {
             },
 
             Action::UpdatePlayerName(player_name) => {
-                state.player_name = player_name;
+                state.user.player_name = player_name;
             },
 
             Action::LoginStatus(_player_name, status) => {
@@ -172,7 +177,7 @@ impl Actionable for ActionManager {
                 state.server.udp_confirmed = None;
             },
 
-            Action::PrepareArena(duration) => {
+            Action::PrepareArena(_duration) => {
                 //TODO
             },
 
@@ -207,7 +212,9 @@ impl Actionable for ActionManager {
                             _ => (),
                         }
                     },
-                    Gui::Game(ref game) => { }
+                    Gui::Game(ref _game) => {
+                        //TODO
+                    }
                 }
             },
             Action::Close => {

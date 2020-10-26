@@ -14,39 +14,39 @@ impl InputTextWidget {
     }
 
     pub fn key_pressed(&mut self, key_event: KeyEvent) {
-        if let Some(mut cursor) = self.cursor {
+        if let Some(ref mut cursor) = self.cursor {
             let KeyEvent{code, modifiers} = key_event;
             match code {
                 KeyCode::Char(character) => {
-                    self.content.insert(cursor, character);
-                    cursor += 1;
+                    self.content.insert(*cursor, character);
+                    *cursor += 1;
                 }
                 KeyCode::Delete => {
-                    if cursor < self.content.len() {
-                        self.content.remove(cursor);
+                    if *cursor < self.content.len() {
+                        self.content.remove(*cursor);
                     }
                 }
                 KeyCode::Backspace => {
-                    if cursor > 0 {
-                        cursor -= 1;
-                        self.content.remove(cursor);
+                    if *cursor > 0 {
+                        *cursor -= 1;
+                        self.content.remove(*cursor);
                     }
                 }
                 KeyCode::Left => {
-                    if cursor > 0 {
-                        cursor -= 1;
+                    if *cursor > 0 {
+                        *cursor -= 1;
                     }
                 }
                 KeyCode::Right => {
-                    if cursor < self.content.len() {
-                        cursor += 1;
+                    if *cursor < self.content.len() {
+                        *cursor += 1;
                     }
                 }
                 KeyCode::Home => {
-                    cursor = 0;
+                    *cursor = 0;
                 }
                 KeyCode::End => {
-                    cursor = self.content.len();
+                    *cursor = self.content.len();
                 }
                 _ => (),
             }

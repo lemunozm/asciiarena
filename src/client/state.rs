@@ -3,6 +3,11 @@ use crate::message::{LoginStatus};
 
 use std::net::{SocketAddr};
 
+pub struct Config {
+    pub server_addr: Option<SocketAddr>,
+    pub player_name: Option<String>,
+}
+
 #[derive(Clone, Copy)]
 pub enum ConnectionStatus {
     Connected,
@@ -38,9 +43,7 @@ pub struct Game {
 }
 
 pub mod gui {
-    use super::super::input_widgets::{InputTextWidget, InputCharWidget};
-
-    use std::net::{SocketAddr};
+    use crate::client::input_widgets::{InputTextWidget, InputCharWidget};
 
     pub struct Menu {
         pub server_addr_input: InputTextWidget,
@@ -48,11 +51,13 @@ pub mod gui {
     }
 
     impl Menu {
-        pub fn new(addr: Option<SocketAddr>, player_name: Option<&str>) -> Menu {
+        pub fn new(config: &super::Config) -> Menu {
             Menu {
-                server_addr_input: InputTextWidget::new(addr.map(|addr| addr.to_string())),
+                server_addr_input: InputTextWidget::new(
+                    config.server_addr.map(|addr| addr.to_string())
+                ),
                 player_name_input: InputCharWidget::new(
-                    match player_name {
+                    match &config.player_name {
                         Some(name) => name.chars().next().unwrap(),
                         None => ' '
                     },
@@ -91,7 +96,7 @@ impl Gui {
         }
     }
 
-    pub fn game_mut(&mut self) -> &gui::Game {
+    pub fn game_mut(&mut self) -> &mut gui::Game {
         match self {
             Gui::Game(game) => game,
             _ => panic!("Must be a 'Game'"),
@@ -99,18 +104,24 @@ impl Gui {
     }
 }
 
-pub struct State {
+pub struct User {
     pub player_name: Option<String>,
+}
+
+pub struct State {
+    pub user: User,
     pub server: Server,
     pub gui: Gui,
 }
 
 impl State {
-    pub fn new(addr: Option<SocketAddr>, player_name: Option<&str>) -> State {
+    pub fn new(config: Config) -> State {
         State {
-            player_name: player_name.map(|name| name.into()),
+            user: User {
+                player_name: config.player_name.clone(),
+            },
             server: Server {
-                addr,
+                addr: config.server_addr,
                 connection_status: ConnectionStatus::NotConnected,
                 udp_port: None,
                 udp_confirmed: None,
@@ -121,7 +132,7 @@ impl State {
                     login_status: None,
                 },
             },
-            gui: Gui::Menu(gui::Menu::new(addr, player_name)),
+            gui: Gui::Menu(gui::Menu::new(&config)),
         }
     }
 }
