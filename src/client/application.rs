@@ -1,4 +1,4 @@
-use super::connection::{ServerProxy};
+use super::server_proxy::{ServerProxy};
 use super::util::store::{Store};
 use super::actions::{ActionManager, Action, Dispatcher, AppController};
 use super::state::{State};

@@ -1,7 +1,7 @@
 mod application;
 mod state;
 mod actions;
-mod connection;
+mod server_proxy;
 mod terminal;
 mod util;
 
