@@ -77,7 +77,21 @@ impl Gui {
         }
     }
 
+    pub fn menu_mut(&mut self) -> &mut gui::Menu {
+        match self {
+            Gui::Menu(menu) => menu,
+            _ => panic!("Must be a 'Menu'"),
+        }
+    }
+
     pub fn game(&self) -> &gui::Game {
+        match self {
+            Gui::Game(game) => game,
+            _ => panic!("Must be a 'Game'"),
+        }
+    }
+
+    pub fn game_mut(&mut self) -> &gui::Game {
         match self {
             Gui::Game(game) => game,
             _ => panic!("Must be a 'Game'"),

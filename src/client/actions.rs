@@ -1,5 +1,5 @@
 use super::util::store::{Actionable};
-use super::state::{State, ConnectionStatus, StaticGameInfo, VersionInfo, Gui};
+use super::state::{State, ConnectionStatus, StaticGameInfo, VersionInfo, Gui, gui};
 
 use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
@@ -88,8 +88,13 @@ impl Actionable for ActionManager {
         match action {
 
             Action::StartApp => {
-                if let Some(addr) = state.server.addr {
-                    self.server.call(ApiCall::Connect(addr));
+                match state.server.addr {
+                    Some(addr) => self.server.call(ApiCall::Connect(addr)),
+                    None => {
+                        if let Gui::Menu(menu) = &mut state.gui {
+                            menu.server_addr_input.focus(true);
+                        }
+                    }
                 }
             },
 
@@ -192,11 +197,11 @@ impl Actionable for ActionManager {
                             KeyCode::Enter => {
                                 if menu.server_addr_input.has_focus() {
                                     //TODO: dispatch new action? (connect)
-                                    // focus(false)
+                                    menu.server_addr_input.focus(false)
                                 }
                                 if menu.player_name_input.has_focus() {
                                     //TODO: dispatch new action? (login)
-                                    // focus(false)
+                                    menu.server_addr_input.focus(false)
                                 }
                             }
                             _ => (),
