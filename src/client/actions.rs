@@ -1,6 +1,5 @@
 use super::util::store::{Actionable};
-use super::state::{State, ConnectionStatus, StaticGameInfo, VersionInfo,
-    gui::Gui, gui::Menu, gui::Game};
+use super::state::{State, ConnectionStatus, StaticGameInfo, VersionInfo, Gui};
 
 use crate::message::{ServerInfo, LoginStatus};
 use crate::version::{self, Compatibility};
@@ -187,19 +186,18 @@ impl Actionable for ActionManager {
             Action::KeyPressed(key_event) => {
                 match state.gui {
                     Gui::Menu(ref mut menu) => {
-                        let KeyEvent{code, modifiers} = key_event;
-                        match code {
-                            KeyCode::Char(character) => {
-                            }
+                        menu.server_addr_input.key_pressed(key_event);
+                        menu.player_name_input.key_pressed(key_event);
+                        match key_event.code {
                             KeyCode::Enter => {
-                            }
-                            KeyCode::Delete => {
-                            }
-                            KeyCode::Backspace => {
-                            }
-                            KeyCode::Left => {
-                            }
-                            KeyCode::Right => {
+                                if menu.server_addr_input.has_focus() {
+                                    //TODO: dispatch new action? (connect)
+                                    // focus(false)
+                                }
+                                if menu.player_name_input.has_focus() {
+                                    //TODO: dispatch new action? (login)
+                                    // focus(false)
+                                }
                             }
                             _ => (),
                         }

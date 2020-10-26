@@ -1,5 +1,6 @@
 mod application;
 mod state;
+mod input_widgets;
 mod actions;
 mod server_proxy;
 mod terminal;

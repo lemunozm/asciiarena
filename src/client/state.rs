@@ -38,32 +38,49 @@ pub struct Game {
 }
 
 pub mod gui {
+    use super::super::input_widgets::{InputTextWidget, InputCharWidget};
+
+    use std::net::{SocketAddr};
+
     pub struct Menu {
-        pub server_addr_input: String,
-        pub server_addr_cursor: Option<usize>,
-        pub player_name_input: char,
+        pub server_addr_input: InputTextWidget,
+        pub player_name_input: InputCharWidget,
+    }
+
+    impl Menu {
+        pub fn new(addr: Option<SocketAddr>, player_name: Option<&str>) -> Menu {
+            Menu {
+                server_addr_input: InputTextWidget::new(addr.map(|addr| addr.to_string())),
+                player_name_input: InputCharWidget::new(
+                    match player_name {
+                        Some(name) => name.chars().next().unwrap(),
+                        None => ' '
+                    },
+                )
+            }
+        }
     }
 
     pub struct Game { }
+}
 
-    pub enum Gui {
-        Menu(Menu),
-        Game(Game),
+pub enum Gui {
+    Menu(gui::Menu),
+    Game(gui::Game),
+}
+
+impl Gui {
+    pub fn menu(&self) -> &gui::Menu {
+        match self {
+            Gui::Menu(menu) => menu,
+            _ => panic!("Must be a 'Menu'"),
+        }
     }
 
-    impl Gui {
-        pub fn menu(&self) -> &Menu {
-            match self {
-                Gui::Menu(menu) => menu,
-                _ => panic!("Must be a 'Menu'"),
-            }
-        }
-
-        pub fn game(&self) -> &Game {
-            match self {
-                Gui::Game(game) => game,
-                _ => panic!("Must be a 'Game'"),
-            }
+    pub fn game(&self) -> &gui::Game {
+        match self {
+            Gui::Game(game) => game,
+            _ => panic!("Must be a 'Game'"),
         }
     }
 }
@@ -71,7 +88,7 @@ pub mod gui {
 pub struct State {
     pub player_name: Option<String>,
     pub server: Server,
-    pub gui: gui::Gui,
+    pub gui: Gui,
 }
 
 impl State {
@@ -90,17 +107,7 @@ impl State {
                     login_status: None,
                 },
             },
-            gui: gui::Gui::Menu(gui::Menu {
-                server_addr_cursor: None,
-                server_addr_input: match addr {
-                    Some(addr) => addr.to_string(),
-                    None => String::new(),
-                },
-                player_name_input: match player_name {
-                    Some(name) => name.chars().next().unwrap(),
-                    None => ' '
-                },
-            }),
+            gui: Gui::Menu(gui::Menu::new(addr, player_name)),
         }
     }
 }
