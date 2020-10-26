@@ -105,7 +105,7 @@ impl Menu {
 
         let (message, hint_color) = match ctx.state.server.connection_status {
             ConnectionStatus::Connected => ("Connected", Color::LightGreen),
-            ConnectionStatus::NotConnected => ("Not connected", Color::Yellow),
+            ConnectionStatus::NotConnected => ("Not connected", Color::DarkGray),
             ConnectionStatus::NotFound => ("Server not found", Color::LightRed),
             ConnectionStatus::Lost => {
                 let mut pair = ("Connection lost", Color::LightRed);
@@ -124,16 +124,18 @@ impl Menu {
     }
 
     fn draw_player_name_panel(&self, ctx: &mut Context, space: Rect) {
+        let player_name_input = &ctx.state.gui.menu().player_name_input.to_string();
+
         let player_name = Spans::from(vec![
             Span::raw("Player name:     "),
-            Span::styled("L", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(player_name_input, Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
         let left_panel = Paragraph::new(player_name).alignment(Alignment::Left);
         ctx.frame.render_widget(left_panel, space);
 
-        let hint_color = Color::LightGreen; //TODO: depends of login status
-        let hint = Span::styled("Valid", Style::default().fg(hint_color));
+        let hint_color = Color::DarkGray; //TODO: depends of login status
+        let hint = Span::styled("Not validated", Style::default().fg(hint_color));
         let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
         ctx.frame.render_widget(right_panel, space);
     }

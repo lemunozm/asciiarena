@@ -41,6 +41,7 @@ pub mod gui {
     pub struct Menu {
         pub server_addr_input: String,
         pub server_addr_cursor: Option<usize>,
+        pub player_name_input: char,
     }
 
     pub struct Game { }
@@ -94,6 +95,10 @@ impl State {
                 server_addr_input: match addr {
                     Some(addr) => addr.to_string(),
                     None => String::new(),
+                },
+                player_name_input: match player_name {
+                    Some(name) => name.chars().next().unwrap(),
+                    None => ' '
                 },
             }),
         }
