@@ -24,15 +24,15 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
             .possible_values(&logger::LOG_LEVELS)
             .help("Sets the log level of verbosity")
         )
-        .arg(Arg::with_name("name")
-            .long("name")
-            .short("n")
-            .value_name("NAME")
-            .validator(|name| match super::util::is_valid_player_name(&name) {
+        .arg(Arg::with_name("character")
+            .long("character")
+            .short("c")
+            .value_name("CAPITAL_LETTER")
+            .validator(|name| match super::util::is_valid_character_name(&name) {
                 true => Ok(()),
-                false => Err("The name must be an unique capital letter".into()),
+                false => Err("The character must be an unique capital letter".into()),
             })
-            .help("Set the player name. Must be unique in the server")
+            .help("Set the player's character. Must be unique in the server")
         )
         .arg(Arg::with_name("host")
             .long("host")
@@ -50,7 +50,7 @@ pub fn run(matches: &ArgMatches) {
     logger::init(matches.value_of("log").unwrap().parse().unwrap());
 
     let config = Config {
-        player_name: matches.value_of("name").map(|name| name.into()),
+        character: matches.value_of("character").map(|name| name.chars().next().unwrap()),
         server_addr: matches.value_of("host").map(|addr| addr.parse().unwrap()),
     };
 

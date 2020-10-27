@@ -7,11 +7,11 @@ use std::net::{SocketAddr};
 
 pub struct Config {
     pub server_addr: Option<SocketAddr>,
-    pub player_name: Option<String>,
+    pub character: Option<char>,
 }
 
 pub struct User {
-    pub player_name: Option<String>,
+    pub character: Option<char>,
     pub login_status: Option<LoginStatus>,
 }
 
@@ -45,7 +45,7 @@ pub struct StaticGameInfo {
 
 pub struct Game {
     pub static_info: Option<StaticGameInfo>,
-    pub logged_players: Vec<String>,
+    pub logged_players: Vec<char>,
 }
 
 impl Game {
@@ -70,12 +70,7 @@ impl MenuState {
             server_addr_input: InputTextWidget::new(
                 config.server_addr.map(|addr| addr.to_string())
             ),
-            player_name_input: InputCapitalLetterWidget::new(
-                match &config.player_name {
-                    Some(name) => name.chars().next(),
-                    None => None
-                },
-            )
+            player_name_input: InputCapitalLetterWidget::new(config.character),
         }
     }
 }
@@ -113,7 +108,7 @@ impl State {
     pub fn new(config: Config) -> State {
         State {
             user: User {
-                player_name: config.player_name.clone(),
+                character: config.character,
                 login_status: None,
             },
             server: Server {

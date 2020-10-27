@@ -4,12 +4,12 @@ use std::collections::{HashMap};
 
 pub struct Game {
     arena: Option<Arena>,
-    player_points: HashMap<String, usize>,
+    player_points: HashMap<char, usize>,
     winner_points: usize,
 }
 
 impl Game {
-    pub fn new(players_it: impl IntoIterator<Item = String>, winner_points: usize) -> Game {
+    pub fn new(players_it: impl IntoIterator<Item = char>, winner_points: usize) -> Game {
         Game {
             arena: None,
             player_points: players_it.into_iter().map(|player|(player, 0)).collect(),
@@ -21,8 +21,8 @@ impl Game {
         self.arena.as_ref()
     }
 
-    pub fn pole(&self) -> Vec<(String, usize)> {
-        let mut sorted_players: Vec<(String, usize)> = self.player_points.clone().into_iter().collect();
+    pub fn pole(&self) -> Vec<(char, usize)> {
+        let mut sorted_players: Vec<(char, usize)> = self.player_points.clone().into_iter().collect();
         sorted_players.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
         sorted_players
     }
@@ -33,7 +33,7 @@ impl Game {
             None => 1,
         };
 
-        let players = self.player_points.keys().map(|player| player.into());
+        let players = self.player_points.keys().map(|player| *player);
         self.arena = Some(Arena::new(new_id, players));
         &self.arena.as_ref().unwrap()
     }

@@ -68,8 +68,8 @@ where E: Eq
         })
     }
 
-    pub fn create_session(&mut self, name: &str, safe_endpoint: E) -> SessionCreationResult {
-        if let Some(session) = self.sessions.values_mut().find(|session| session.name() == name) {
+    pub fn create_session(&mut self, character: char, safe_endpoint: E) -> SessionCreationResult {
+        if let Some(session) = self.sessions .values_mut().find(|session| session.character() == character) {
             if session.safe_endpoint().is_some() {
                 SessionCreationResult::AlreadyLogged
             }
@@ -83,7 +83,7 @@ where E: Eq
         }
         else {
             let new_token = self.generate_unique_token();
-            self.sessions.insert(new_token, PlayerSession::new(new_token, name, safe_endpoint));
+            self.sessions.insert(new_token, PlayerSession::new(new_token, character, safe_endpoint));
             SessionCreationResult::Created(new_token)
         }
     }
@@ -119,25 +119,25 @@ where E: Eq
 
 pub struct PlayerSession<E> {
     token: SessionToken,
-    name: String,
+    character: char,
     safe_endpoint: Option<E>,
     fast_endpoint: Option<E>,
     is_fast_endpoint_trusted: bool,
 }
 
 impl<E> PlayerSession<E> {
-    fn new(token: SessionToken, name: &str, safe_endpoint: E) -> PlayerSession<E> {
+    fn new(token: SessionToken, character: char, safe_endpoint: E) -> PlayerSession<E> {
         PlayerSession {
             token,
-            name: name.into(),
+            character,
             safe_endpoint: Some(safe_endpoint),
             fast_endpoint: None,
             is_fast_endpoint_trusted: false,
         }
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn character(&self) -> char {
+        self.character
     }
 
     pub fn token(&self) -> SessionToken {

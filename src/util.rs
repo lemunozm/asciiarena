@@ -33,30 +33,36 @@ impl Direction {
 
 pub type SessionToken = usize;
 
-pub fn is_valid_player_name(name: &str) -> bool {
+pub fn is_valid_character_name(name: &str) -> bool {
     name.len() == 1 && name.chars().all(|c| c.is_ascii_uppercase())
 }
 
+pub fn is_valid_character(character: char) -> bool {
+    character.is_ascii_uppercase()
+}
+
 pub mod format {
-    pub fn player_names<S: AsRef<str> + Ord>(players: impl IntoIterator<Item = S>) -> String {
+    use std::borrow::{Borrow};
+
+    pub fn character_list(characters: impl IntoIterator<Item = impl Borrow<char>>) -> String {
         let mut formatted = String::new();
-        let mut it = players.into_iter();
-        if let Some(name) = it.next() {
-            formatted.push_str(name.as_ref());
-            for name in it {
-                formatted.push_str(&format!(", {}", name.as_ref()));
+        let mut it = characters.into_iter();
+        if let Some(character) = it.next() {
+            formatted.push(*character.borrow());
+            for character in it {
+                formatted.push_str(&format!(", {}", *character.borrow()));
             }
         }
         formatted
     }
 
-    pub fn player_points<S: AsRef<str> + Ord>(player_points: impl IntoIterator<Item = (S, usize)>) -> String {
+    pub fn character_points_list(character_points: impl IntoIterator<Item = (char, usize)>) -> String {
         let mut formatted = String::new();
-        let mut it = player_points.into_iter();
-        if let Some((player, points)) = it.next() {
-            formatted.push_str(&format!("{}: {}", player.as_ref(), points));
-            for (player, points) in it {
-                formatted.push_str(&format!(", {}: {}", player.as_ref(), points));
+        let mut it = character_points.into_iter();
+        if let Some((character, points)) = it.next() {
+            formatted.push_str(&format!("{}: {}", character, points));
+            for (character, points) in it {
+                formatted.push_str(&format!(", {}: {}", character, points));
             }
         }
         formatted

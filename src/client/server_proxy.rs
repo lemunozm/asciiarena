@@ -153,9 +153,9 @@ impl ServerConnection {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::SubscribeServerInfo).unwrap();
                     },
-                    ApiCall::Login(player_name) => {
+                    ApiCall::Login(character) => {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::Login(player_name)).unwrap();
+                        self.network.send(tcp, ClientMessage::Login(character)).unwrap();
                     },
                     ApiCall::Logout => {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
@@ -182,8 +182,8 @@ impl ServerConnection {
                     ServerMessage::DynamicServerInfo(players) => {
                         self.process_dynamic_server_info(players);
                     },
-                    ServerMessage::LoginStatus(player, status) => {
-                        self.process_login_status(player, status);
+                    ServerMessage::LoginStatus(character, status) => {
+                        self.process_login_status(character, status);
                     },
                     ServerMessage::UdpConnected => {
                         self.process_udp_connected();
@@ -242,19 +242,19 @@ impl ServerConnection {
         self.actions.dispatch(Action::ServerInfo(info));
     }
 
-    fn process_dynamic_server_info(&mut self, player_names: Vec<String>) {
-        log::info!("Player list updated: {}", util::format::player_names(&player_names));
-        self.actions.dispatch(Action::PlayerListUpdated(player_names));
+    fn process_dynamic_server_info(&mut self, players: Vec<char>) {
+        log::info!("Player list updated: {}", util::format::character_list(&players));
+        self.actions.dispatch(Action::PlayerListUpdated(players));
     }
 
-    fn process_login_status(&mut self, player_name: String, status: LoginStatus) {
+    fn process_login_status(&mut self, character: char, status: LoginStatus) {
         match status {
             LoginStatus::Logged(token, kind) => {
                 let kind_str = match kind {
                     LoggedKind::FirstTime => "Logged",
                     LoggedKind::Reconnection => "Reconnected",
                 };
-                log::info!("{} with name '{}' successful. Token Id: {}", kind_str, player_name, token);
+                log::info!("{} with name '{}' successful. Token Id: {}", kind_str, character, token);
 
                 let udp_port = *self.connection.udp_port.as_ref().unwrap();
                 let ip = *self.connection.ip.as_ref().unwrap();
@@ -264,10 +264,10 @@ impl ServerConnection {
                 self.event_sender.send(ServerEvent::HelloUdp(0));
             },
             LoginStatus::InvalidPlayerName => {
-                log::warn!("Invalid character name {}", player_name);
+                log::warn!("Invalid character name {}", character);
             },
             LoginStatus::AlreadyLogged => {
-                log::warn!("Character name '{}' already logged", player_name);
+                log::warn!("Character name '{}' already logged", character);
             },
             LoginStatus::PlayerLimit => {
                 log::error!("Server full");

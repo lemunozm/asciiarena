@@ -16,7 +16,7 @@ pub enum ApiCall {
     Disconnect,
     CheckVersion(String),
     SubscribeInfo,
-    Login(String),
+    Login(char),
     Logout,
     MovePlayer,
     CastSkill,
@@ -39,10 +39,9 @@ pub enum Action {
     ConnectionResult(ConnectionStatus),
     CheckedVersion(String, Compatibility),
     ServerInfo(ServerInfo),
-    PlayerListUpdated(Vec<String>),
+    PlayerListUpdated(Vec<char>),
     Login,
     Logout,
-    UpdatePlayerName(Option<String>),
     LoginStatus(LoginStatus),
     UdpReachable(bool),
     StartGame,
@@ -139,8 +138,8 @@ impl Actionable for ActionManager {
             },
 
             Action::Login => {
-                match &state.user.player_name {
-                    Some(name) => self.server.call(ApiCall::Login(name.into())),
+                match state.user.character {
+                    Some(character) => self.server.call(ApiCall::Login(character)),
                     None => self.dispatch(state, Action::InputPlayerNameFocus),
                 }
             },
@@ -150,10 +149,6 @@ impl Actionable for ActionManager {
                 state.user.login_status = None;
                 self.dispatch(state, Action::InputPlayerNameFocus);
             }
-
-            Action::UpdatePlayerName(player_name) => {
-                state.user.player_name = player_name;
-            },
 
             Action::LoginStatus(status) => {
                 state.user.login_status = Some(status);
@@ -213,11 +208,11 @@ impl Actionable for ActionManager {
                                 else if menu.player_name_input.has_focus() {
                                     match menu.player_name_input.content() {
                                         Some(character) => {
-                                            state.user.player_name = Some(character.to_string());
+                                            state.user.character = Some(character);
                                             menu.player_name_input.focus(false);
                                             self.dispatch(state, Action::Login);
                                         }
-                                        None => state.user.player_name = None,
+                                        None => state.user.character = None,
                                     }
                                 }
                             }

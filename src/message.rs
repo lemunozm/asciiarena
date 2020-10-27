@@ -17,7 +17,7 @@ pub enum ClientMessage {
     SubscribeServerInfo,
 
     // Login messages
-    Login(String),
+    Login(char),
     Logout,
 
     // Udp handshake
@@ -37,10 +37,10 @@ pub enum ServerMessage {
 
     // Server info
     ServerInfo(ServerInfo),
-    DynamicServerInfo(Vec<String>), //player list
+    DynamicServerInfo(Vec<char>), //character list
 
     // Login messages
-    LoginStatus(String, LoginStatus), //player_name, status
+    LoginStatus(char, LoginStatus), //character, status
 
     // Udp handshake
     UdpConnected,
@@ -90,5 +90,5 @@ pub struct ServerInfo {
     pub players_number: u8,
     pub map_size: u16,
     pub winner_points: u16,
-    pub logged_players: Vec<String>,
+    pub logged_players: Vec<char>,
 }
