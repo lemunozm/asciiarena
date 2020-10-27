@@ -1,12 +1,13 @@
 use super::gui::util::{self, Context};
 use super::gui::menu::{self, Menu};
+use super::gui::arena::{Arena};
 
-use crate::client::state::{State};
+use crate::client::state::{State, Gui};
 
 use crossterm::terminal::{self, EnterAlternateScreen};
 use crossterm::{ExecutableCommand};
 
-use tui::{Terminal, Frame};
+use tui::{Terminal};
 use tui::backend::{CrosstermBackend};
 
 use std::io::{self, Stdout};
@@ -14,6 +15,7 @@ use std::io::{self, Stdout};
 pub struct Renderer {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     menu: Menu,
+    arena: Arena,
 }
 
 impl Renderer {
@@ -25,15 +27,25 @@ impl Renderer {
         Renderer {
             terminal: terminal,
             menu: Menu::new(),
+            arena: Arena::new(),
         }
     }
 
     pub fn render(&mut self, state: &State) {
-        let &mut Self {ref mut terminal, ref mut menu} = self;
+        let &mut Self {ref mut terminal, ref mut menu, ref mut arena} = self;
 
-        terminal.draw(|frame: &mut Frame<CrosstermBackend<Stdout>>| {
-            let menu_space = util::centered_space(frame.size(), menu::DIMENSION);
-            menu.draw(&mut Context::new(&state, frame), menu_space);
+        terminal.draw(|frame| {
+            match state.gui {
+                Gui::Menu(_) => {
+                    let menu_space = util::centered_space(frame.size(), menu::DIMENSION);
+                    menu.draw(&mut Context::new(&state, frame), menu_space);
+                }
+                Gui::Arena(_) => {
+                    let arena_dimension = arena.required_dimension(state);
+                    let arena_space = util::centered_space(frame.size(), arena_dimension);
+                    arena.draw(&mut Context::new(&state, frame), arena_space);
+                }
+            }
 
         }).unwrap();
     }

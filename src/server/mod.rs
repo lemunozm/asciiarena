@@ -43,8 +43,8 @@ pub fn run(matches: &ArgMatches) {
         tcp_port: 3001,
         udp_port: 3002,
         players_number: matches.value_of("players").unwrap().parse().unwrap(),
-        map_size: 30,
-        winner_points: 15,
+        map_size: 20,
+        winner_points: 5,
         arena_waiting: Duration::from_secs(3),
     };
 

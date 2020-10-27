@@ -24,8 +24,8 @@ pub enum AppEvent {
 pub struct Application {
     event_queue: EventQueue<AppEvent>,
     store: Store<ActionManager>,
-    _server: ServerProxy, // Kept because we need its internal thread running
-    _input: InputDispatcher, // Kept because we need its internal thread running
+    _server: ServerProxy, // Kept because we need its internal thread running until drop
+    _input: InputDispatcher, // Kept because we need its internal thread running until drop
 }
 
 impl Application {

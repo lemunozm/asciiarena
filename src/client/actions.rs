@@ -1,13 +1,13 @@
 use super::util::store::{Actionable};
-use super::state::{State, StaticGameInfo, VersionInfo, Gui};
+use super::state::{State, StaticGameInfo, VersionInfo, GameStatus,
+    Gui, MenuGuiState, ArenaGuiState};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
-use crate::message::{ServerInfo, LoginStatus};
-use crate::version::{self, Compatibility};
+use crate::message::{LoginStatus};
+use crate::version::{self};
 
 use crossterm::event::{KeyEvent, KeyCode};
 
-use std::time::{Duration};
 use std::net::{SocketAddr};
 
 pub trait AppController: Send {
@@ -95,20 +95,20 @@ impl Actionable for ActionManager {
                 },
 
                 ServerEvent::ServerInfo(info) => {
-                    let static_info = StaticGameInfo {
+                    let game_info = StaticGameInfo {
                         players_number: info.players_number as usize,
                         map_size: info.map_size as usize,
                         winner_points: info.winner_points as usize,
                     };
                     state.server.udp_port = Some(info.udp_port);
-                    state.server.game.static_info = Some(static_info);
-                    state.server.game.logged_players = info.logged_players;
+                    state.server.game_info = Some(game_info);
+                    state.server.logged_players = info.logged_players;
 
                     self.dispatch(state, Action::Login);
                 },
 
                 ServerEvent::PlayerListUpdated(player_names) => {
-                    state.server.game.logged_players = player_names;
+                    state.server.logged_players = player_names;
                 },
 
                 ServerEvent::LoginStatus(status) => {
@@ -123,13 +123,14 @@ impl Actionable for ActionManager {
                 },
 
                 ServerEvent::StartGame => {
-                    //TODO
+                    state.server.game.status = GameStatus::Started;
                 },
 
                 ServerEvent::FinishGame => {
-                    state.server.game.logged_players = Vec::new();
-                    state.user.login_status = None;
+                    state.server.game.status = GameStatus::Finished;
+                    state.server.logged_players = Vec::new();
                     state.server.udp_confirmed = None;
+                    state.user.login_status = None;
                     self.dispatch(state, Action::InputPlayerNameFocus);
                 },
 
@@ -138,7 +139,7 @@ impl Actionable for ActionManager {
                 },
 
                 ServerEvent::StartArena => {
-                    //TODO
+                    state.gui = Gui::Arena(ArenaGuiState::new(state.config()));
                 },
 
                 ServerEvent::FinishArena => {
@@ -196,7 +197,7 @@ impl Actionable for ActionManager {
                             }
                             KeyCode::Esc => {
                                 if let Some(LoginStatus::Logged(..)) = state.user.login_status {
-                                    if !state.server.game.is_full() {
+                                    if !state.server.is_full() {
                                         self.dispatch(state, Action::Logout);
                                     }
                                 }
@@ -207,8 +208,16 @@ impl Actionable for ActionManager {
                             _ => (),
                         }
                     },
-                    Gui::Arena(ref mut game) => {
-                        //TODO
+                    Gui::Arena(ref mut _arena) => {
+                        match key_event.code {
+                            KeyCode::Enter => {
+                                if let GameStatus::Finished = state.server.game.status {
+                                    state.server.game.status = GameStatus::NotStarted;
+                                    state.gui = Gui::Menu(MenuGuiState::new(state.config()));
+                                }
+                            }
+                            _ => (),
+                        }
                     }
                 }
             },

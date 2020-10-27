@@ -21,29 +21,36 @@ pub struct VersionInfo {
     pub compatibility: Compatibility,
 }
 
-pub struct Server {
-    pub addr: Option<SocketAddr>,
-    pub connection_status: ConnectionStatus,
-    pub udp_port: Option<u16>,
-    pub udp_confirmed: Option<bool>,
-    pub version_info: Option<VersionInfo>,
-    pub game: Game,
-}
-
 pub struct StaticGameInfo {
     pub players_number: usize,
     pub map_size: usize,
     pub winner_points: usize,
 }
 
-pub struct Game {
-    pub static_info: Option<StaticGameInfo>,
-    pub logged_players: Vec<char>,
+pub enum GameStatus {
+    NotStarted,
+    Started,
+    Finished,
 }
 
-impl Game {
+pub struct Game {
+    pub status: GameStatus,
+}
+
+pub struct Server {
+    pub addr: Option<SocketAddr>,
+    pub connection_status: ConnectionStatus,
+    pub udp_port: Option<u16>,
+    pub udp_confirmed: Option<bool>,
+    pub version_info: Option<VersionInfo>,
+    pub game_info: Option<StaticGameInfo>,
+    pub logged_players: Vec<char>,
+    pub game: Game,
+}
+
+impl Server {
     pub fn is_full(&self) -> bool {
-        if let Some(StaticGameInfo {players_number, .. }) = self.static_info {
+        if let Some(StaticGameInfo {players_number, .. }) = self.game_info {
             if players_number == self.logged_players.len() {
                 return true
             }
@@ -52,14 +59,14 @@ impl Game {
     }
 }
 
-pub struct MenuState {
+pub struct MenuGuiState {
     pub server_addr_input: InputTextWidget,
     pub character_input: InputCapitalLetterWidget,
 }
 
-impl MenuState {
-    pub fn new(config: &super::Config) -> MenuState {
-        MenuState {
+impl MenuGuiState {
+    pub fn new(config: &super::Config) -> MenuGuiState {
+        MenuGuiState {
             server_addr_input: InputTextWidget::new(
                 config.server_addr.map(|addr| addr.to_string())
             ),
@@ -68,22 +75,28 @@ impl MenuState {
     }
 }
 
-pub struct ArenaState { }
+pub struct ArenaGuiState { }
+
+impl ArenaGuiState {
+    pub fn new(config: &super::Config) -> ArenaGuiState {
+        ArenaGuiState { }
+    }
+}
 
 pub enum Gui {
-    Menu(MenuState),
-    Arena(ArenaState),
+    Menu(MenuGuiState),
+    Arena(ArenaGuiState),
 }
 
 impl Gui {
-    pub fn menu(&self) -> &MenuState {
+    pub fn menu(&self) -> &MenuGuiState {
         match self {
             Gui::Menu(menu) => menu,
             _ => panic!("Must be a 'Menu'"),
         }
     }
 
-    pub fn arena(&self) -> &ArenaState {
+    pub fn arena(&self) -> &ArenaGuiState {
         match self {
             Gui::Arena(arena) => arena,
             _ => panic!("Must be an 'Arena'"),
@@ -95,6 +108,7 @@ pub struct State {
     pub user: User,
     pub server: Server,
     pub gui: Gui,
+    config: Config,
 }
 
 impl State {
@@ -110,12 +124,18 @@ impl State {
                 udp_port: None,
                 udp_confirmed: None,
                 version_info: None,
+                game_info: None,
+                logged_players: Vec::new(),
                 game: Game {
-                    static_info: None,
-                    logged_players: Vec::new(),
+                    status: GameStatus::NotStarted,
                 },
             },
-            gui: Gui::Menu(MenuState::new(&config)),
+            gui: Gui::Menu(MenuGuiState::new(&config)),
+            config,
         }
+    }
+
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 }

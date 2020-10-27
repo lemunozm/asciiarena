@@ -277,7 +277,7 @@ impl Menu {
     }
 
     fn draw_server_info_map_size_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(static_game_info) = &ctx.state.server.game.static_info {
+        if let Some(static_game_info) = &ctx.state.server.game_info {
             let map_size = static_game_info.map_size;
             let dimension = format!("{}x{}", map_size, map_size);
             let left = Spans::from(vec![
@@ -291,7 +291,7 @@ impl Menu {
     }
 
     fn draw_server_info_points_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(static_game_info) = &ctx.state.server.game.static_info {
+        if let Some(static_game_info) = &ctx.state.server.game_info {
             let points = static_game_info.winner_points.to_string();
             let left = Spans::from(vec![
                 Span::raw("Points:   "),
@@ -332,8 +332,8 @@ impl Menu {
     }
 
     fn draw_server_info_players_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(static_game_info) = &ctx.state.server.game.static_info {
-            let current_players_number = ctx.state.server.game.logged_players.len();
+        if let Some(static_game_info) = &ctx.state.server.game_info {
+            let current_players_number = ctx.state.server.logged_players.len();
 
             let players_ratio = format!("{}/{}", current_players_number, static_game_info.players_number);
             let left = Spans::from(vec![
