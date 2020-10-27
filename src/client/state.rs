@@ -61,7 +61,7 @@ impl Game {
 
 pub struct MenuState {
     pub server_addr_input: InputTextWidget,
-    pub player_name_input: InputCapitalLetterWidget,
+    pub character_input: InputCapitalLetterWidget,
 }
 
 impl MenuState {
@@ -70,7 +70,7 @@ impl MenuState {
             server_addr_input: InputTextWidget::new(
                 config.server_addr.map(|addr| addr.to_string())
             ),
-            player_name_input: InputCapitalLetterWidget::new(config.character),
+            character_input: InputCapitalLetterWidget::new(config.character),
         }
     }
 }

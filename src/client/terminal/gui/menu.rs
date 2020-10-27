@@ -91,7 +91,7 @@ impl Menu {
 
     fn draw_client_info_panel(&self, ctx: &mut Context, spaces: Vec<Rect>) {
         self.draw_server_address_panel(ctx, spaces[0]);
-        self.draw_player_name_panel(ctx, spaces[1]);
+        self.draw_character_panel(ctx, spaces[1]);
     }
 
     fn draw_server_address_panel(&self, ctx: &mut Context, space: Rect) {
@@ -139,19 +139,19 @@ impl Menu {
         }
     }
 
-    fn draw_player_name_panel(&self, ctx: &mut Context, space: Rect) {
-        let input_name = &ctx.state.gui.menu().player_name_input;
-        let player_name_input = match input_name.content() {
+    fn draw_character_panel(&self, ctx: &mut Context, space: Rect) {
+        let input_name = &ctx.state.gui.menu().character_input;
+        let character_input = match input_name.content() {
             Some(character) => character.to_string(),
             None => String::new(),
         };
 
-        let player_name = Spans::from(vec![
-            Span::raw("Player name:     "),
-            Span::styled(player_name_input, Style::default().add_modifier(Modifier::BOLD)),
+        let character = Spans::from(vec![
+            Span::raw("Character name:  "),
+            Span::styled(character_input, Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
-        let left_panel = Paragraph::new(player_name).alignment(Alignment::Left);
+        let left_panel = Paragraph::new(character).alignment(Alignment::Left);
         ctx.frame.render_widget(left_panel, space);
 
         let (status_message, status_color) =

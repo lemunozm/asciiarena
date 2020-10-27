@@ -193,7 +193,7 @@ impl Actionable for ActionManager {
                 match state.gui {
                     Gui::Menu(ref mut menu) => {
                         menu.server_addr_input.key_pressed(key_event);
-                        menu.player_name_input.key_pressed(key_event);
+                        menu.character_input.key_pressed(key_event);
                         match key_event.code {
                             KeyCode::Enter => {
                                 if menu.server_addr_input.has_focus() {
@@ -207,11 +207,11 @@ impl Actionable for ActionManager {
                                         Err(_) => state.server.addr = None,
                                     }
                                 }
-                                else if menu.player_name_input.has_focus() {
-                                    match menu.player_name_input.content() {
+                                else if menu.character_input.has_focus() {
+                                    match menu.character_input.content() {
                                         Some(character) => {
                                             state.user.character = Some(character);
-                                            menu.player_name_input.focus(false);
+                                            menu.character_input.focus(false);
                                             self.dispatch(state, Action::Login);
                                         }
                                         None => state.user.character = None,
@@ -239,13 +239,13 @@ impl Actionable for ActionManager {
             Action::InputServerAddrFocus => {
                 if let Gui::Menu(ref mut menu) = state.gui {
                     menu.server_addr_input.focus(true);
-                    menu.player_name_input.focus(false);
+                    menu.character_input.focus(false);
                 }
             },
             Action::InputPlayerNameFocus => {
                 if let Gui::Menu(ref mut menu) = state.gui {
                     menu.server_addr_input.focus(false);
-                    menu.player_name_input.focus(true);
+                    menu.character_input.focus(true);
                 }
             },
             Action::Close => {
