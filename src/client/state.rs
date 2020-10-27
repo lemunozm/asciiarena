@@ -43,11 +43,11 @@ pub struct Game {
 }
 
 pub mod gui {
-    use crate::client::input_widgets::{InputTextWidget, InputCharWidget};
+    use crate::client::input_widgets::{InputTextWidget, InputCapitalLetterWidget};
 
     pub struct Menu {
         pub server_addr_input: InputTextWidget,
-        pub player_name_input: InputCharWidget,
+        pub player_name_input: InputCapitalLetterWidget,
     }
 
     impl Menu {
@@ -56,10 +56,10 @@ pub mod gui {
                 server_addr_input: InputTextWidget::new(
                     config.server_addr.map(|addr| addr.to_string())
                 ),
-                player_name_input: InputCharWidget::new(
+                player_name_input: InputCapitalLetterWidget::new(
                     match &config.player_name {
-                        Some(name) => name.chars().next().unwrap(),
-                        None => ' '
+                        Some(name) => name.chars().next(),
+                        None => None
                     },
                 )
             }

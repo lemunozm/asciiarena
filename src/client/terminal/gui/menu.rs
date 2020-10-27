@@ -128,7 +128,10 @@ impl Menu {
     }
 
     fn draw_player_name_panel(&self, ctx: &mut Context, space: Rect) {
-        let player_name_input = &ctx.state.gui.menu().player_name_input.content().to_string();
+        let player_name_input = match ctx.state.gui.menu().player_name_input.content() {
+            Some(character) => character.to_string(),
+            None => String::new(),
+        };
 
         let player_name = Spans::from(vec![
             Span::raw("Player name:     "),

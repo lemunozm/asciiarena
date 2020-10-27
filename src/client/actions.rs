@@ -139,10 +139,7 @@ impl Actionable for ActionManager {
                 state.server.game.static_info = Some(static_info);
                 state.server.game.logged_players = info.logged_players;
 
-                match &state.user.player_name {
-                    Some(_) => self.dispatch(state, Action::Login),
-                    None => state.gui.menu_mut().player_name_input.focus(true),
-                }
+                self.dispatch(state, Action::Login);
             },
 
             Action::PlayerListUpdated(player_names) => {
@@ -150,11 +147,10 @@ impl Actionable for ActionManager {
             },
 
             Action::Login => {
-                let player_name = state.user.player_name.as_ref()
-                    .expect("The player name must be already defined")
-                    .into();
-
-                self.server.call(ApiCall::Login(player_name));
+                match &state.user.player_name {
+                    Some(name) => self.server.call(ApiCall::Login(name.into())),
+                    None => state.gui.menu_mut().player_name_input.focus(true),
+                }
             },
 
             Action::UpdatePlayerName(player_name) => {
@@ -212,6 +208,9 @@ impl Actionable for ActionManager {
                                 }
                                 else if menu.player_name_input.has_focus() {
                                     menu.player_name_input.focus(false);
+                                    if let Some(character) = menu.player_name_input.content() {
+                                        state.user.player_name = Some(character.to_string());
+                                    }
                                     self.dispatch(state, Action::Login);
                                 }
                             }

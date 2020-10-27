@@ -15,8 +15,7 @@ impl InputTextWidget {
 
     pub fn key_pressed(&mut self, key_event: KeyEvent) {
         if let Some(ref mut cursor) = self.cursor {
-            let KeyEvent{code, modifiers} = key_event;
-            match code {
+            match key_event.code {
                 KeyCode::Char(character) => {
                     self.content.insert(*cursor, character);
                     *cursor += 1;
@@ -77,32 +76,47 @@ impl InputTextWidget {
     }
 }
 
-pub struct InputCharWidget {
-    content: char,
-    cursor: bool,
+pub struct InputCapitalLetterWidget {
+    content: Option<char>,
+    focus: bool,
 }
 
-impl InputCharWidget {
-    pub fn new(content: char) -> InputCharWidget {
-        InputCharWidget {
+impl InputCapitalLetterWidget {
+    pub fn new(content: Option<char>) -> InputCapitalLetterWidget {
+        InputCapitalLetterWidget {
             content,
-            cursor: false,
+            focus: false,
         }
     }
 
     pub fn key_pressed(&mut self, key_event: KeyEvent) {
-
+        if self.focus {
+            match key_event.code {
+                KeyCode::Char(character) => {
+                    if character.is_ascii_alphabetic() {
+                        self.content = Some(character.to_ascii_uppercase());
+                    }
+                }
+                KeyCode::Delete => {
+                    self.content = None;
+                }
+                KeyCode::Backspace => {
+                    self.content = None;
+                }
+                _ => (),
+            }
+        }
     }
 
     pub fn focus(&mut self, value: bool) {
-        self.cursor = value;
+        self.focus = value;
     }
 
     pub fn has_focus(&self) -> bool {
-        self.cursor
+        self.focus
     }
 
-    pub fn content(&self) -> char {
+    pub fn content(&self) -> Option<char> {
         self.content
     }
 }
