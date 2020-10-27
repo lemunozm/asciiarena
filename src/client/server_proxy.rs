@@ -3,7 +3,8 @@ use crate::message::{ClientMessage, ServerMessage, LoggedKind};
 use crate::version::{self, Compatibility};
 use crate::util::{self};
 
-use super::actions::{Action, ServerApi, ApiCall, Dispatcher, ConnectionResult};
+use super::actions::{Action, ServerApi, ApiCall, Dispatcher};
+use super::state::{ConnectionStatus};
 
 use message_io::events::{EventQueue, EventSender};
 use message_io::network::{NetworkManager, NetEvent, Endpoint};
@@ -110,19 +111,26 @@ impl ServerConnection {
         }
     }
 
-    pub fn connect(&mut self, addr: SocketAddr) -> ConnectionResult {
+    pub fn connect(&mut self, addr: SocketAddr) -> ConnectionStatus {
         match self.network.connect_tcp(addr) {
             Ok(tcp_endpoint) => {
                 log::info!("Connected to server by tcp on {}", addr);
                 self.connection.tcp = Some(tcp_endpoint);
                 self.connection.ip = Some(addr.ip());
-                ConnectionResult::Connected
+                ConnectionStatus::Connected
             },
             Err(_) => {
                 log::error!("Could not connect to server by tcp on {}", addr);
-                ConnectionResult::NotFound
+                ConnectionStatus::NotFound
             }
         }
+    }
+
+    pub fn disconnect(&mut self) -> ConnectionStatus {
+        if let Some(endpoint) = self.connection.tcp {
+            self.network.remove_resource(endpoint.resource_id());
+        }
+        ConnectionStatus::NotConnected
     }
 
     pub fn process_event(&mut self, event: ServerEvent) {
@@ -131,6 +139,10 @@ impl ServerConnection {
                 match api_event {
                     ApiCall::Connect(addr) => {
                         let result = self.connect(addr);
+                        self.actions.dispatch(Action::ConnectionResult(result));
+                    },
+                    ApiCall::Disconnect => {
+                        let result = self.disconnect();
                         self.actions.dispatch(Action::ConnectionResult(result));
                     },
                     ApiCall::CheckVersion(version) => {
@@ -197,7 +209,7 @@ impl ServerConnection {
                 },
                 NetEvent::AddedEndpoint(_) => unreachable!(),
                 NetEvent::RemovedEndpoint(_) => {
-                    self.actions.dispatch(Action::Disconnected);
+                    self.actions.dispatch(Action::ConnectionResult(ConnectionStatus::Lost));
                 },
             },
             ServerEvent::HelloUdp(attempt) => {
@@ -261,7 +273,7 @@ impl ServerConnection {
                 log::error!("Server full");
             },
         }
-        self.actions.dispatch(Action::LoginStatus(player_name, status));
+        self.actions.dispatch(Action::LoginStatus(status));
     }
 
     fn process_hello_udp(&mut self, attempt: usize) {

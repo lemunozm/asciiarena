@@ -9,6 +9,8 @@ use tui::layout::{Layout, Constraint, Direction, Rect, Alignment, Margin};
 use tui::style::{Style, Modifier, Color};
 use tui::text::{Span, Spans};
 
+use std::net::{SocketAddr};
+
 const MAIN_TITLE: &'static str = concat!(
 r"   _____                .__.__   _____                                ", "\n",
 r"  /  _  \   ______ ____ |__|__| /  _  \_______   ____   ____ _____    ", "\n",
@@ -105,7 +107,17 @@ impl Menu {
 
         let (message, hint_color) = match ctx.state.server.connection_status {
             ConnectionStatus::Connected => ("Connected", Color::LightGreen),
-            ConnectionStatus::NotConnected => ("Not connected", Color::DarkGray),
+            ConnectionStatus::NotConnected => {
+                if input_addr.content().is_empty() {
+                    ("Not connected", Color::DarkGray)
+                }
+                else {
+                    match input_addr.content().parse::<SocketAddr>() {
+                        Ok(_) => ("Not connected", Color::DarkGray),
+                        Err(_) => ("Unknown format", Color::DarkGray),
+                    }
+                }
+            }
             ConnectionStatus::NotFound => ("Server not found", Color::LightRed),
             ConnectionStatus::Lost => {
                 let mut pair = ("Connection lost", Color::LightRed);
@@ -235,9 +247,9 @@ impl Menu {
             .split(space);
 
         self.draw_server_info_version_panel(ctx, layout[0]);
-        self.draw_server_info_map_size_panel(ctx, layout[1]);
-        self.draw_server_info_points_panel(ctx, layout[2]);
-        self.draw_server_info_udp_panel(ctx, layout[3]);
+        self.draw_server_info_udp_panel(ctx, layout[1]);
+        self.draw_server_info_map_size_panel(ctx, layout[2]);
+        self.draw_server_info_points_panel(ctx, layout[3]);
         self.draw_server_info_players_panel(ctx, layout[4]);
     }
 
@@ -304,7 +316,7 @@ impl Menu {
                 let (status_message, status_color) =
                 match ctx.state.server.udp_confirmed {
                     Some(value) => match value {
-                        true => ("Available", Color::LightGreen),
+                        true => ("Checked", Color::LightGreen),
                         false => ("Not available", Color::Yellow),
                     }
                     None => ("Checking...", Color::LightYellow)

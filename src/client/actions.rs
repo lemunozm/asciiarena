@@ -13,6 +13,7 @@ use std::net::{SocketAddr};
 #[derive(Debug)]
 pub enum ApiCall {
     Connect(SocketAddr),
+    Disconnect,
     CheckVersion(String),
     SubscribeInfo,
     Login(String),
@@ -34,14 +35,15 @@ pub trait AppController: Send {
 pub enum Action {
     StartApp,
     Connect,
-    ConnectionResult(ConnectionResult),
-    Disconnected,
+    Disconnect,
+    ConnectionResult(ConnectionStatus),
     CheckedVersion(String, Compatibility),
     ServerInfo(ServerInfo),
     PlayerListUpdated(Vec<String>),
     Login,
+    Logout,
     UpdatePlayerName(Option<String>),
-    LoginStatus(String, LoginStatus),
+    LoginStatus(LoginStatus),
     UdpReachable(bool),
     StartGame,
     FinishGame,
@@ -51,20 +53,14 @@ pub enum Action {
     ArenaStep,
     ResizeWindow(usize, usize),
     KeyPressed(KeyEvent),
+    InputServerAddrFocus,
+    InputPlayerNameFocus,
     Close,
-}
-
-/// Action API utils
-#[derive(Debug)]
-pub enum ConnectionResult {
-    Connected,
-    NotFound,
 }
 
 pub trait Dispatcher: Send + Sync {
     fn dispatch(&mut self, action: Action);
 }
-
 
 pub struct ActionManager {
     app: Box<dyn AppController>,
@@ -95,26 +91,22 @@ impl Actionable for ActionManager {
             Action::Connect => {
                 match state.server.addr {
                     Some(addr) => self.server.call(ApiCall::Connect(addr)),
-                    None => state.gui.menu_mut().server_addr_input.focus(true),
+                    None => self.dispatch(state, Action::InputServerAddrFocus),
                 }
             },
 
-            Action::ConnectionResult(result)  => {
-                match result {
-                    ConnectionResult::Connected => {
-                        state.server.connection_status = ConnectionStatus::Connected;
-                        self.server.call(ApiCall::CheckVersion(version::current().into()));
-                    },
-                    ConnectionResult::NotFound => {
-                        state.server.connection_status = ConnectionStatus::NotFound;
-                        state.gui.menu_mut().server_addr_input.focus(true);
-                    },
-                }
-            },
+            Action::Disconnect => {
+                self.server.call(ApiCall::Disconnect);
+            }
 
-            Action::Disconnected => {
-                state.server.connection_status = ConnectionStatus::Lost;
-                state.gui.menu_mut().server_addr_input.focus(true);
+            Action::ConnectionResult(status)  => {
+                state.server.connection_status = status;
+                if let ConnectionStatus::Connected = status {
+                    self.server.call(ApiCall::CheckVersion(version::current().into()));
+                }
+                else {
+                    self.dispatch(state, Action::InputServerAddrFocus);
+                }
             },
 
             Action::CheckedVersion(server_version, compatibility) => {
@@ -125,7 +117,7 @@ impl Actionable for ActionManager {
                     self.server.call(ApiCall::SubscribeInfo);
                 }
                 else {
-                    state.gui.menu_mut().server_addr_input.focus(true);
+                    self.dispatch(state, Action::InputServerAddrFocus);
                 }
             },
 
@@ -149,18 +141,24 @@ impl Actionable for ActionManager {
             Action::Login => {
                 match &state.user.player_name {
                     Some(name) => self.server.call(ApiCall::Login(name.into())),
-                    None => state.gui.menu_mut().player_name_input.focus(true),
+                    None => self.dispatch(state, Action::InputPlayerNameFocus),
                 }
             },
+
+            Action::Logout => {
+                self.server.call(ApiCall::Logout);
+                state.user.login_status = None;
+                self.dispatch(state, Action::InputPlayerNameFocus);
+            }
 
             Action::UpdatePlayerName(player_name) => {
                 state.user.player_name = player_name;
             },
 
-            Action::LoginStatus(_player_name, status) => {
+            Action::LoginStatus(status) => {
                 state.user.login_status = Some(status);
                 if !status.is_logged() {
-                    state.gui.menu_mut().player_name_input.focus(true);
+                    self.dispatch(state, Action::InputPlayerNameFocus);
                 }
             },
 
@@ -202,22 +200,36 @@ impl Actionable for ActionManager {
                         match key_event.code {
                             KeyCode::Enter => {
                                 if menu.server_addr_input.has_focus() {
-                                    menu.server_addr_input.focus(false);
                                     let content = menu.server_addr_input.content();
-                                    if let Ok(addr) = content.parse::<SocketAddr>() {
-                                        state.server.addr = Some(addr)
+                                    match content.parse::<SocketAddr>() {
+                                        Ok(addr) => {
+                                            state.server.addr = Some(addr);
+                                            menu.server_addr_input.focus(false);
+                                            self.dispatch(state, Action::Connect);
+                                        },
+                                        Err(_) => state.server.addr = None,
                                     }
-                                    self.dispatch(state, Action::Connect);
                                 }
                                 else if menu.player_name_input.has_focus() {
-                                    menu.player_name_input.focus(false);
-                                    if let Some(character) = menu.player_name_input.content() {
-                                        state.user.player_name = Some(character.to_string());
+                                    match menu.player_name_input.content() {
+                                        Some(character) => {
+                                            state.user.player_name = Some(character.to_string());
+                                            menu.player_name_input.focus(false);
+                                            self.dispatch(state, Action::Login);
+                                        }
+                                        None => state.user.player_name = None,
                                     }
-                                    self.dispatch(state, Action::Login);
                                 }
                             }
                             KeyCode::Esc => {
+                                if let Some(LoginStatus::Logged(..)) = state.user.login_status {
+                                    if !state.server.game.is_full() {
+                                        self.dispatch(state, Action::Logout);
+                                    }
+                                }
+                                else if let ConnectionStatus::Connected = state.server.connection_status {
+                                    self.dispatch(state, Action::Disconnect);
+                                }
                             },
                             _ => (),
                         }
@@ -225,6 +237,18 @@ impl Actionable for ActionManager {
                     Gui::Arena(ref mut game) => {
                         //TODO
                     }
+                }
+            },
+            Action::InputServerAddrFocus => {
+                if let Gui::Menu(ref mut menu) = state.gui {
+                    menu.server_addr_input.focus(true);
+                    menu.player_name_input.focus(false);
+                }
+            },
+            Action::InputPlayerNameFocus => {
+                if let Gui::Menu(ref mut menu) = state.gui {
+                    menu.server_addr_input.focus(false);
+                    menu.player_name_input.focus(true);
                 }
             },
             Action::Close => {

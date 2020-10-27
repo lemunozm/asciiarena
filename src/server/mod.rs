@@ -41,7 +41,7 @@ pub fn run(matches: &ArgMatches) {
 
     let config = ServerConfig {
         tcp_port: 3001,
-        udp_port: 3001,
+        udp_port: 3002,
         players_number: matches.value_of("players").unwrap().parse().unwrap(),
         map_size: 30,
         winner_points: 15,

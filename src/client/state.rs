@@ -15,7 +15,7 @@ pub struct User {
     pub login_status: Option<LoginStatus>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum ConnectionStatus {
     Connected,
     NotConnected,
@@ -46,6 +46,17 @@ pub struct StaticGameInfo {
 pub struct Game {
     pub static_info: Option<StaticGameInfo>,
     pub logged_players: Vec<String>,
+}
+
+impl Game {
+    pub fn is_full(&self) -> bool {
+        if let Some(StaticGameInfo {players_number, .. }) = self.static_info {
+            if players_number == self.logged_players.len() {
+                return true
+            }
+        }
+        false
+    }
 }
 
 pub struct MenuState {
@@ -84,24 +95,10 @@ impl Gui {
         }
     }
 
-    pub fn menu_mut(&mut self) -> &mut MenuState {
-        match self {
-            Gui::Menu(menu) => menu,
-            _ => panic!("Must be a 'Menu'"),
-        }
-    }
-
     pub fn arena(&self) -> &ArenaState {
         match self {
             Gui::Arena(arena) => arena,
             _ => panic!("Must be an 'Arena'"),
-        }
-    }
-
-    pub fn arena_mut(&mut self) -> &mut ArenaState {
-        match self {
-            Gui::Arena(arena) => arena,
-            _ => panic!("Must be a 'arena'"),
         }
     }
 }
