@@ -155,7 +155,7 @@ impl Menu {
                     ("Name already chosen", Color::LightRed)
                 },
                 LoginStatus::PlayerLimit => {
-                    ("Player limit reached", Color::LightRed)
+                    ("Player limit reached", Color::LightYellow)
                 },
             }
         }

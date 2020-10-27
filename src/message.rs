@@ -75,6 +75,15 @@ pub enum LoginStatus {
     PlayerLimit,
 }
 
+impl LoginStatus {
+    pub fn is_logged(&self) -> bool {
+        match self {
+            LoginStatus::Logged(..) => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServerInfo {
     pub udp_port: u16,

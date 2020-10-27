@@ -1,6 +1,8 @@
 use crate::version::{Compatibility};
 use crate::message::{LoginStatus};
 
+use super::input_widgets::{InputTextWidget, InputCapitalLetterWidget};
+
 use std::net::{SocketAddr};
 
 pub struct Config {
@@ -46,64 +48,60 @@ pub struct Game {
     pub logged_players: Vec<String>,
 }
 
-pub mod gui {
-    use crate::client::input_widgets::{InputTextWidget, InputCapitalLetterWidget};
-
-    pub struct Menu {
-        pub server_addr_input: InputTextWidget,
-        pub player_name_input: InputCapitalLetterWidget,
-    }
-
-    impl Menu {
-        pub fn new(config: &super::Config) -> Menu {
-            Menu {
-                server_addr_input: InputTextWidget::new(
-                    config.server_addr.map(|addr| addr.to_string())
-                ),
-                player_name_input: InputCapitalLetterWidget::new(
-                    match &config.player_name {
-                        Some(name) => name.chars().next(),
-                        None => None
-                    },
-                )
-            }
-        }
-    }
-
-    pub struct Game { }
+pub struct MenuState {
+    pub server_addr_input: InputTextWidget,
+    pub player_name_input: InputCapitalLetterWidget,
 }
 
+impl MenuState {
+    pub fn new(config: &super::Config) -> MenuState {
+        MenuState {
+            server_addr_input: InputTextWidget::new(
+                config.server_addr.map(|addr| addr.to_string())
+            ),
+            player_name_input: InputCapitalLetterWidget::new(
+                match &config.player_name {
+                    Some(name) => name.chars().next(),
+                    None => None
+                },
+            )
+        }
+    }
+}
+
+pub struct ArenaState { }
+
 pub enum Gui {
-    Menu(gui::Menu),
-    Game(gui::Game),
+    Menu(MenuState),
+    Arena(ArenaState),
 }
 
 impl Gui {
-    pub fn menu(&self) -> &gui::Menu {
+    pub fn menu(&self) -> &MenuState {
         match self {
             Gui::Menu(menu) => menu,
             _ => panic!("Must be a 'Menu'"),
         }
     }
 
-    pub fn menu_mut(&mut self) -> &mut gui::Menu {
+    pub fn menu_mut(&mut self) -> &mut MenuState {
         match self {
             Gui::Menu(menu) => menu,
             _ => panic!("Must be a 'Menu'"),
         }
     }
 
-    pub fn game(&self) -> &gui::Game {
+    pub fn arena(&self) -> &ArenaState {
         match self {
-            Gui::Game(game) => game,
-            _ => panic!("Must be a 'Game'"),
+            Gui::Arena(arena) => arena,
+            _ => panic!("Must be an 'Arena'"),
         }
     }
 
-    pub fn game_mut(&mut self) -> &mut gui::Game {
+    pub fn arena_mut(&mut self) -> &mut ArenaState {
         match self {
-            Gui::Game(game) => game,
-            _ => panic!("Must be a 'Game'"),
+            Gui::Arena(arena) => arena,
+            _ => panic!("Must be a 'arena'"),
         }
     }
 }
@@ -132,7 +130,7 @@ impl State {
                     logged_players: Vec::new(),
                 },
             },
-            gui: Gui::Menu(gui::Menu::new(&config)),
+            gui: Gui::Menu(MenuState::new(&config)),
         }
     }
 }

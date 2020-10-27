@@ -22,9 +22,6 @@ impl InputDispatcher {
             TermEvent::Key(key_event) => {
                 let KeyEvent{code, modifiers} = key_event;
                 match code {
-                    KeyCode::Esc => {
-                        actions.dispatch(Action::Close);
-                    },
                     KeyCode::Char(character) => {
                         if character == 'c' && modifiers.contains(KeyModifiers::CONTROL) {
                             actions.dispatch(Action::Close);

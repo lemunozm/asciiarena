@@ -159,6 +159,9 @@ impl Actionable for ActionManager {
 
             Action::LoginStatus(_player_name, status) => {
                 state.user.login_status = Some(status);
+                if !status.is_logged() {
+                    state.gui.menu_mut().player_name_input.focus(true);
+                }
             },
 
             Action::UdpReachable(value) => {
@@ -214,10 +217,12 @@ impl Actionable for ActionManager {
                                     self.dispatch(state, Action::Login);
                                 }
                             }
+                            KeyCode::Esc => {
+                            },
                             _ => (),
                         }
                     },
-                    Gui::Game(ref _game) => {
+                    Gui::Arena(ref mut game) => {
                         //TODO
                     }
                 }
