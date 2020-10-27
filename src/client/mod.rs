@@ -12,6 +12,8 @@ use crate::logger::{self};
 
 use clap::{App, Arg, ArgMatches};
 
+use std::net::{SocketAddr};
+
 pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
     App::new("client")
         .about("Running an asciiarena client")
@@ -26,7 +28,21 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
             .long("name")
             .short("n")
             .value_name("NAME")
+            .validator(|name| match super::util::is_valid_player_name(&name) {
+                true => Ok(()),
+                false => Err("The name must be an unique capital letter".into()),
+            })
             .help("Set the player name. Must be unique in the server")
+        )
+        .arg(Arg::with_name("host")
+            .long("host")
+            .short("h")
+            .value_name("HOST")
+            .validator(|host| match host.parse::<SocketAddr>() {
+                Ok(_) => Ok(()),
+                Err(_) => Err("Host must be a valid network address".into()),
+            })
+            .help("Set the server address, ip and port. Example: '127.0.0.1:3001'")
         )
 }
 
@@ -35,8 +51,7 @@ pub fn run(matches: &ArgMatches) {
 
     let config = Config {
         player_name: matches.value_of("name").map(|name| name.into()),
-        //server_addr: Some("127.0.0.1:3001".parse().unwrap()),
-        server_addr: None,
+        server_addr: matches.value_of("host").map(|addr| addr.parse().unwrap()),
     };
 
     Application::new(config).run();
