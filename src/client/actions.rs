@@ -33,6 +33,7 @@ pub trait AppController: Send {
 #[derive(Debug)]
 pub enum Action {
     StartApp,
+    Connect,
     ConnectionResult(ConnectionResult),
     Disconnected,
     CheckedVersion(String, Compatibility),
@@ -88,13 +89,13 @@ impl Actionable for ActionManager {
         match action {
 
             Action::StartApp => {
+                self.dispatch(state, Action::Connect);
+            },
+
+            Action::Connect => {
                 match state.server.addr {
                     Some(addr) => self.server.call(ApiCall::Connect(addr)),
-                    None => {
-                        if let Gui::Menu(menu) = &mut state.gui {
-                            menu.server_addr_input.focus(true);
-                        }
-                    }
+                    None => state.gui.menu_mut().server_addr_input.focus(true),
                 }
             },
 
@@ -106,12 +107,14 @@ impl Actionable for ActionManager {
                     },
                     ConnectionResult::NotFound => {
                         state.server.connection_status = ConnectionStatus::NotFound;
+                        state.gui.menu_mut().server_addr_input.focus(true);
                     },
                 }
             },
 
             Action::Disconnected => {
                 state.server.connection_status = ConnectionStatus::Lost;
+                state.gui.menu_mut().server_addr_input.focus(true);
             },
 
             Action::CheckedVersion(server_version, compatibility) => {
@@ -120,6 +123,9 @@ impl Actionable for ActionManager {
 
                 if compatibility.is_compatible() {
                     self.server.call(ApiCall::SubscribeInfo);
+                }
+                else {
+                    state.gui.menu_mut().server_addr_input.focus(true);
                 }
             },
 
@@ -135,11 +141,7 @@ impl Actionable for ActionManager {
 
                 match &state.user.player_name {
                     Some(_) => self.dispatch(state, Action::Login),
-                    None => {
-                        if let Gui::Menu(menu) = &mut state.gui {
-                            menu.player_name_input.focus(true);
-                        }
-                    }
+                    None => state.gui.menu_mut().player_name_input.focus(true),
                 }
             },
 
@@ -201,12 +203,16 @@ impl Actionable for ActionManager {
                         match key_event.code {
                             KeyCode::Enter => {
                                 if menu.server_addr_input.has_focus() {
-                                    //TODO: dispatch new action? (connect)
-                                    menu.server_addr_input.focus(false)
+                                    menu.server_addr_input.focus(false);
+                                    let content = menu.server_addr_input.content();
+                                    if let Ok(addr) = content.parse::<SocketAddr>() {
+                                        state.server.addr = Some(addr)
+                                    }
+                                    self.dispatch(state, Action::Connect);
                                 }
-                                if menu.player_name_input.has_focus() {
-                                    //TODO: dispatch new action? (login)
-                                    menu.server_addr_input.focus(false)
+                                else if menu.player_name_input.has_focus() {
+                                    menu.player_name_input.focus(false);
+                                    self.dispatch(state, Action::Login);
                                 }
                             }
                             _ => (),
