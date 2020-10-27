@@ -1,6 +1,5 @@
 use super::util::store::{Actionable};
-use super::state::{State, StaticGameInfo, VersionInfo, GameStatus,
-    Gui, MenuGuiState, ArenaGuiState};
+use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, GuiSelector};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
 use crate::message::{LoginStatus};
@@ -139,7 +138,7 @@ impl Actionable for ActionManager {
                 },
 
                 ServerEvent::StartArena => {
-                    state.gui = Gui::Arena(ArenaGuiState::new(state.config()));
+                    state.gui.selector = GuiSelector::Arena;
                 },
 
                 ServerEvent::FinishArena => {
@@ -167,8 +166,9 @@ impl Actionable for ActionManager {
             Action::ResizeWindow(_, _) => {},
 
             Action::KeyPressed(key_event) => {
-                match state.gui {
-                    Gui::Menu(ref mut menu) => {
+                match state.gui.selector {
+                    GuiSelector::Menu => {
+                        let menu = &mut state.gui.menu;
                         menu.server_addr_input.key_pressed(key_event);
                         menu.character_input.key_pressed(key_event);
                         match key_event.code {
@@ -204,16 +204,19 @@ impl Actionable for ActionManager {
                                 else if let ConnectionStatus::Connected = state.server.connection_status {
                                     self.dispatch(state, Action::Disconnect);
                                 }
+                                else {
+                                    self.app.close();
+                                }
                             },
                             _ => (),
                         }
                     },
-                    Gui::Arena(ref mut _arena) => {
+                    GuiSelector::Arena => {
                         match key_event.code {
                             KeyCode::Enter => {
                                 if let GameStatus::Finished = state.server.game.status {
                                     state.server.game.status = GameStatus::NotStarted;
-                                    state.gui = Gui::Menu(MenuGuiState::new(state.config()));
+                                    state.gui.selector = GuiSelector::Menu;
                                 }
                             }
                             _ => (),
@@ -221,18 +224,17 @@ impl Actionable for ActionManager {
                     }
                 }
             },
+
             Action::InputServerAddrFocus => {
-                if let Gui::Menu(ref mut menu) = state.gui {
-                    menu.server_addr_input.focus(true);
-                    menu.character_input.focus(false);
-                }
+                state.gui.menu.server_addr_input.focus(true);
+                state.gui.menu.character_input.focus(false);
             },
+
             Action::InputPlayerNameFocus => {
-                if let Gui::Menu(ref mut menu) = state.gui {
-                    menu.server_addr_input.focus(false);
-                    menu.character_input.focus(true);
-                }
+                state.gui.menu.server_addr_input.focus(false);
+                state.gui.menu.character_input.focus(true);
             },
+
             Action::Close => {
                 self.app.close();
             },

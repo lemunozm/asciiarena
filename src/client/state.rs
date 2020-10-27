@@ -83,25 +83,15 @@ impl ArenaGuiState {
     }
 }
 
-pub enum Gui {
-    Menu(MenuGuiState),
-    Arena(ArenaGuiState),
+pub enum GuiSelector {
+    Menu,
+    Arena,
 }
 
-impl Gui {
-    pub fn menu(&self) -> &MenuGuiState {
-        match self {
-            Gui::Menu(menu) => menu,
-            _ => panic!("Must be a 'Menu'"),
-        }
-    }
-
-    pub fn arena(&self) -> &ArenaGuiState {
-        match self {
-            Gui::Arena(arena) => arena,
-            _ => panic!("Must be an 'Arena'"),
-        }
-    }
+pub struct Gui {
+    pub menu: MenuGuiState,
+    pub arena: ArenaGuiState,
+    pub selector: GuiSelector,
 }
 
 pub struct State {
@@ -130,7 +120,11 @@ impl State {
                     status: GameStatus::NotStarted,
                 },
             },
-            gui: Gui::Menu(MenuGuiState::new(&config)),
+            gui: Gui {
+                menu: MenuGuiState::new(&config),
+                arena: ArenaGuiState::new(&config),
+                selector: GuiSelector::Menu,
+            },
             config,
         }
     }

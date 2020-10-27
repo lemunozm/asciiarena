@@ -50,6 +50,6 @@ impl Arena {
     pub fn required_dimension(&self, state: &State) -> (u16, u16) {
         let map_size = state.server.game_info.as_ref()
             .expect("'game_info' must me known at this point").map_size as u16;
-        (map_size + 13, map_size + 3)
+        (map_size + 15, map_size + 3)
     }
 }

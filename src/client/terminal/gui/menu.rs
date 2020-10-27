@@ -96,7 +96,7 @@ impl Menu {
     }
 
     fn draw_server_address_panel(&self, ctx: &mut Context, space: Rect) {
-        let input_addr = &ctx.state.gui.menu().server_addr_input;
+        let input_addr = &ctx.state.gui.menu.server_addr_input;
 
         let server_addrees = Spans::from(vec![
             Span::raw("Server address:  "),
@@ -141,7 +141,7 @@ impl Menu {
     }
 
     fn draw_character_panel(&self, ctx: &mut Context, space: Rect) {
-        let input_name = &ctx.state.gui.menu().character_input;
+        let input_name = &ctx.state.gui.menu.character_input;
         let character_input = match input_name.content() {
             Some(character) => character.to_string(),
             None => String::new(),

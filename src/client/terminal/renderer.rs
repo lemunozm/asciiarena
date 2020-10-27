@@ -2,7 +2,7 @@ use super::gui::util::{self, Context};
 use super::gui::menu::{self, Menu};
 use super::gui::arena::{Arena};
 
-use crate::client::state::{State, Gui};
+use crate::client::state::{State, GuiSelector};
 
 use crossterm::terminal::{self, EnterAlternateScreen};
 use crossterm::{ExecutableCommand};
@@ -35,12 +35,12 @@ impl Renderer {
         let &mut Self {ref mut terminal, ref mut menu, ref mut arena} = self;
 
         terminal.draw(|frame| {
-            match state.gui {
-                Gui::Menu(_) => {
+            match state.gui.selector {
+                GuiSelector::Menu => {
                     let menu_space = util::centered_space(frame.size(), menu::DIMENSION);
                     menu.draw(&mut Context::new(&state, frame), menu_space);
                 }
-                Gui::Arena(_) => {
+                GuiSelector::Arena => {
                     let arena_dimension = arena.required_dimension(state);
                     let arena_space = util::centered_space(frame.size(), arena_dimension);
                     arena.draw(&mut Context::new(&state, frame), arena_space);
