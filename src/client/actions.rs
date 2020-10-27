@@ -104,6 +104,7 @@ impl Actionable for ActionManager {
                     self.server.call(ApiCall::CheckVersion(version::current().into()));
                 }
                 else {
+                    state.user.login_status = None;
                     self.dispatch(state, Action::InputServerAddrFocus);
                 }
             },
@@ -169,6 +170,7 @@ impl Actionable for ActionManager {
                 state.server.game.logged_players = Vec::new();
                 state.user.login_status = None;
                 state.server.udp_confirmed = None;
+                self.dispatch(state, Action::InputPlayerNameFocus);
             },
 
             Action::PrepareArena(_duration) => {
