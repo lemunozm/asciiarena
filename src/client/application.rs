@@ -32,18 +32,22 @@ impl Application {
     pub fn new(config: Config) -> Application {
         let mut event_queue = EventQueue::new();
 
-        let action_dispatcher = ActionDispatcher { sender: event_queue.sender().clone() };
-        let mut server = ServerProxy::new(action_dispatcher.clone());
+        let server_event_sender = event_queue.sender().clone();
+        let mut server = ServerProxy::new(move |server_event| {
+            server_event_sender.send(AppEvent::Action(Action::ServerEvent(server_event)))
+        });
 
         let state = State::new(config);
         let app_controller = ApplicationController { sender: event_queue.sender().clone() };
         let actions = ActionManager::new(app_controller, server.api());
 
+        let action_dispatcher = ActionDispatcher { sender: event_queue.sender().clone() };
+
         Application {
             event_queue,
             store: Store::new(state, actions),
             _server: server,
-            _input: InputDispatcher::new(action_dispatcher.clone()),
+            _input: InputDispatcher::new(action_dispatcher),
         }
     }
 

@@ -1,6 +1,7 @@
 use super::super::gui::util::{Context};
 
-use crate::client::state::{VersionInfo, ConnectionStatus};
+use crate::client::state::{VersionInfo};
+use crate::client::server_proxy::{ConnectionStatus};
 use crate::version::{self, Compatibility};
 use crate::message::{LoginStatus};
 

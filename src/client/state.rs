@@ -2,6 +2,7 @@ use crate::version::{Compatibility};
 use crate::message::{LoginStatus};
 
 use super::input_widgets::{InputTextWidget, InputCapitalLetterWidget};
+use super::server_proxy::{ConnectionStatus};
 
 use std::net::{SocketAddr};
 
@@ -13,14 +14,6 @@ pub struct Config {
 pub struct User {
     pub character: Option<char>,
     pub login_status: Option<LoginStatus>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum ConnectionStatus {
-    Connected,
-    NotConnected,
-    NotFound,
-    Lost,
 }
 
 pub struct VersionInfo {
