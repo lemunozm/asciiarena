@@ -128,7 +128,8 @@ impl Menu {
     }
 
     fn draw_player_name_panel(&self, ctx: &mut Context, space: Rect) {
-        let player_name_input = match ctx.state.gui.menu().player_name_input.content() {
+        let input_name = &ctx.state.gui.menu().player_name_input;
+        let player_name_input = match input_name.content() {
             Some(character) => character.to_string(),
             None => String::new(),
         };
@@ -141,10 +142,35 @@ impl Menu {
         let left_panel = Paragraph::new(player_name).alignment(Alignment::Left);
         ctx.frame.render_widget(left_panel, space);
 
-        let hint_color = Color::DarkGray; //TODO: depends of login status
-        let hint = Span::styled("Not validated", Style::default().fg(hint_color));
+        let (status_message, status_color) =
+        if let Some(login_status) = ctx.state.user.login_status {
+            match login_status {
+                LoginStatus::Logged(_, _) => {
+                    ("Logged", Color::LightGreen)
+                },
+                LoginStatus::InvalidPlayerName => {
+                    ("Invalid player name", Color::LightRed)
+                },
+                LoginStatus::AlreadyLogged => {
+                    ("Name already chosen", Color::LightRed)
+                },
+                LoginStatus::PlayerLimit => {
+                    ("Player limit reached", Color::LightRed)
+                },
+            }
+        }
+        else {
+            ("Not logged", Color::DarkGray)
+        };
+
+        let hint_color = Color::DarkGray;
+        let hint = Span::styled(status_message, Style::default().fg(status_color));
         let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
         ctx.frame.render_widget(right_panel, space);
+
+        if input_name.has_focus() {
+            ctx.frame.set_cursor(space.x + 17, space.y);
+        }
     }
 
     fn draw_server_info_panel(&self, ctx: &mut Context, space: Rect) {
@@ -274,7 +300,7 @@ impl Menu {
             let left_panel = Paragraph::new(left).alignment(Alignment::Left);
             ctx.frame.render_widget(left_panel, space);
 
-            if let Some(LoginStatus::Logged(..)) = ctx.state.server.game.login_status {
+            if let Some(LoginStatus::Logged(..)) = ctx.state.user.login_status {
                 let (status_message, status_color) =
                 match ctx.state.server.udp_confirmed {
                     Some(value) => match value {
@@ -307,7 +333,7 @@ impl Menu {
 
             let (status_message, status_color) =
             if current_players_number == static_game_info.players_number {
-                let login_status = ctx.state.server.game.login_status;
+                let login_status = ctx.state.user.login_status;
                 if let Some(LoginStatus::Logged(..)) = login_status {
                     ("Ready!", Color::LightGreen) // TODO: Add a number with the remining time: Ready in 3.. 2.. 1..
                 }
@@ -327,7 +353,7 @@ impl Menu {
     }
 
     fn draw_waiting_room_panel(&self, ctx: &mut Context, space: Rect) {
-        let panel = Paragraph::new(" Player 1:\n Player 2:\n Player 3:\n Player 4:")
+        let panel = Paragraph::new("")
             .block(Block::default()
                 .borders(Borders::ALL)
                 .title(Span::styled(

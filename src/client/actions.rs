@@ -158,7 +158,7 @@ impl Actionable for ActionManager {
             },
 
             Action::LoginStatus(_player_name, status) => {
-                state.server.game.login_status = Some(status);
+                state.user.login_status = Some(status);
             },
 
             Action::UdpReachable(value) => {
@@ -171,7 +171,7 @@ impl Actionable for ActionManager {
 
             Action::FinishGame => {
                 state.server.game.logged_players = Vec::new();
-                state.server.game.login_status = None;
+                state.user.login_status = None;
                 state.server.udp_confirmed = None;
             },
 

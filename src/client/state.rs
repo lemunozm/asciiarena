@@ -8,6 +8,11 @@ pub struct Config {
     pub player_name: Option<String>,
 }
 
+pub struct User {
+    pub player_name: Option<String>,
+    pub login_status: Option<LoginStatus>,
+}
+
 #[derive(Clone, Copy)]
 pub enum ConnectionStatus {
     Connected,
@@ -39,7 +44,6 @@ pub struct StaticGameInfo {
 pub struct Game {
     pub static_info: Option<StaticGameInfo>,
     pub logged_players: Vec<String>,
-    pub login_status: Option<LoginStatus>,
 }
 
 pub mod gui {
@@ -104,10 +108,6 @@ impl Gui {
     }
 }
 
-pub struct User {
-    pub player_name: Option<String>,
-}
-
 pub struct State {
     pub user: User,
     pub server: Server,
@@ -119,6 +119,7 @@ impl State {
         State {
             user: User {
                 player_name: config.player_name.clone(),
+                login_status: None,
             },
             server: Server {
                 addr: config.server_addr,
@@ -129,7 +130,6 @@ impl State {
                 game: Game {
                     static_info: None,
                     logged_players: Vec::new(),
-                    login_status: None,
                 },
             },
             gui: Gui::Menu(gui::Menu::new(&config)),
