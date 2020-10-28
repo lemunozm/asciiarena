@@ -26,8 +26,8 @@ pub enum ApiCall {
     SubscribeInfo,
     Login(char),
     Logout,
-    MovePlayer,
-    CastSkill,
+    //MovePlayer, //TODO
+    //CastSkill, //TODO
 }
 
 /// API Events from server
@@ -205,6 +205,7 @@ where C: Fn(ServerEvent) {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::Logout).unwrap();
                     },
+                    /*
                     ApiCall::MovePlayer => {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::Move).unwrap();
@@ -213,6 +214,7 @@ where C: Fn(ServerEvent) {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::Skill).unwrap();
                     },
+                    */
                 }
             },
             Event::Network(net_event) => match net_event {

@@ -1,10 +1,11 @@
 use super::server_proxy::{ServerProxy};
 use super::util::store::{Store};
-use super::actions::{ActionManager, Action, Dispatcher, AppController};
+use super::actions::{ActionManager, Action, AppController};
 use super::state::{State};
 pub use super::state::{Config};
 
-use super::terminal::{input::InputDispatcher, renderer::Renderer};
+use super::terminal::input::{InputReceiver};
+use super::terminal::renderer::{Renderer};
 
 use message_io::events::{EventSender, EventQueue};
 
@@ -25,29 +26,32 @@ pub struct Application {
     event_queue: EventQueue<AppEvent>,
     store: Store<ActionManager>,
     _server: ServerProxy, // Kept because we need its internal thread running until drop
-    _input: InputDispatcher, // Kept because we need its internal thread running until drop
+    _input: InputReceiver, // Kept because we need its internal thread running until drop
 }
 
 impl Application {
     pub fn new(config: Config) -> Application {
         let mut event_queue = EventQueue::new();
 
-        let server_event_sender = event_queue.sender().clone();
+        let event_sender = event_queue.sender().clone();
         let mut server = ServerProxy::new(move |server_event| {
-            server_event_sender.send(AppEvent::Action(Action::ServerEvent(server_event)))
+            event_sender.send(AppEvent::Action(Action::ServerEvent(server_event)))
+        });
+
+        let event_sender = event_queue.sender().clone();
+        let input = InputReceiver::new(move |input_event| {
+            event_sender.send(AppEvent::Action(Action::InputEvent(input_event)))
         });
 
         let state = State::new(config);
         let app_controller = ApplicationController { sender: event_queue.sender().clone() };
         let actions = ActionManager::new(app_controller, server.api());
 
-        let action_dispatcher = ActionDispatcher { sender: event_queue.sender().clone() };
-
         Application {
             event_queue,
             store: Store::new(state, actions),
             _server: server,
-            _input: InputDispatcher::new(action_dispatcher),
+            _input: input,
         }
     }
 
@@ -73,17 +77,6 @@ impl Application {
                 },
             }
         }
-    }
-}
-
-#[derive(Clone)]
-pub struct ActionDispatcher {
-    sender: EventSender<AppEvent>
-}
-
-impl Dispatcher for ActionDispatcher {
-    fn dispatch(&mut self, action: Action) {
-        self.sender.send(AppEvent::Action(action));
     }
 }
 

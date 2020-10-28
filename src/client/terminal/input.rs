@@ -1,38 +1,33 @@
 use super::events::{TerminalEventCollector};
 
-use crate::client::actions::{Action, Dispatcher};
+use crossterm::event::{Event as TermEvent, KeyEvent};
 
-use crossterm::event::{Event as TermEvent, KeyEvent, KeyCode, KeyModifiers};
+#[derive(Debug)]
+pub enum InputEvent {
+    KeyPressed(KeyEvent),
+    ResizeDisplay(usize, usize),
+}
 
-pub struct InputDispatcher {
+pub struct InputReceiver {
     _event_collector: TerminalEventCollector, // Kept because we need its internal thread running
 }
 
-impl InputDispatcher {
-    pub fn new(mut actions: impl Dispatcher + 'static) -> InputDispatcher {
+impl InputReceiver {
+    pub fn new(event_callback: impl Fn(InputEvent) + Send + Sync + 'static) -> InputReceiver {
         let _event_collector = TerminalEventCollector::new(move |event| {
-            Self::process_event(event, &mut actions);
+            Self::process_event(event, &event_callback);
         });
 
-        InputDispatcher { _event_collector, }
+        InputReceiver { _event_collector, }
     }
 
-    fn process_event(event: TermEvent, actions: &mut dyn Dispatcher) {
+    fn process_event(event: TermEvent, event_callback: &impl Fn(InputEvent)) {
         match event {
             TermEvent::Key(key_event) => {
-                let KeyEvent{code, modifiers} = key_event;
-                match code {
-                    KeyCode::Char(character) => {
-                        if character == 'c' && modifiers.contains(KeyModifiers::CONTROL) {
-                            actions.dispatch(Action::Close);
-                        }
-                    },
-                    _ => (),
-                }
-                actions.dispatch(Action::KeyPressed(key_event));
+                event_callback(InputEvent::KeyPressed(key_event));
             }
             TermEvent::Resize(width, height) => {
-                actions.dispatch(Action::ResizeWindow(width as usize, height as usize));
+                event_callback(InputEvent::ResizeDisplay(width as usize, height as usize));
             }
             _ => (),
         };

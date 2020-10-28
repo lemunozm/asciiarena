@@ -115,7 +115,7 @@ impl Menu {
                 else {
                     match input_addr.content().parse::<SocketAddr>() {
                         Ok(_) => ("Not connected", Color::DarkGray),
-                        Err(_) => ("Unknown format", Color::DarkGray),
+                        Err(_) => ("Use 'ip:port' syntax", Color::DarkGray),
                     }
                 }
             }
@@ -176,7 +176,6 @@ impl Menu {
             ("Not logged", Color::DarkGray)
         };
 
-        let hint_color = Color::DarkGray;
         let hint = Span::styled(status_message, Style::default().fg(status_color));
         let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
         ctx.frame.render_widget(right_panel, space);

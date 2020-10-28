@@ -78,7 +78,7 @@ impl MenuGuiState {
 pub struct ArenaGuiState { }
 
 impl ArenaGuiState {
-    pub fn new(config: &super::Config) -> ArenaGuiState {
+    pub fn new(_config: &super::Config) -> ArenaGuiState {
         ArenaGuiState { }
     }
 }
@@ -98,7 +98,6 @@ pub struct State {
     pub user: User,
     pub server: Server,
     pub gui: Gui,
-    config: Config,
 }
 
 impl State {
@@ -125,11 +124,6 @@ impl State {
                 arena: ArenaGuiState::new(&config),
                 selector: GuiSelector::Menu,
             },
-            config,
         }
-    }
-
-    pub fn config(&self) -> &Config {
-        &self.config
     }
 }

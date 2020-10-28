@@ -2,10 +2,11 @@ use super::util::store::{Actionable};
 use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, GuiSelector};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
+use crate::client::terminal::input::{InputEvent};
 use crate::message::{LoginStatus};
 use crate::version::{self};
 
-use crossterm::event::{KeyEvent, KeyCode};
+use crossterm::event::{KeyCode, KeyModifiers};
 
 use std::net::{SocketAddr};
 
@@ -19,18 +20,12 @@ pub enum Action {
     StartApp,
     Connect,
     Disconnect,
-    ServerEvent(ServerEvent),
     Login,
     Logout,
-    ResizeWindow(usize, usize),
-    KeyPressed(KeyEvent),
+    ServerEvent(ServerEvent),
+    InputEvent(InputEvent),
     InputServerAddrFocus,
     InputPlayerNameFocus,
-    Close,
-}
-
-pub trait Dispatcher: Send + Sync {
-    fn dispatch(&mut self, action: Action);
 }
 
 pub struct ActionManager {
@@ -67,6 +62,19 @@ impl Actionable for ActionManager {
 
             Action::Disconnect => {
                 self.server.call(ApiCall::Disconnect);
+            }
+
+            Action::Login => {
+                match state.user.character {
+                    Some(character) => self.server.call(ApiCall::Login(character)),
+                    None => self.dispatch(state, Action::InputPlayerNameFocus),
+                }
+            },
+
+            Action::Logout => {
+                self.server.call(ApiCall::Logout);
+                state.user.login_status = None;
+                self.dispatch(state, Action::InputPlayerNameFocus);
             }
 
             Action::ServerEvent(server_event) => match server_event {
@@ -150,80 +158,78 @@ impl Actionable for ActionManager {
                 },
             },
 
-            Action::Login => {
-                match state.user.character {
-                    Some(character) => self.server.call(ApiCall::Login(character)),
-                    None => self.dispatch(state, Action::InputPlayerNameFocus),
-                }
-            },
+            Action::InputEvent(input_event) => match input_event {
 
-            Action::Logout => {
-                self.server.call(ApiCall::Logout);
-                state.user.login_status = None;
-                self.dispatch(state, Action::InputPlayerNameFocus);
-            }
-
-            Action::ResizeWindow(_, _) => {},
-
-            Action::KeyPressed(key_event) => {
-                match state.gui.selector {
-                    GuiSelector::Menu => {
-                        let menu = &mut state.gui.menu;
-                        menu.server_addr_input.key_pressed(key_event);
-                        menu.character_input.key_pressed(key_event);
-                        match key_event.code {
-                            KeyCode::Enter => {
-                                if menu.server_addr_input.has_focus() {
-                                    let content = menu.server_addr_input.content();
-                                    match content.parse::<SocketAddr>() {
-                                        Ok(addr) => {
-                                            state.server.addr = Some(addr);
-                                            menu.server_addr_input.focus(false);
-                                            self.dispatch(state, Action::Connect);
-                                        },
-                                        Err(_) => state.server.addr = None,
-                                    }
-                                }
-                                else if menu.character_input.has_focus() {
-                                    match menu.character_input.content() {
-                                        Some(character) => {
-                                            state.user.character = Some(character);
-                                            menu.character_input.focus(false);
-                                            self.dispatch(state, Action::Login);
+                InputEvent::KeyPressed(key_event) => {
+                    match key_event.code {
+                        KeyCode::Char(character) => {
+                            if character == 'c' && key_event.modifiers.contains(KeyModifiers::CONTROL) {
+                                return self.app.close()
+                            }
+                        },
+                        _ => (),
+                    }
+                    match state.gui.selector {
+                        GuiSelector::Menu => {
+                            let menu = &mut state.gui.menu;
+                            menu.server_addr_input.key_pressed(key_event);
+                            menu.character_input.key_pressed(key_event);
+                            match key_event.code {
+                                KeyCode::Enter => {
+                                    if menu.server_addr_input.has_focus() {
+                                        let content = menu.server_addr_input.content();
+                                        match content.parse::<SocketAddr>() {
+                                            Ok(addr) => {
+                                                state.server.addr = Some(addr);
+                                                menu.server_addr_input.focus(false);
+                                                self.dispatch(state, Action::Connect);
+                                            },
+                                            Err(_) => state.server.addr = None,
                                         }
-                                        None => state.user.character = None,
+                                    }
+                                    else if menu.character_input.has_focus() {
+                                        match menu.character_input.content() {
+                                            Some(character) => {
+                                                state.user.character = Some(character);
+                                                menu.character_input.focus(false);
+                                                self.dispatch(state, Action::Login);
+                                            }
+                                            None => state.user.character = None,
+                                        }
                                     }
                                 }
+                                KeyCode::Esc => {
+                                    if let Some(LoginStatus::Logged(..)) = state.user.login_status {
+                                        if !state.server.is_full() {
+                                            self.dispatch(state, Action::Logout);
+                                        }
+                                    }
+                                    else if let ConnectionStatus::Connected = state.server.connection_status {
+                                        self.dispatch(state, Action::Disconnect);
+                                    }
+                                    else {
+                                        self.app.close();
+                                    }
+                                },
+                                _ => (),
                             }
-                            KeyCode::Esc => {
-                                if let Some(LoginStatus::Logged(..)) = state.user.login_status {
-                                    if !state.server.is_full() {
-                                        self.dispatch(state, Action::Logout);
+                        },
+                        GuiSelector::Arena => {
+                            match key_event.code {
+                                KeyCode::Enter => {
+                                    if let GameStatus::Finished = state.server.game.status {
+                                        state.server.game.status = GameStatus::NotStarted;
+                                        state.gui.selector = GuiSelector::Menu;
                                     }
                                 }
-                                else if let ConnectionStatus::Connected = state.server.connection_status {
-                                    self.dispatch(state, Action::Disconnect);
-                                }
-                                else {
-                                    self.app.close();
-                                }
-                            },
-                            _ => (),
-                        }
-                    },
-                    GuiSelector::Arena => {
-                        match key_event.code {
-                            KeyCode::Enter => {
-                                if let GameStatus::Finished = state.server.game.status {
-                                    state.server.game.status = GameStatus::NotStarted;
-                                    state.gui.selector = GuiSelector::Menu;
-                                }
+                                _ => (),
                             }
-                            _ => (),
                         }
                     }
-                }
-            },
+                },
+
+                InputEvent::ResizeDisplay(_, _) => {},
+            }
 
             Action::InputServerAddrFocus => {
                 state.gui.menu.server_addr_input.focus(true);
@@ -233,10 +239,6 @@ impl Actionable for ActionManager {
             Action::InputPlayerNameFocus => {
                 state.gui.menu.server_addr_input.focus(false);
                 state.gui.menu.character_input.focus(true);
-            },
-
-            Action::Close => {
-                self.app.close();
             },
         }
     }

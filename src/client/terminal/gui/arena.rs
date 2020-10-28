@@ -2,9 +2,9 @@ use super::super::gui::util::{Context};
 
 use crate::client::state::{State, GameStatus};
 
-use tui::widgets::{Block, Borders, BorderType, Paragraph};
-use tui::layout::{Layout, Constraint, Direction, Rect, Alignment, Margin};
-use tui::style::{Style, Modifier, Color};
+use tui::widgets::{Paragraph};
+use tui::layout::{Layout, Constraint, Direction, Rect, Alignment};
+use tui::style::{Style, Modifier};
 use tui::text::{Span, Spans};
 
 pub struct Arena {}

@@ -12,8 +12,8 @@ pub struct TerminalEventCollector {
 }
 
 impl TerminalEventCollector {
-    pub fn new<C>(mut event_callback: C) -> TerminalEventCollector
-    where C: FnMut(Event) + Send + 'static {
+    pub fn new<C>(event_callback: C) -> TerminalEventCollector
+    where C: Fn(Event) + Send + 'static {
         let collector_thread_running = Arc::new(AtomicBool::new(true));
         let collector_thread_handle = {
             let running = collector_thread_running.clone();
