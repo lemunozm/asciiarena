@@ -10,7 +10,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 use std::net::{SocketAddr};
 
-pub trait AppController: Send {
+pub trait AppController {
     fn close(&mut self);
 }
 
