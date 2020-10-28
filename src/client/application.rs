@@ -1,7 +1,6 @@
 use super::configuration::{Config};
-use super::util::store::{Store};
 use super::state::{State};
-use super::actions::{ActionManager, Action, AppController};
+use super::store::{Store, Action, AppController};
 use super::server_proxy::{ServerProxy, ServerEvent};
 
 use super::gui::input::{InputReceiver, InputEvent};
@@ -27,7 +26,7 @@ pub enum AppEvent {
 
 pub struct Application {
     event_queue: EventQueue<AppEvent>,
-    store: Store<ActionManager>,
+    store: Store,
     gui: Gui,
     _server: ServerProxy, // Kept because we need its internal thread running until drop
     _input: InputReceiver, // Kept because we need its internal thread running until drop
@@ -48,11 +47,10 @@ impl Application {
         });
 
         let app_controller = ApplicationController { sender: event_queue.sender().clone() };
-        let actions = ActionManager::new(app_controller, server.api());
 
         Application {
             event_queue,
-            store: Store::new(State::new(&config), actions),
+            store: Store::new(State::new(&config), app_controller, server.api()),
             gui: Gui::new(&config),
             _server: server,
             _input: input,

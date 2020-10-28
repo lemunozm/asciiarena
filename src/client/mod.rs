@@ -1,10 +1,9 @@
 mod application;
 mod configuration;
 mod state;
-mod actions;
+mod store;
 mod server_proxy;
 mod gui;
-mod util;
 
 use application::{Application};
 use configuration::{Config};

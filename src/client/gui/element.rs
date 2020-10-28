@@ -1,8 +1,7 @@
 use super::input::{InputEvent};
 
 use crate::client::state::{State};
-use crate::client::actions::{ActionManager};
-use crate::client::util::store::{Store};
+use crate::client::store::{Store};
 
 use tui::backend::{CrosstermBackend};
 use tui::{Frame};
@@ -25,7 +24,7 @@ impl<'a, 'b> Context<'a, 'b> {
 }
 
 pub trait GuiElement {
-    fn process_event(&mut self, store: &mut Store<ActionManager>, event: InputEvent);
+    fn process_event(&mut self, store: &mut Store, event: InputEvent);
     fn update(&mut self, state: &State);
     fn render(&self, ctx: &mut Context, rect: Rect);
 }

@@ -1,7 +1,6 @@
 use crate::client::configuration::{Config};
 use crate::client::state::{State, GameStatus};
-use crate::client::util::store::{Store};
-use crate::client::actions::{ActionManager, Action};
+use crate::client::store::{Store, Action};
 use crate::client::gui::input::{InputEvent};
 use crate::client::gui::element::{Context, GuiElement};
 
@@ -15,7 +14,7 @@ use crossterm::event::{KeyCode};
 pub struct Arena {}
 
 impl GuiElement for Arena {
-    fn process_event(&mut self, store: &mut Store<ActionManager>, event: InputEvent) {
+    fn process_event(&mut self, store: &mut Store, event: InputEvent) {
         match event {
             InputEvent::KeyPressed(key_event) => match key_event.code {
                 KeyCode::Enter => {
@@ -29,8 +28,7 @@ impl GuiElement for Arena {
         }
     }
 
-    fn update(&mut self, _store: &State) {
-    }
+    fn update(&mut self, _store: &State) { }
 
     fn render(&self, ctx: &mut Context, space: Rect) {
         let gui_layout = Layout::default()

@@ -1,8 +1,7 @@
 use crate::client::configuration::{Config};
 use crate::client::state::{State, VersionInfo};
 use crate::client::server_proxy::{ConnectionStatus};
-use crate::client::util::store::{Store};
-use crate::client::actions::{ActionManager, Action};
+use crate::client::store::{Store, Action};
 use crate::client::gui::input::{InputEvent};
 use crate::client::gui::element::{Context, GuiElement};
 use crate::client::gui::widgets::{InputTextWidget, InputCapitalLetterWidget};
@@ -35,7 +34,7 @@ pub struct Menu {
 }
 
 impl GuiElement for Menu {
-    fn process_event(&mut self, store: &mut Store<ActionManager>, event: InputEvent) {
+    fn process_event(&mut self, store: &mut Store, event: InputEvent) {
         match event {
             InputEvent::KeyPressed(key_event) => {
                 match key_event.code {

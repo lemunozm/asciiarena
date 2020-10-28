@@ -2,9 +2,8 @@ use super::menu::{self, Menu};
 use super::arena::{Arena};
 
 use crate::client::configuration::{Config};
-use crate::client::util::store::{Store};
+use crate::client::store::{Store, Action};
 use crate::client::state::{State, GameStatus};
-use crate::client::actions::{Action, ActionManager};
 
 use crate::client::gui::input::{InputEvent};
 use crate::client::gui::element::{GuiElement, Context};
@@ -43,7 +42,7 @@ impl Gui {
 }
 
 impl GuiElement for Gui {
-    fn process_event(&mut self, store: &mut Store<ActionManager>, event: InputEvent) {
+    fn process_event(&mut self, store: &mut Store, event: InputEvent) {
         match event {
             InputEvent::KeyPressed(key_event) => match key_event.code {
                 KeyCode::Char(character) => {

@@ -1,4 +1,3 @@
-use super::util::store::{Actionable};
 use super::state::{State, StaticGameInfo, VersionInfo, GameStatus};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
@@ -23,56 +22,57 @@ pub enum Action {
     ServerEvent(ServerEvent),
 }
 
-pub struct ActionManager {
+pub struct Store {
+    state: State,
     app: Box<dyn AppController>,
     server: ServerApi,
 }
 
-impl ActionManager {
-    pub fn new(app: impl AppController + 'static, server: ServerApi) -> ActionManager {
-        ActionManager {
+impl Store {
+    pub fn new(state: State, app: impl AppController + 'static, server: ServerApi) -> Store {
+        Store {
+            state,
             app: Box::new(app),
             server
         }
     }
-}
 
-impl Actionable for ActionManager {
-    type State = State;
-    type Action = Action;
+    pub fn state(&self) -> &State {
+        &self.state
+    }
 
-    fn dispatch(&mut self, state: &mut State, action: Action) {
+    pub fn dispatch(&mut self, action: Action) {
         log::trace!("Dispatch: {:?}", action);
         match action {
             Action::StartApp => {
-                if let Some(addr) = state.server.addr {
+                if let Some(addr) = self.state.server.addr {
                     self.server.call(ApiCall::Connect(addr));
                 }
             },
 
             Action::Connect(addr) => {
-                state.server.addr = Some(addr);
+                self.state.server.addr = Some(addr);
                 self.server.call(ApiCall::Connect(addr));
             },
 
             Action::Disconnect => {
-                state.server.addr = None;
+                self.state.server.addr = None;
                 self.server.call(ApiCall::Disconnect);
             }
 
             Action::Login(character) => {
-                state.user.character = Some(character);
+                self.state.user.character = Some(character);
                 self.server.call(ApiCall::Login(character));
             },
 
             Action::Logout => {
-                state.user.character = None;
-                state.user.login_status = None;
+                self.state.user.character = None;
+                self.state.user.login_status = None;
                 self.server.call(ApiCall::Logout);
             }
 
             Action::CloseGame => {
-                state.server.game.status = GameStatus::NotStarted;
+                self.state.server.game.status = GameStatus::NotStarted;
             }
 
             Action::Close => {
@@ -81,18 +81,18 @@ impl Actionable for ActionManager {
 
             Action::ServerEvent(server_event) => match server_event {
                 ServerEvent::ConnectionResult(status)  => {
-                    state.server.connection_status = status;
+                    self.state.server.connection_status = status;
                     if let ConnectionStatus::Connected = status {
                         self.server.call(ApiCall::CheckVersion(version::current().into()));
                     }
                     else {
-                        state.user.login_status = None;
+                        self.state.user.login_status = None;
                     }
                 },
 
                 ServerEvent::CheckedVersion(server_version, compatibility) => {
                     let version_info = VersionInfo { version: server_version, compatibility };
-                    state.server.version_info = Some(version_info);
+                    self.state.server.version_info = Some(version_info);
 
                     if compatibility.is_compatible() {
                         self.server.call(ApiCall::SubscribeInfo);
@@ -105,37 +105,37 @@ impl Actionable for ActionManager {
                         map_size: info.map_size as usize,
                         winner_points: info.winner_points as usize,
                     };
-                    state.server.udp_port = Some(info.udp_port);
-                    state.server.game_info = Some(game_info);
-                    state.server.logged_players = info.logged_players;
+                    self.state.server.udp_port = Some(info.udp_port);
+                    self.state.server.game_info = Some(game_info);
+                    self.state.server.logged_players = info.logged_players;
 
-                    if let Some(character) = state.user.character {
+                    if let Some(character) = self.state.user.character {
                         self.server.call(ApiCall::Login(character));
                     }
                 },
 
                 ServerEvent::PlayerListUpdated(player_names) => {
-                    state.server.logged_players = player_names;
+                    self.state.server.logged_players = player_names;
                 },
 
                 ServerEvent::LoginStatus(status) => {
-                    state.user.login_status = Some(status);
+                    self.state.user.login_status = Some(status);
                 },
 
                 ServerEvent::UdpReachable(value) => {
-                    state.server.udp_confirmed = Some(value);
+                    self.state.server.udp_confirmed = Some(value);
                 },
 
                 ServerEvent::StartGame => {
-                    state.server.game.status = GameStatus::Started;
+                    self.state.server.game.status = GameStatus::Started;
                 },
 
                 ServerEvent::FinishGame => {
-                    state.server.game.status = GameStatus::Finished;
-                    state.server.logged_players = Vec::new();
-                    state.server.udp_confirmed = None;
-                    state.user.character = None;
-                    state.user.login_status = None;
+                    self.state.server.game.status = GameStatus::Finished;
+                    self.state.server.logged_players = Vec::new();
+                    self.state.server.udp_confirmed = None;
+                    self.state.user.character = None;
+                    self.state.user.login_status = None;
                 },
 
                 ServerEvent::PrepareArena(_duration) => {
@@ -143,6 +143,7 @@ impl Actionable for ActionManager {
                 },
 
                 ServerEvent::StartArena => {
+                    //TODO
                 },
 
                 ServerEvent::FinishArena => {
