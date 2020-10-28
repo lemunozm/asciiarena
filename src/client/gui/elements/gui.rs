@@ -72,12 +72,12 @@ impl GuiElement for Gui {
     fn render(&self, ctx: &mut Context, space: Rect) {
         match self.selected(ctx.state) {
             Selected::Menu => {
-                let space = util::centered_space(ctx.frame.size(), menu::DIMENSION);
+                let space = util::centered_space(space, menu::DIMENSION);
                 self.menu.render(ctx, space);
             },
             Selected::Arena => {
                 let dimension = self.arena.required_dimension(ctx.state);
-                let space = util::centered_space(ctx.frame.size(), dimension);
+                let space = util::centered_space(space, dimension);
                 self.arena.render(ctx, space);
             }
         }

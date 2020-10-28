@@ -1,7 +1,6 @@
 mod application;
 mod configuration;
 mod state;
-mod input_widgets;
 mod actions;
 mod server_proxy;
 mod gui;

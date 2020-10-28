@@ -16,14 +16,17 @@ pub struct Context<'a, 'b> {
 }
 
 impl<'a, 'b> Context<'a, 'b> {
-    pub fn new(state: &'a State, frame: &'a mut Frame<'b, CrosstermBackend<Stdout>>) -> Context<'a, 'b> {
+    pub fn new(
+        state: &'a State,
+        frame: &'a mut Frame<'b, CrosstermBackend<Stdout>>
+    ) -> Context<'a, 'b> {
         Context { state: state, frame }
     }
 }
 
 pub trait GuiElement {
-    fn process_event(&mut self, store: &mut Store<ActionManager>, event: InputEvent) {}
-    fn update(&mut self, state: &State) {}
-    fn render(&self, ctx: &mut Context, rect: Rect) {}
+    fn process_event(&mut self, store: &mut Store<ActionManager>, event: InputEvent);
+    fn update(&mut self, state: &State);
+    fn render(&self, ctx: &mut Context, rect: Rect);
 }
 

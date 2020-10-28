@@ -31,14 +31,8 @@ pub struct StaticGameInfo {
     pub winner_points: usize,
 }
 
-pub enum ArenaStatus {
-    Preparing,
-    Playing,
-}
-
 pub struct Arena {
     pub number: usize,
-    pub status: ArenaStatus,
 }
 
 pub enum GameStatus {

@@ -1,14 +1,14 @@
 use crate::client::configuration::{Config};
 use crate::client::state::{State, VersionInfo};
 use crate::client::server_proxy::{ConnectionStatus};
-use crate::client::gui::element::{Context, GuiElement};
 use crate::client::util::store::{Store};
 use crate::client::actions::{ActionManager, Action};
 use crate::client::gui::input::{InputEvent};
+use crate::client::gui::element::{Context, GuiElement};
+use crate::client::gui::widgets::{InputTextWidget, InputCapitalLetterWidget};
 
 use crate::version::{self, Compatibility};
 use crate::message::{LoginStatus};
-use crate::client::input_widgets::{InputTextWidget, InputCapitalLetterWidget};
 
 use tui::widgets::{Block, Borders, BorderType, Paragraph};
 use tui::layout::{Layout, Constraint, Direction, Rect, Alignment, Margin};
