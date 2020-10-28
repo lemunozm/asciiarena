@@ -55,6 +55,15 @@ pub enum ConnectionStatus {
     Lost,
 }
 
+impl ConnectionStatus {
+    pub fn is_connected(&self) -> bool {
+        match self {
+            ConnectionStatus::Connected => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Event {
     Api(ApiCall),

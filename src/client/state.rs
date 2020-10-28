@@ -1,19 +1,23 @@
 use crate::version::{Compatibility};
 use crate::message::{LoginStatus};
 
-use super::input_widgets::{InputTextWidget, InputCapitalLetterWidget};
 use super::server_proxy::{ConnectionStatus};
+use super::configuration::{Config};
 
 use std::net::{SocketAddr};
-
-pub struct Config {
-    pub server_addr: Option<SocketAddr>,
-    pub character: Option<char>,
-}
 
 pub struct User {
     pub character: Option<char>,
     pub login_status: Option<LoginStatus>,
+}
+
+impl User {
+    pub fn is_logged(&self) -> bool {
+        if let Some(LoginStatus::Logged(..)) = self.login_status {
+            return true
+        }
+        false
+    }
 }
 
 pub struct VersionInfo {
@@ -27,6 +31,16 @@ pub struct StaticGameInfo {
     pub winner_points: usize,
 }
 
+pub enum ArenaStatus {
+    Preparing,
+    Playing,
+}
+
+pub struct Arena {
+    pub number: usize,
+    pub status: ArenaStatus,
+}
+
 pub enum GameStatus {
     NotStarted,
     Started,
@@ -35,6 +49,7 @@ pub enum GameStatus {
 
 pub struct Game {
     pub status: GameStatus,
+    pub arena: Option<Arena>,
 }
 
 pub struct Server {
@@ -57,51 +72,22 @@ impl Server {
         }
         false
     }
-}
 
-pub struct MenuGuiState {
-    pub server_addr_input: InputTextWidget,
-    pub character_input: InputCapitalLetterWidget,
-}
-
-impl MenuGuiState {
-    pub fn new(config: &super::Config) -> MenuGuiState {
-        MenuGuiState {
-            server_addr_input: InputTextWidget::new(
-                config.server_addr.map(|addr| addr.to_string())
-            ),
-            character_input: InputCapitalLetterWidget::new(config.character),
+    pub fn has_compatible_version(&self) -> bool {
+        if let Some(version_info) = &self.version_info {
+            return version_info.compatibility.is_compatible()
         }
+        false
     }
-}
-
-pub struct ArenaGuiState { }
-
-impl ArenaGuiState {
-    pub fn new(_config: &super::Config) -> ArenaGuiState {
-        ArenaGuiState { }
-    }
-}
-
-pub enum GuiSelector {
-    Menu,
-    Arena,
-}
-
-pub struct Gui {
-    pub menu: MenuGuiState,
-    pub arena: ArenaGuiState,
-    pub selector: GuiSelector,
 }
 
 pub struct State {
     pub user: User,
     pub server: Server,
-    pub gui: Gui,
 }
 
 impl State {
-    pub fn new(config: Config) -> State {
+    pub fn new(config: &Config) -> State {
         State {
             user: User {
                 character: config.character,
@@ -117,12 +103,8 @@ impl State {
                 logged_players: Vec::new(),
                 game: Game {
                     status: GameStatus::NotStarted,
+                    arena: None,
                 },
-            },
-            gui: Gui {
-                menu: MenuGuiState::new(&config),
-                arena: ArenaGuiState::new(&config),
-                selector: GuiSelector::Menu,
             },
         }
     }

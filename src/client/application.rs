@@ -1,11 +1,13 @@
-use super::server_proxy::{ServerProxy};
+use super::configuration::{Config};
 use super::util::store::{Store};
-use super::actions::{ActionManager, Action, AppController};
 use super::state::{State};
-pub use super::state::{Config};
+use super::actions::{ActionManager, Action, AppController};
+use super::server_proxy::{ServerProxy, ServerEvent};
 
-use super::terminal::input::{InputReceiver};
-use super::terminal::renderer::{Renderer};
+use super::gui::input::{InputReceiver, InputEvent};
+use super::gui::renderer::{Renderer};
+use super::gui::element::{GuiElement};
+use super::gui::elements::gui::{Gui};
 
 use message_io::events::{EventSender, EventQueue};
 
@@ -17,14 +19,16 @@ lazy_static! {
 
 #[derive(Debug)]
 pub enum AppEvent {
-    Action(Action),
-    Close,
+    ServerEvent(ServerEvent),
+    InputEvent(InputEvent),
     Draw,
+    Close,
 }
 
 pub struct Application {
     event_queue: EventQueue<AppEvent>,
     store: Store<ActionManager>,
+    gui: Gui,
     _server: ServerProxy, // Kept because we need its internal thread running until drop
     _input: InputReceiver, // Kept because we need its internal thread running until drop
 }
@@ -35,21 +39,21 @@ impl Application {
 
         let event_sender = event_queue.sender().clone();
         let mut server = ServerProxy::new(move |server_event| {
-            event_sender.send(AppEvent::Action(Action::ServerEvent(server_event)))
+            event_sender.send(AppEvent::ServerEvent(server_event))
         });
 
         let event_sender = event_queue.sender().clone();
         let input = InputReceiver::new(move |input_event| {
-            event_sender.send(AppEvent::Action(Action::InputEvent(input_event)))
+            event_sender.send(AppEvent::InputEvent(input_event))
         });
 
-        let state = State::new(config);
         let app_controller = ApplicationController { sender: event_queue.sender().clone() };
         let actions = ActionManager::new(app_controller, server.api());
 
         Application {
             event_queue,
-            store: Store::new(state, actions),
+            store: Store::new(State::new(&config), actions),
+            gui: Gui::new(&config),
             _server: server,
             _input: input,
         }
@@ -64,11 +68,15 @@ impl Application {
             let event = self.event_queue.receive();
             log::trace!("[Process event] - {:?}", event);
             match event {
-                AppEvent::Action(action) => {
-                    self.store.dispatch(action);
+                AppEvent::ServerEvent(server_event) => {
+                    self.store.dispatch(Action::ServerEvent(server_event));
+                },
+                AppEvent::InputEvent(input_event) => {
+                    self.gui.process_event(&mut self.store, input_event);
                 },
                 AppEvent::Draw => {
-                    renderer.render(&self.store.state());
+                    self.gui.update(self.store.state());
+                    renderer.render(self.store.state(), &self.gui);
                     self.event_queue.sender().send_with_timer(AppEvent::Draw, *APP_FRAME_DURATION);
                 },
                 AppEvent::Close => {

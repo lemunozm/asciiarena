@@ -1,12 +1,14 @@
 mod application;
+mod configuration;
 mod state;
 mod input_widgets;
 mod actions;
 mod server_proxy;
-mod terminal;
+mod gui;
 mod util;
 
-use application::{Application, Config};
+use application::{Application};
+use configuration::{Config};
 
 use crate::logger::{self};
 

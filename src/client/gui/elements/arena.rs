@@ -1,20 +1,38 @@
-use super::super::gui::util::{Context};
-
+use crate::client::configuration::{Config};
 use crate::client::state::{State, GameStatus};
+use crate::client::util::store::{Store};
+use crate::client::actions::{ActionManager, Action};
+use crate::client::gui::input::{InputEvent};
+use crate::client::gui::element::{Context, GuiElement};
 
 use tui::widgets::{Paragraph};
 use tui::layout::{Layout, Constraint, Direction, Rect, Alignment};
 use tui::style::{Style, Modifier};
 use tui::text::{Span, Spans};
 
+use crossterm::event::{KeyCode};
+
 pub struct Arena {}
 
-impl Arena {
-    pub fn new() -> Arena {
-        Arena {}
+impl GuiElement for Arena {
+    fn process_event(&mut self, store: &mut Store<ActionManager>, event: InputEvent) {
+        match event {
+            InputEvent::KeyPressed(key_event) => match key_event.code {
+                KeyCode::Enter => {
+                    if let GameStatus::Finished = store.state().server.game.status {
+                        store.dispatch(Action::CloseGame);
+                    }
+                }
+                _ => (),
+            },
+            InputEvent::ResizeDisplay(_, _) => {},
+        }
     }
 
-    pub fn draw(&mut self, ctx: &mut Context, space: Rect) {
+    fn update(&mut self, _store: &State) {
+    }
+
+    fn render(&self, ctx: &mut Context, space: Rect) {
         let gui_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -45,6 +63,12 @@ impl Arena {
             .alignment(Alignment::Center);
 
         ctx.frame.render_widget(building_comment, gui_layout[1]);
+    }
+}
+
+impl Arena {
+    pub fn new(_config: &Config) -> Arena {
+        Arena {}
     }
 
     pub fn required_dimension(&self, state: &State) -> (u16, u16) {

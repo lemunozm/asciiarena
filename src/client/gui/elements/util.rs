@@ -1,21 +1,4 @@
-use crate::client::state::{State};
-
-use tui::{Frame};
-use tui::backend::{CrosstermBackend};
 use tui::layout::{Rect};
-
-use std::io::{Stdout};
-
-pub struct Context<'a, 'b> {
-    pub state: &'a State,
-    pub frame: &'a mut Frame<'b, CrosstermBackend<Stdout>>,
-}
-
-impl<'a, 'b> Context<'a, 'b> {
-    pub fn new(state: &'a State, frame: &'a mut Frame<'b, CrosstermBackend<Stdout>>) -> Context<'a, 'b> {
-        Context { state: state, frame }
-    }
-}
 
 pub fn centered_space(base: Rect, dimension: (u16, u16)) -> Rect {
     let width_diff = base.width as i16 - dimension.0 as i16;

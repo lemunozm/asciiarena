@@ -1,14 +1,21 @@
-use super::super::gui::util::{Context};
-
-use crate::client::state::{VersionInfo};
+use crate::client::configuration::{Config};
+use crate::client::state::{State, VersionInfo};
 use crate::client::server_proxy::{ConnectionStatus};
+use crate::client::gui::element::{Context, GuiElement};
+use crate::client::util::store::{Store};
+use crate::client::actions::{ActionManager, Action};
+use crate::client::gui::input::{InputEvent};
+
 use crate::version::{self, Compatibility};
 use crate::message::{LoginStatus};
+use crate::client::input_widgets::{InputTextWidget, InputCapitalLetterWidget};
 
 use tui::widgets::{Block, Borders, BorderType, Paragraph};
 use tui::layout::{Layout, Constraint, Direction, Rect, Alignment, Margin};
 use tui::style::{Style, Modifier, Color};
 use tui::text::{Span, Spans};
+
+use crossterm::event::{KeyCode};
 
 use std::net::{SocketAddr};
 
@@ -22,14 +29,70 @@ r"        \/                            \/", "\n",
 );
 pub const DIMENSION: (u16, u16) = (70, 22);
 
-pub struct Menu {}
+pub struct Menu {
+    server_addr_input: InputTextWidget,
+    character_input: InputCapitalLetterWidget,
+}
 
-impl Menu {
-    pub fn new() -> Menu {
-        Menu {}
+impl GuiElement for Menu {
+    fn process_event(&mut self, store: &mut Store<ActionManager>, event: InputEvent) {
+        match event {
+            InputEvent::KeyPressed(key_event) => {
+                match key_event.code {
+                    KeyCode::Enter => {
+                        if self.server_addr_input.has_focus() {
+                            let content = self.server_addr_input.content();
+                            if let Ok(addr) = content.parse::<SocketAddr>() {
+                                store.dispatch(Action::Connect(addr));
+                            }
+                        }
+                        else if self.character_input.has_focus() {
+                            if let Some(character) = self.character_input.content() {
+                                store.dispatch(Action::Login(character));
+                            }
+                        }
+                    }
+                    KeyCode::Esc => {
+                        if let Some(LoginStatus::Logged(..)) = store.state().user.login_status {
+                            if !store.state().server.is_full() {
+                                store.dispatch(Action::Logout);
+                            }
+                        }
+                        else if store.state().server.connection_status.is_connected() {
+                            store.dispatch(Action::Disconnect);
+                        }
+                        else {
+                            return store.dispatch(Action::Close);
+                        }
+                    },
+                    _ => (),
+                }
+                self.server_addr_input.key_pressed(key_event);
+                self.character_input.key_pressed(key_event);
+            },
+            InputEvent::ResizeDisplay(_, _) => {},
+        }
     }
 
-    pub fn draw(&mut self, ctx: &mut Context, space: Rect) {
+    fn update(&mut self, state: &State) {
+        let (server_addr_focus, character_focus) =
+
+        if !state.server.connection_status.is_connected()
+        || !state.server.has_compatible_version() {
+            (true, false)
+        }
+        else if !state.user.is_logged() {
+            (false, true)
+        }
+        else {
+            (false, false)
+        };
+
+        self.character_input.focus(character_focus);
+        self.server_addr_input.focus(server_addr_focus);
+    }
+
+    fn render(&self, ctx: &mut Context, space: Rect) {
         let gui_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -74,6 +137,17 @@ impl Menu {
 
         self.draw_starting_notify_panel(ctx, gui_layout[6]);
     }
+}
+
+impl Menu {
+    pub fn new(config: &Config) -> Menu {
+        Menu {
+            server_addr_input: InputTextWidget::new(
+                config.server_addr.map(|addr| addr.to_string()) //TODO: into()?
+            ),
+            character_input: InputCapitalLetterWidget::new(config.character),
+        }
+    }
 
     fn draw_menu_panel(&self, ctx: &mut Context, space: Rect) {
         let main_title = Paragraph::new(MAIN_TITLE)
@@ -96,11 +170,12 @@ impl Menu {
     }
 
     fn draw_server_address_panel(&self, ctx: &mut Context, space: Rect) {
-        let input_addr = &ctx.state.gui.menu.server_addr_input;
-
         let server_addrees = Spans::from(vec![
             Span::raw("Server address:  "),
-            Span::styled(input_addr.content(), Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(
+                self.server_addr_input.content(),
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
         ]);
 
         let left_panel = Paragraph::new(server_addrees).alignment(Alignment::Left);
@@ -109,11 +184,11 @@ impl Menu {
         let (message, hint_color) = match ctx.state.server.connection_status {
             ConnectionStatus::Connected => ("Connected", Color::LightGreen),
             ConnectionStatus::NotConnected => {
-                if input_addr.content().is_empty() {
+                if self.server_addr_input.content().is_empty() {
                     ("Not connected", Color::DarkGray)
                 }
                 else {
-                    match input_addr.content().parse::<SocketAddr>() {
+                    match self.server_addr_input.content().parse::<SocketAddr>() {
                         Ok(_) => ("Not connected", Color::DarkGray),
                         Err(_) => ("Use 'ip:port' syntax", Color::DarkGray),
                     }
@@ -135,14 +210,13 @@ impl Menu {
         let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
         ctx.frame.render_widget(right_panel, space);
 
-        if let Some(ref cursor) = input_addr.cursor_position() {
+        if let Some(ref cursor) = self.server_addr_input.cursor_position() {
             ctx.frame.set_cursor(space.x + 17 + *cursor as u16, space.y);
         }
     }
 
     fn draw_character_panel(&self, ctx: &mut Context, space: Rect) {
-        let input_name = &ctx.state.gui.menu.character_input;
-        let character_input = match input_name.content() {
+        let character_input = match self.character_input.content() {
             Some(character) => character.to_string(),
             None => String::new(),
         };
@@ -180,7 +254,7 @@ impl Menu {
         let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
         ctx.frame.render_widget(right_panel, space);
 
-        if input_name.has_focus() {
+        if self.character_input.has_focus() {
             ctx.frame.set_cursor(space.x + 17, space.y);
         }
     }
