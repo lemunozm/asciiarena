@@ -29,7 +29,7 @@ impl Game {
 
     pub fn create_new_arena(&mut self) -> &Arena {
         let new_id = match self.arena.as_ref() {
-            Some(arena) => arena.id() + 1,
+            Some(arena) => arena.number() + 1,
             None => 1,
         };
 

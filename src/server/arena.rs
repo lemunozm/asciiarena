@@ -5,15 +5,15 @@ use std::collections::{HashMap};
 pub type EntityId = usize;
 
 pub struct Arena {
-    id: usize,
+    number: u8,
     players: HashMap<char, EntityId>,
     ranking: Vec<char>
 }
 
 impl Arena {
-    pub fn new(id: usize, players_it: impl IntoIterator<Item = char>) -> Arena {
+    pub fn new(number: u8, players_it: impl IntoIterator<Item = char>) -> Arena {
         Arena {
-            id,
+            number,
             players: players_it
                 .into_iter()
                 .enumerate()
@@ -23,8 +23,8 @@ impl Arena {
         }
     }
 
-    pub fn id(&self) -> usize {
-        self.id
+    pub fn number(&self) -> u8 {
+        self.number
     }
 
     pub fn step(&mut self) {

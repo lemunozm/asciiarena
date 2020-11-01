@@ -3,7 +3,7 @@ use super::arena::{Arena};
 
 use crate::client::configuration::{Config};
 use crate::client::store::{Store, Action};
-use crate::client::state::{State, GameStatus};
+use crate::client::state::{State};
 
 use crate::client::gui::input::{InputEvent};
 use crate::client::gui::element::{GuiElement, Context};
@@ -13,7 +13,7 @@ use tui::layout::{Rect};
 
 use crossterm::event::{KeyCode, KeyModifiers};
 
-enum Selected {
+enum View {
     Menu,
     Arena,
 }
@@ -31,12 +31,12 @@ impl Gui {
         }
     }
 
-    fn selected(&self, state: &State) -> Selected {
-        match state.server.game.status {
-            GameStatus::NotStarted => Selected::Menu,
-            GameStatus::Started => Selected::Arena,
-                //ArenaStatus::Preparing && arena_num = 1
-            GameStatus::Finished => Selected::Arena,
+    fn view(&self, state: &State) -> View {
+        if state.server.game.arena.is_some() {
+            View::Arena
+        }
+        else {
+            View::Menu
         }
     }
 }
@@ -55,26 +55,26 @@ impl GuiElement for Gui {
             InputEvent::ResizeDisplay(_, _) => {},
         }
 
-        match self.selected(store.state()) {
-            Selected::Menu => self.menu.process_event(store, event),
-            Selected::Arena => self.arena.process_event(store, event),
+        match self.view(store.state()) {
+            View::Menu => self.menu.process_event(store, event),
+            View::Arena => self.arena.process_event(store, event),
         }
     }
 
     fn update(&mut self, state: &State) {
-        match self.selected(state) {
-            Selected::Menu => self.menu.update(state),
-            Selected::Arena => self.arena.update(state),
+        match self.view(state) {
+            View::Menu => self.menu.update(state),
+            View::Arena => self.arena.update(state),
         }
     }
 
     fn render(&self, ctx: &mut Context, space: Rect) {
-        match self.selected(ctx.state) {
-            Selected::Menu => {
+        match self.view(ctx.state) {
+            View::Menu => {
                 let space = util::centered_space(space, menu::DIMENSION);
                 self.menu.render(ctx, space);
             },
-            Selected::Arena => {
+            View::Arena => {
                 let dimension = self.arena.required_dimension(ctx.state);
                 let space = util::centered_space(space, dimension);
                 self.arena.render(ctx, space);

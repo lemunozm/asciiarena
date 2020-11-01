@@ -38,8 +38,7 @@ impl FromStr for Level {
 }
 
 pub fn init(level: Level) {
-    let mut log_config = fern::Dispatch::new()
-        .level(LevelFilter::Off);
+    let mut log_config = fern::Dispatch::new().level(LevelFilter::Off);
 
     log_config = match level {
         Level::Off => return,

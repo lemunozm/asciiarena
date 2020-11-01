@@ -1,4 +1,4 @@
-use super::state::{State, StaticGameInfo, VersionInfo, GameStatus};
+use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena, ArenaStatus};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
 use crate::version::{self};
@@ -73,6 +73,7 @@ impl Store {
 
             Action::CloseGame => {
                 self.state.server.game.status = GameStatus::NotStarted;
+                self.state.server.game.arena = None;
             }
 
             Action::Close => {
@@ -138,16 +139,21 @@ impl Store {
                     self.state.user.login_status = None;
                 },
 
-                ServerEvent::PrepareArena(_duration) => {
-                    //TODO
+                ServerEvent::PrepareArena(duration) => {
+                    self.state.server.game.waiting_arena = Some(duration);
                 },
 
-                ServerEvent::StartArena => {
-                    //TODO
+                ServerEvent::StartArena(number) => {
+                    self.state.server.game.waiting_arena = None;
+                    self.state.server.game.arena = Some(Arena {
+                        number: number as usize,
+                        status: ArenaStatus::Playing,
+                    });
                 },
 
                 ServerEvent::FinishArena => {
-                    //TODO
+                    let arena = self.state.server.game.arena.as_mut().unwrap();
+                    arena.status = ArenaStatus::Finished;
                 },
 
                 ServerEvent::ArenaStep => {

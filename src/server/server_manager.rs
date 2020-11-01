@@ -21,7 +21,7 @@ lazy_static! {
 enum Event {
     Network(NetEvent<ClientMessage>),
     CreateGame,
-    CreateArena,
+    PrepareArena,
     StartArena,
     GameStep,
     Reset,
@@ -31,7 +31,7 @@ enum Event {
 pub struct ServerConfig {
     pub tcp_port: u16,
     pub udp_port: u16,
-    pub players_number: usize,
+    pub players_number: u8,
     pub map_size: usize,
     pub winner_points: usize,
     pub arena_waiting: Duration,
@@ -73,7 +73,7 @@ impl ServerManager {
             event_queue,
             network,
             server_info_subscriptions: HashSet::new(),
-            room: Room::new(config.players_number),
+            room: Room::new(config.players_number as usize),
             game: None,
             timestamp_last_arena_creation: None,
             config,
@@ -123,8 +123,8 @@ impl ServerManager {
                 Event::CreateGame => {
                     self.process_create_game();
                 },
-                Event::CreateArena => {
-                    self.process_create_arena();
+                Event::PrepareArena => {
+                    self.process_prepare_arena();
                 },
                 Event::StartArena => {
                     self.process_start_arena();
@@ -163,7 +163,7 @@ impl ServerManager {
     fn process_subscribe_server_info(&mut self, endpoint: Endpoint) {
         let info = ServerInfo {
             udp_port: self.config.udp_port,
-            players_number: self.config.players_number as u8,
+            players_number: self.config.players_number,
             map_size: self.config.map_size as u16,
             winner_points: self.config.winner_points as u16,
             logged_players: self.room.sessions().map(|session| session.character()).collect(),
@@ -216,16 +216,18 @@ impl ServerManager {
                     }
                 },
                 LoggedKind::Reconnection => {
-                    if self.game.is_some() {
-                        self.network.send(endpoint, ServerMessage::StartGame).unwrap();
+                    if let Some(game) = &self.game {
+                        self.network.send(endpoint, ServerMessage::StartGame).ok();
 
                         let timestamp = self.timestamp_last_arena_creation.as_ref().unwrap();
                         let duration_since_arena_creation = Instant::now().duration_since(*timestamp);
                         if let Some(waiting) = self.config.arena_waiting.checked_sub(duration_since_arena_creation) {
-                            self.network.send(endpoint, ServerMessage::PrepareArena(waiting)).unwrap();
+                            self.network.send(endpoint, ServerMessage::PrepareArena(waiting)).ok();
                         }
 
-                        self.network.send(endpoint, ServerMessage::StartArena).unwrap();
+                        if let Some(arena) = game.arena() {
+                            self.network.send(endpoint, ServerMessage::StartArena(arena.number())).ok();
+                        }
                     }
                 }
             }
@@ -279,13 +281,11 @@ impl ServerManager {
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartGame).ok();
 
-        self.event_queue.sender().send(Event::CreateArena);
+        self.event_queue.sender().send(Event::PrepareArena);
     }
 
-    fn process_create_arena(&mut self) {
-        let game = self.game.as_mut().unwrap();
-        let arena = game.create_new_arena();
-        log::trace!("Initializing arena {} in {} seconds...", arena.id(), self.config.arena_waiting.as_secs_f32());
+    fn process_prepare_arena(&mut self) {
+        log::trace!("Initializing next arena in {} seconds...", self.config.arena_waiting.as_secs_f32());
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::PrepareArena(self.config.arena_waiting)).ok();
 
@@ -294,11 +294,11 @@ impl ServerManager {
     }
 
     fn process_start_arena(&mut self) {
-        let game = self.game.as_ref().unwrap();
-        let arena = game.arena().unwrap();
-        log::info!("Start arena {}", arena.id());
+        let game = self.game.as_mut().unwrap();
+        let arena = game.create_new_arena();
+        log::info!("Start arena {}", arena.number());
 
-        self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartArena).ok();
+        self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartArena(arena.number())).ok();
 
         self.event_queue.sender().send(Event::GameStep);
     }
@@ -306,14 +306,14 @@ impl ServerManager {
     fn process_game_step(&mut self) {
         let game = self.game.as_mut().unwrap();
 
-        log::info!("Processing step"); //TODO: should be trace
+        log::trace!("Processing step");
         game.step();
 
         let arena = game.arena().unwrap();
         self.network.send_all(self.room.faster_endpoints(), ServerMessage::Step).ok();
 
         if arena.has_finished() {
-            log::info!("End arena {}. Raking: {}", arena.id(), util::format::character_list(arena.ranking().clone()));
+            log::info!("End arena {}. Raking: {}", arena.number(), util::format::character_list(arena.ranking().clone()));
             log::info!("Game points: {}", util::format::character_points_list(game.pole()));
             self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishArena).ok();
 
@@ -324,7 +324,7 @@ impl ServerManager {
                 self.event_queue.sender().send(Event::Reset);
             }
             else {
-                self.event_queue.sender().send(Event::CreateArena);
+                self.event_queue.sender().send(Event::PrepareArena);
             }
         }
         else {

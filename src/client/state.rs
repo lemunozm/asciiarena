@@ -5,6 +5,7 @@ use super::server_proxy::{ConnectionStatus};
 use super::configuration::{Config};
 
 use std::net::{SocketAddr};
+use std::time::{Duration};
 
 pub struct User {
     pub character: Option<char>,
@@ -31,10 +32,18 @@ pub struct StaticGameInfo {
     pub winner_points: usize,
 }
 
-pub struct Arena {
-    pub number: usize,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ArenaStatus {
+    Playing,
+    Finished,
 }
 
+pub struct Arena {
+    pub number: usize,
+    pub status: ArenaStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GameStatus {
     NotStarted,
     Started,
@@ -43,7 +52,14 @@ pub enum GameStatus {
 
 pub struct Game {
     pub status: GameStatus,
+    pub waiting_arena: Option<Duration>,
     pub arena: Option<Arena>,
+}
+
+impl Game {
+    pub fn arena(&self) -> &Arena {
+        self.arena.as_ref().unwrap()
+    }
 }
 
 pub struct Server {
@@ -97,6 +113,7 @@ impl State {
                 logged_players: Vec::new(),
                 game: Game {
                     status: GameStatus::NotStarted,
+                    waiting_arena: None,
                     arena: None,
                 },
             },

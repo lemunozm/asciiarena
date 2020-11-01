@@ -43,16 +43,17 @@ impl GuiElement for Arena {
             GameStatus::Finished => {
                 (Spans::from(vec![
                    Span::raw("Press"),
-                   Span::styled(" Enter ", Style::default().add_modifier(Modifier::BOLD)),
-                   Span::raw("key to back to the menu"),
+                   Span::styled(" <Enter> ", Style::default().add_modifier(Modifier::BOLD)),
+                   Span::raw("to back to the menu"),
                 ]),
                 "Finished")
             }
             _ => (Spans::default(), "Playing"),
         };
 
+        let number = ctx.state.server.game.arena().number;
         let text = vec![
-            Spans::from(Span::raw(format!("Arena view ({})", status))),
+            Spans::from(Span::raw(format!("Arena {} view ({})", number, status))),
             Spans::from(""),
             enter_key_spans
         ];
@@ -72,6 +73,6 @@ impl Arena {
     pub fn required_dimension(&self, state: &State) -> (u16, u16) {
         let map_size = state.server.game_info.as_ref()
             .expect("'game_info' must me known at this point").map_size as u16;
-        (map_size + 15, map_size + 3)
+        (map_size + 13, map_size + 3)
     }
 }
