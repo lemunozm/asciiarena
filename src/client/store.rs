@@ -87,6 +87,7 @@ impl Store {
                         self.server.call(ApiCall::CheckVersion(version::current().into()));
                     }
                     else {
+                        self.state.user.character = None;
                         self.state.user.login_status = None;
                     }
                 },
