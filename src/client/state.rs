@@ -5,7 +5,7 @@ use super::server_proxy::{ConnectionStatus};
 use super::configuration::{Config};
 
 use std::net::{SocketAddr};
-use std::time::{Duration};
+use std::time::{Instant};
 
 pub struct User {
     pub character: Option<char>,
@@ -52,7 +52,7 @@ pub enum GameStatus {
 
 pub struct Game {
     pub status: GameStatus,
-    pub waiting_arena: Option<Duration>,
+    pub next_arena_timestamp: Option<Instant>,
     pub arena: Option<Arena>,
 }
 
@@ -120,7 +120,7 @@ impl State {
                 logged_players: Vec::new(),
                 game: Game {
                     status: GameStatus::NotStarted,
-                    waiting_arena: None,
+                    next_arena_timestamp: None,
                     arena: None,
                 },
             },

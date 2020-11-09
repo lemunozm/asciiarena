@@ -4,6 +4,7 @@ use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 use crate::version::{self};
 
 use std::net::{SocketAddr};
+use std::time::{Instant};
 
 pub trait AppController {
     fn close(&mut self);
@@ -87,8 +88,8 @@ impl Store {
                         self.server.call(ApiCall::CheckVersion(version::current().into()));
                     }
                     else {
-                        self.state.user.character = None;
-                        self.state.user.login_status = None;
+                        self.dispatch(Action::ServerEvent(ServerEvent::FinishGame));
+                        self.state.server.game.arena = None;
                     }
                 },
 
@@ -133,6 +134,7 @@ impl Store {
                 },
 
                 ServerEvent::FinishGame => {
+                    self.state.server.game.arena = None;
                     self.state.server.game.status = GameStatus::Finished;
                     self.state.server.logged_players = Vec::new();
                     self.state.server.udp_confirmed = None;
@@ -141,11 +143,13 @@ impl Store {
                 },
 
                 ServerEvent::PrepareArena(duration) => {
-                    self.state.server.game.waiting_arena = Some(duration);
+                    self.state.server.game.next_arena_timestamp = Some(
+                        Instant::now() + duration
+                    );
                 },
 
                 ServerEvent::StartArena(number) => {
-                    self.state.server.game.waiting_arena = None;
+                    self.state.server.game.next_arena_timestamp = None;
                     self.state.server.game.arena = Some(Arena {
                         number: number as usize,
                         status: ArenaStatus::Playing,

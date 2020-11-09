@@ -17,6 +17,7 @@ use tui::text::{Span, Spans};
 use crossterm::event::{KeyCode};
 
 use std::net::{SocketAddr};
+use std::time::{Instant};
 
 const MAIN_TITLE: &'static str = concat!(
 r"   _____                .__.__   _____                                ", "\n",
@@ -420,14 +421,21 @@ impl Menu {
             if current_players_number == static_game_info.players_number {
                 let login_status = ctx.state.user.login_status;
                 if let Some(LoginStatus::Logged(..)) = login_status {
-                    ("Ready!", Color::LightGreen) // TODO: Add a number with the remining time: Ready in 3.. 2.. 1..
+                    let waiting_secs = match ctx.state.server.game.next_arena_timestamp {
+                        Some(timestamp) => {
+                            timestamp.saturating_duration_since(Instant::now()).as_secs()
+                        }
+                        None => 0
+                    };
+                    let message = format!("Ready in {}...", waiting_secs);
+                    (message, Color::LightGreen)
                 }
                 else {
-                    ("Completed", Color::LightRed)
+                    ("Completed".into(), Color::LightRed)
                 }
             }
             else {
-                ("Waiting...", Color::LightYellow)
+                ("Waiting...".into(), Color::LightYellow)
             };
 
             let right = Span::styled(status_message, Style::default().fg(status_color));
