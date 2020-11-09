@@ -6,7 +6,7 @@ use crate::client::gui::element::{Context, GuiElement};
 
 use tui::widgets::{Paragraph};
 use tui::layout::{Layout, Constraint, Direction, Rect, Alignment};
-use tui::style::{Style, Modifier};
+use tui::style::{Style, Modifier, Color};
 use tui::text::{Span, Spans};
 
 use crossterm::event::{KeyCode};
@@ -43,7 +43,9 @@ impl GuiElement for Arena {
             GameStatus::Finished => {
                 (Spans::from(vec![
                    Span::raw("Press"),
-                   Span::styled(" <Enter> ", Style::default().add_modifier(Modifier::BOLD)),
+                   Span::styled(" <Enter> ", Style::default()
+                       .add_modifier(Modifier::BOLD)
+                       .fg(Color::Cyan)),
                    Span::raw("to back to the menu"),
                 ]),
                 "Finished")

@@ -26,7 +26,7 @@ r"/    |    \\___ \\  \___|  |  /    |    \  | \/\  ___/|   |  \/ __ \_ ", "\n",
 r"\____|__  /______>\_____>__|__\____|__  /__|    \_____>___|__(______/ ", "\n",
 r"        \/                            \/", "\n",
 );
-pub const DIMENSION: (u16, u16) = (70, 22);
+pub const DIMENSION: (u16, u16) = (70, 23);
 
 pub struct Menu {
     server_addr_input: InputTextWidget,
@@ -101,7 +101,7 @@ impl GuiElement for Menu {
                 Constraint::Length(2), // Margin
                 Constraint::Length(7),
                 Constraint::Length(1), // Margin
-                Constraint::Length(1),
+                Constraint::Length(2),
             ].as_ref())
             .split(space);
 
@@ -180,28 +180,28 @@ impl Menu {
         let left_panel = Paragraph::new(server_addrees).alignment(Alignment::Left);
         ctx.frame.render_widget(left_panel, space);
 
-        let (message, hint_color) = match ctx.state.server.connection_status {
-            ConnectionStatus::Connected => ("Connected", Color::LightGreen),
-            ConnectionStatus::NotConnected => {
-                if self.server_addr_input.content().is_empty() {
-                    ("Not connected", Color::DarkGray)
-                }
-                else {
-                    match self.server_addr_input.content().parse::<SocketAddr>() {
-                        Ok(_) => ("Not connected", Color::DarkGray),
-                        Err(_) => ("Use 'ip:port' syntax", Color::DarkGray),
+        let (message, hint_color) =
+        if self.server_addr_input.content().is_empty() {
+            ("Not connected", Color::DarkGray)
+        }
+        else {
+            match self.server_addr_input.content().parse::<SocketAddr>() {
+                Err(_) => ("Use 'ip:port' syntax", Color::Yellow),
+                Ok(_) => match ctx.state.server.connection_status {
+                    ConnectionStatus::Connected => ("Connected", Color::LightGreen),
+                    ConnectionStatus::NotConnected => {
+                        ("Not connected", Color::DarkGray)
+                    }
+                    ConnectionStatus::NotFound => ("Server not found", Color::LightRed),
+                    ConnectionStatus::Lost => {
+                        if !ctx.state.server.has_compatible_version() {
+                            ("Version error", Color::LightRed)
+                        }
+                        else {
+                            ("Connection lost", Color::LightRed)
+                        }
                     }
                 }
-            }
-            ConnectionStatus::NotFound => ("Server not found", Color::LightRed),
-            ConnectionStatus::Lost => {
-                let mut pair = ("Connection lost", Color::LightRed);
-                if let Some(VersionInfo {version: _, compatibility}) = ctx.state.server.version_info {
-                    if !compatibility.is_compatible() {
-                        pair = ("Version error", Color::LightRed)
-                    }
-                }
-                pair
             }
         };
 
@@ -451,10 +451,52 @@ impl Menu {
     }
 
     fn draw_starting_notify_panel(&self, ctx: &mut Context, space: Rect) {
-        let message = "Waiting for players: 1/4";
-                      //" Starting arena in 2..."
-                      //"Game already started"
-        let panel = Paragraph::new(message)
+        let enter = Span::styled(" <Enter> ", Style::default()
+            .add_modifier(Modifier::BOLD)
+            .fg(Color::Cyan));
+
+        let esc = Span::styled(" <Esc> ", Style::default()
+            .add_modifier(Modifier::BOLD)
+            .fg(Color::Yellow));
+
+        let messages =
+        if !ctx.state.server.is_connected() || !ctx.state.server.has_compatible_version() {
+            vec![
+                Spans::from(vec![
+                    Span::raw("Press"), enter, Span::raw("to connect to server")
+                ]),
+                Spans::from(vec![
+                    Span::raw("Press"), esc, Span::raw("to exit from asciiarena")
+                ]),
+            ]
+        }
+        else if !ctx.state.user.is_logged() {
+            vec![
+                if self.character_input.content().is_none() {
+                    Spans::from(vec![
+                        Span::raw("Choose a character (an ascii uppercase letter)"),
+                    ])
+                }
+                else {
+                    Spans::from(vec![
+                        Span::raw("Press"), enter, Span::raw("to login with the character")
+                    ])
+                },
+                Spans::from(vec![
+                    Span::raw("Press"), esc, Span::raw("to disconnect from the server")
+                ]),
+            ]
+        }
+        else {
+            vec![
+                Spans::from(vec![
+                    Span::raw("Press"), esc, Span::raw("to logout the character")
+                ]),
+            ]
+        };
+
+        //" Starting arena in 2..."
+        let panel = Paragraph::new(messages)
             .alignment(Alignment::Center);
 
         ctx.frame.render_widget(panel, space);

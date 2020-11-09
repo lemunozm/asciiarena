@@ -83,6 +83,13 @@ impl Server {
         false
     }
 
+    pub fn is_connected(&self) -> bool {
+        match self.connection_status {
+            ConnectionStatus::Connected => true,
+            _ => false,
+        }
+    }
+
     pub fn has_compatible_version(&self) -> bool {
         if let Some(version_info) = &self.version_info {
             return version_info.compatibility.is_compatible()
