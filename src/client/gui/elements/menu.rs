@@ -419,8 +419,7 @@ impl Menu {
 
             let (status_message, status_color) =
             if current_players_number == static_game_info.players_number {
-                let login_status = ctx.state.user.login_status;
-                if let Some(LoginStatus::Logged(..)) = login_status {
+                if ctx.state.user.is_logged() {
                     let waiting_secs = match ctx.state.server.game.next_arena_timestamp {
                         Some(timestamp) => {
                             timestamp.saturating_duration_since(Instant::now()).as_secs()

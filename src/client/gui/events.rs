@@ -18,14 +18,17 @@ impl TerminalEventCollector {
         let collector_thread_handle = {
             let running = collector_thread_running.clone();
             let timeout = Duration::from_millis(EVENT_SAMPLING_TIMEOUT);
-            thread::Builder::new().name("asciiarena: terminal event collector".into()).spawn(move || {
-                while running.load(Ordering::Relaxed) {
-                    if crossterm::event::poll(timeout).unwrap() {
-                        let event = crossterm::event::read().unwrap();
-                        event_callback(event);
+            thread::Builder::new()
+                .name("asciiarena: terminal event collector".into())
+                .spawn(move || {
+                    while running.load(Ordering::Relaxed) {
+                        if crossterm::event::poll(timeout).unwrap() {
+                            let event = crossterm::event::read().unwrap();
+                            event_callback(event);
+                        }
                     }
                 }
-            })
+            )
         }.unwrap();
 
         TerminalEventCollector {

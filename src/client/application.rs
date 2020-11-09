@@ -28,8 +28,8 @@ pub struct Application {
     event_queue: EventQueue<AppEvent>,
     store: Store,
     gui: Gui,
-    _server: ServerProxy, // Kept because we need its internal thread running until drop
-    _input: InputReceiver, // Kept because we need its internal thread running until drop
+    server: Option<ServerProxy>,
+    input: Option<InputReceiver>,
 }
 
 impl Application {
@@ -52,8 +52,8 @@ impl Application {
             event_queue,
             store: Store::new(State::new(&config), app_controller, server.api()),
             gui: Gui::new(&config),
-            _server: server,
-            _input: input,
+            server: Some(server),
+            input: Some(input),
         }
     }
 
@@ -83,6 +83,13 @@ impl Application {
                 },
             }
         }
+    }
+}
+
+impl Drop for Application {
+    fn drop(&mut self) {
+        self.server = None; // Server thread stop here (before event_queue drop)
+        self.input = None; // Input thread stop here (before event_queue drop)
     }
 }
 
