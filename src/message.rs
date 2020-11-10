@@ -1,5 +1,4 @@
 use crate::version::{Compatibility};
-use crate::util::{SessionToken};
 
 use serde::{Serialize, Deserialize};
 
@@ -61,6 +60,8 @@ pub enum ServerMessage {
 // ===================================================
 //     Composable message pieces
 // ===================================================
+pub type SessionToken = usize;
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum LoggedKind {
     FirstTime,

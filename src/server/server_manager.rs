@@ -1,9 +1,10 @@
 use super::session::{Room, SessionCreationResult};
 use super::game::{Game};
 
-use crate::message::{ClientMessage, ServerMessage, ServerInfo, LoginStatus, LoggedKind};
+use crate::message::{ClientMessage, ServerMessage, ServerInfo,
+    LoginStatus, LoggedKind, SessionToken};
 use crate::version::{self, Compatibility};
-use crate::util::{self, SessionToken};
+use crate::util::{self};
 
 use message_io::events::{EventQueue};
 use message_io::network::{NetworkManager, NetEvent, Endpoint};

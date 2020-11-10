@@ -1,6 +1,6 @@
 use crate::client::state::{State};
 
-use crate::util::{Direction};
+use crate::direction::{Direction};
 
 use tui::widgets::{Widget};
 use tui::buffer::{Buffer};

@@ -8,6 +8,7 @@ mod logger;
 mod version;
 mod message;
 mod util;
+mod direction;
 mod vec2;
 
 use clap::{self, App, AppSettings};

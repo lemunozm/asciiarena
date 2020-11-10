@@ -31,7 +31,7 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
                     Err(_) => Err("The value must be a number".into())
                 }
             })
-            .help("Number of players (> 1). The game will not start until the number of players is reached.")
+            .help("Number of players (> 1). The game will not start until the number of players has been reached.")
         )
 }
 
