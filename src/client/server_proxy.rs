@@ -180,10 +180,24 @@ where C: Fn(ServerEvent) {
     }
 
     pub fn disconnect(&mut self) -> ConnectionStatus {
+        self.connection.has_udp_hasdshake = false;
+        self.connection.session_token = None;
+        self.connection.udp_port = None;
+        self.connection.udp = None;
+        self.connection.ip = None;
         if let Some(endpoint) = self.connection.tcp {
             self.network.remove_resource(endpoint.resource_id());
+            self.connection.tcp = None;
         }
         ConnectionStatus::NotConnected
+    }
+
+    pub fn logout(&mut self) {
+        self.connection.has_udp_hasdshake = false;
+        self.connection.session_token = None;
+        self.connection.udp = None;
+        let tcp = *self.connection.tcp.as_ref().unwrap();
+        self.network.send(tcp, ClientMessage::Logout).unwrap();
     }
 
     pub fn process_event(&mut self, event: Event) {
@@ -211,8 +225,7 @@ where C: Fn(ServerEvent) {
                         self.network.send(tcp, ClientMessage::Login(character)).unwrap();
                     },
                     ApiCall::Logout => {
-                        let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::Logout).unwrap();
+                        self.logout()
                     },
                     /*
                     ApiCall::MovePlayer => {
@@ -358,7 +371,7 @@ where C: Fn(ServerEvent) {
         let tcp = *self.connection.tcp.as_ref().unwrap();
         self.network.send(tcp, ClientMessage::TrustUdp).unwrap();
         self.connection.has_udp_hasdshake = true;
-        log::info!("Udp successful reachable");
+        log::info!("Client udp successful reachable from server");
         (self.event_callback)(ServerEvent::UdpReachable(true));
     }
 

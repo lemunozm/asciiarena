@@ -19,7 +19,7 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
             .short("l")
             .default_value("info")
             .possible_values(&logger::LOG_LEVELS)
-            .help("Sets the log level of verbosity")
+            .help("Set the log level of verbosity")
         )
         .arg(Arg::with_name("players")
             .long("players")
@@ -27,7 +27,10 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
             .default_value("2")
             .validator(|value| {
                 match value.parse::<u32>() {
-                    Ok(number) => if number <= 0 { Err("The value must be > 0".into()) } else { Ok(()) },
+                    Ok(number) => match number > 0 {
+                        true => Ok(()),
+                        false => Err("The value must be > 0".into()),
+                    }
                     Err(_) => Err("The value must be a number".into())
                 }
             })
@@ -36,8 +39,8 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
 }
 
 pub fn run(matches: &ArgMatches) {
-    logger::init(matches.value_of("log").unwrap().parse().unwrap());
-
+    let level = matches.value_of("log").unwrap().parse().unwrap();
+    logger::init(level, logger::Output::Stdout);
 
     let config = ServerConfig {
         tcp_port: 3001,

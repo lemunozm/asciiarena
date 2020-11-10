@@ -14,6 +14,13 @@ use clap::{App, Arg, ArgMatches};
 
 use std::net::{SocketAddr};
 
+lazy_static! {
+    static ref DEFAULT_LOG_FILE: String = format!(
+        "asciiarena_client_{}.log",
+        chrono::Local::now().format("%Y-%m-%d_%H:%M:%S")
+    );
+}
+
 pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
     App::new("client")
         .about("Running an asciiarena client")
@@ -22,7 +29,12 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
             .short("l")
             .default_value("off")
             .possible_values(&logger::LOG_LEVELS)
-            .help("Sets the log level of verbosity")
+            .help("Set the log level of verbosity")
+        )
+        .arg(Arg::with_name("log-file")
+            .long("log-file")
+            .default_value(&DEFAULT_LOG_FILE)
+            .help("Set the log file")
         )
         .arg(Arg::with_name("character")
             .long("character")
@@ -47,7 +59,9 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
 }
 
 pub fn run(matches: &ArgMatches) {
-    logger::init(matches.value_of("log").unwrap().parse().unwrap());
+    let level = matches.value_of("log").unwrap().parse().unwrap();
+    let file_name = matches.value_of("log-file").unwrap();
+    logger::init(level, logger::Output::File(file_name));
 
     let config = Config {
         character: matches.value_of("character").map(|name| name.chars().next().unwrap()),

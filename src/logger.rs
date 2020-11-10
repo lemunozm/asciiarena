@@ -2,6 +2,7 @@ use fern::colors::{Color, ColoredLevelConfig};
 use log::{LevelFilter};
 use colored::{Colorize};
 use clap::{crate_name};
+
 use std::str::{FromStr};
 
 #[derive(PartialEq)]
@@ -18,7 +19,8 @@ pub enum Level {
 #[derive(Debug, Clone)]
 pub struct LevelUnknown;
 
-pub const LOG_LEVELS: [&'static str; 7] = ["off", "error", "warning", "info", "debug", "trace", "dev"];
+pub const LOG_LEVELS: [&'static str; 7] =
+    ["off", "error", "warning", "info", "debug", "trace", "dev"];
 
 impl FromStr for Level {
     type Err = LevelUnknown;
@@ -37,10 +39,22 @@ impl FromStr for Level {
     }
 }
 
-pub fn init(level: Level) {
-    let mut log_config = fern::Dispatch::new().level(LevelFilter::Off);
+pub enum Output<'a> {
+    Stdout,
+    File(&'a str),
+}
 
-    log_config = match level {
+pub fn init(level: Level, output: Output) {
+    let level_colors = ColoredLevelConfig::new()
+        .error(Color::Red)
+        .warn(Color::Yellow)
+        .info(Color::Cyan)
+        .debug(Color::White)
+        .trace(Color::BrightBlack);
+
+    let log_config = fern::Dispatch::new().level(LevelFilter::Off);
+
+    let log_config = match level {
         Level::Off => return,
         Level::Error => log_config.level_for(crate_name!(), LevelFilter::Error),
         Level::Warn => log_config.level_for(crate_name!(), LevelFilter::Warn),
@@ -50,24 +64,28 @@ pub fn init(level: Level) {
         Level::Dev => log_config.level(LevelFilter::Trace),
     };
 
-    let level_colors = ColoredLevelConfig::new()
-        .error(Color::Red)
-        .warn(Color::Yellow)
-        .info(Color::Cyan)
-        .debug(Color::White)
-        .trace(Color::BrightBlack);
+    let log_config = log_config.format(move |out, message, record| {
+        let target = if level == Level::Dev {
+            format!("[{}] ", record.target())
+        }
+        else {
+            String::new()
+        };
 
-    log_config
-        .format(move |out, message, record| {
-            out.finish(format_args!(
-                "{}{}{} {}",
-                format!("[{}] ", chrono::Local::now().format("%H:%M:%S")).white(),
-                if level == Level::Dev { format!("[{}] ", record.target())} else { String::new() }.white(),
-                level_colors.color(record.level()),
-                format!("{}", message).bright_white(),
-            ))
-        })
-        .chain(std::io::stdout())
-        .apply().unwrap();
+        out.finish(format_args!(
+            "{}{}{} {}",
+            format!("[{}] ", chrono::Local::now().format("%H:%M:%S")).white(),
+            target.white(),
+            level_colors.color(record.level()),
+            format!("{}", message).bright_white(),
+        ))
+    });
+
+    let log_config = match output {
+        Output::Stdout => log_config.chain(std::io::stdout()),
+        Output::File(name) => log_config.chain(fern::log_file(name).unwrap()),
+    };
+
+    log_config.apply().unwrap();
 }
 
