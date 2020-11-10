@@ -23,16 +23,18 @@ lazy_static! {
 
 pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
     App::new("client")
-        .about("Running an asciiarena client")
+        .about("Running asciiarena client mode")
         .arg(Arg::with_name("log")
             .long("log")
             .short("l")
+            .value_name("LEVEL")
             .default_value("off")
             .possible_values(&logger::LOG_LEVELS)
             .help("Set the log level of verbosity")
         )
         .arg(Arg::with_name("log-file")
             .long("log-file")
+            .value_name("FILE")
             .default_value(&DEFAULT_LOG_FILE)
             .help("Set the log file")
         )
@@ -54,7 +56,7 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
                 Ok(_) => Ok(()),
                 Err(_) => Err("Host must be a valid network address".into()),
             })
-            .help("Set the server address, ip and port. Example: '127.0.0.1:3001'")
+            .help("Set the server address (ip and port). Example: '192.168.0.56:3001'")
         )
 }
 
