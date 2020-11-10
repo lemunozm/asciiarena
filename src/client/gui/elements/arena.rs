@@ -28,7 +28,7 @@ impl GuiElement for Arena {
         }
     }
 
-    fn update(&mut self, _store: &State) { }
+    fn update(&mut self, _state: &State) { }
 
     fn render(&self, ctx: &mut Context, space: Rect) {
         let gui_layout = Layout::default()

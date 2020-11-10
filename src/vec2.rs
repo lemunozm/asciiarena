@@ -1,13 +1,12 @@
 use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign, SubAssign, MulAssign, DivAssign};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
 }
 
 impl Vec2 {
-    /*
     pub fn zero() -> Vec2 {
         Vec2 {x: 0.0, y: 0.0}
     }
@@ -40,7 +39,6 @@ impl Vec2 {
     pub fn square_length(&self) -> f32 {
         self.x * self.x + self.y * self.y
     }
-    */
 }
 
 impl Add for Vec2 {

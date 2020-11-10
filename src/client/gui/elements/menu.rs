@@ -5,6 +5,7 @@ use crate::client::store::{Store, Action};
 use crate::client::gui::input::{InputEvent};
 use crate::client::gui::element::{Context, GuiElement};
 use crate::client::gui::widgets::{InputTextWidget, InputCapitalLetterWidget};
+use crate::client::gui::waiting_room::{WaitingRoom, WaitingRoomWidget};
 
 use crate::version::{self, Compatibility};
 use crate::message::{LoginStatus};
@@ -27,11 +28,14 @@ r"/    |    \\___ \\  \___|  |  /    |    \  | \/\  ___/|   |  \/ __ \_ ", "\n",
 r"\____|__  /______>\_____>__|__\____|__  /__|    \_____>___|__(______/ ", "\n",
 r"        \/                            \/", "\n",
 );
+
+pub const WAITING_ROOM_DIMENSION: (u16, u16) = (20, 7);
 pub const DIMENSION: (u16, u16) = (70, 23);
 
 pub struct Menu {
     server_addr_input: InputTextWidget,
     character_input: InputCapitalLetterWidget,
+    waiting_room: WaitingRoom,
 }
 
 impl GuiElement for Menu {
@@ -90,6 +94,7 @@ impl GuiElement for Menu {
 
         self.character_input.focus(character_focus);
         self.server_addr_input.focus(server_addr_focus);
+        self.waiting_room.update(state);
     }
 
     fn render(&self, ctx: &mut Context, space: Rect) {
@@ -100,7 +105,7 @@ impl GuiElement for Menu {
                 Constraint::Length(3), // Margin
                 Constraint::Length(2),
                 Constraint::Length(2), // Margin
-                Constraint::Length(7),
+                Constraint::Length(WAITING_ROOM_DIMENSION.1),
                 Constraint::Length(1), // Margin
                 Constraint::Length(2),
             ].as_ref())
@@ -126,9 +131,9 @@ impl GuiElement for Menu {
             .direction(Direction::Horizontal)
             .horizontal_margin(2)
             .constraints([
-                Constraint::Percentage(60),
+                Constraint::Min(1),
                 Constraint::Length(2), // Margin
-                Constraint::Percentage(40),
+                Constraint::Length(WAITING_ROOM_DIMENSION.0),
             ].as_ref())
             .split(gui_layout[4]);
 
@@ -143,9 +148,13 @@ impl Menu {
     pub fn new(config: &Config) -> Menu {
         Menu {
             server_addr_input: InputTextWidget::new(
-                config.server_addr.map(|addr| addr.to_string()) //TODO: into()?
+                config.server_addr.map(|addr| addr.to_string())
             ),
             character_input: InputCapitalLetterWidget::new(config.character),
+            waiting_room: WaitingRoom::new(
+                WAITING_ROOM_DIMENSION.0 - 2,
+                WAITING_ROOM_DIMENSION.1 - 2
+            ),
         }
     }
 
@@ -434,7 +443,7 @@ impl Menu {
                 }
             }
             else {
-                ("Waiting...".into(), Color::LightYellow)
+                ("Waiting other players...".into(), Color::LightYellow)
             };
 
             let right = Span::styled(status_message, Style::default().fg(status_color));
@@ -454,6 +463,7 @@ impl Menu {
                 )))
             .alignment(Alignment::Left);
 
+        ctx.frame.render_widget(WaitingRoomWidget(&self.waiting_room), space);
         ctx.frame.render_widget(panel, space);
     }
 
