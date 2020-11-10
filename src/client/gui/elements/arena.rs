@@ -56,6 +56,7 @@ impl GuiElement for Arena {
         let number = ctx.state.server.game.arena().number;
         let text = vec![
             Spans::from(Span::raw(format!("Arena {} view ({})", number, status))),
+            Spans::from(Span::raw(format!("Under construcion..."))),
             Spans::from(""),
             enter_key_spans
         ];

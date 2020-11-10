@@ -134,7 +134,6 @@ impl Store {
                 },
 
                 ServerEvent::FinishGame => {
-                    self.state.server.game.arena = None;
                     self.state.server.game.status = GameStatus::Finished;
                     self.state.server.logged_players = Vec::new();
                     self.state.server.udp_confirmed = None;
