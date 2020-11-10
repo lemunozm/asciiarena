@@ -1,9 +1,18 @@
 [package]
 name = "asciiarena"
-description = "Terminal multiplayer arcade game"
-version = "0.1.0"
+description = "Terminal multiplayer deathmatch game"
+version = "0.0.1"
 authors = ["lemunozm <lemunozm@gmail.com>"]
 edition = "2018"
+readme = "README.md"
+license = "Apache-2.0"
+homepage = "https://github.com/lemunozm/asciiarena"
+repository = "https://github.com/lemunozm/asciiarena"
+keywords = ["game", "terminal", "multiplayer", "deatchmatch", "ascii"]
+categories = ["command-line-utilities", "command-line-interface", "games", "gui", "network-programming"]
+
+[badges]
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 message-io = "0.4.5"

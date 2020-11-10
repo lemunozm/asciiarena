@@ -1,110 +1,43 @@
-# Notes
+# AsciiArena
 
-``` rust
-mod vec2;
-mod util;
-mod collision;
-mod message;
-mod network;
-mod server;
-mod events;
-mod network_manager;
-mod server_manager;
-mod client_manager;
-mod util;
+*AsciiArena* is a terminal multiplayer deatchmatch game.
+Choose an ascii character and be the last one in the arena using your arcade skills!
 
-use collision::Rectangle;
-use vec2::Vec2;
+The game is made in [rust][rust], and built on top of
+[tui][tui] for render into the terminal user interface and
+[message-io][message-io] to make the network connections.
 
-use std::rc::Rc;
+**Currently under development**
 
-pub struct Skill {
-    name: String,
-    id: usize,
-    cost: i32,
-    cooldown: i32,
-}
+## Install it
+*AsciiArena* is multiplatform, you can install it in Linux, MacOS or Windows.
 
-pub struct Spell {
-    skill: Rc<Skill>,
-    rectangle: Rectangle
-}
-
-pub struct Character {
-    name: String,
-    skills: Vec<Rc<Skill>>,
-}
-
-
-pub struct Entity {
-    character: Rc<Character>,
-    rectangle: Rectangle,
-    live: i32,
-    max_live: i32,
-    energy: i32,
-    max_energy: i32,
-}
-
-pub struct Player {
-    id: usize,
-    entity: Option<Rc<Entity>>,
-    points: usize,
-}
-
-pub struct Wall {
-    rectangles: Vec<Rectangle>,
-}
-
-pub struct Map {
-    dimension: Vec2,
-    obstacles: Vec<Wall>,
-}
-
-pub struct Scene {
-    entities: Vec<Rc<Entity>>,
-    spells: Vec<Spell>,
-    map: Map,
-}
-
-pub struct Arena {
-    scene: Scene,
-}
-
-pub struct Game {
-    players: Vec<Player>,
-    arena: Arena,
-    win_points: usize,
-}
-
-
-
-use crate::Character;
-use crate::Skill;
-
-use std::collections::HashMap;
-use std::rc::Rc;
-
-struct Connection {
-}
-
-struct PlayerSession {
-    id: usize,
-    character: Rc<Character>,
-    connection: Connection,
-}
-
-struct Server {
-    skill: HashMap<String, Rc<Skill>>,
-    users: HashMap<usize, PlayerSession>,
-}
-
-impl Server {
-    pub fn new() -> Server {
-        Server {
-            skill: HashMap::new(), //TODO: initialize
-            users: HashMap::new(),
-        }
-    }
-
-}
+You can use the [cargo][cargo] package manager in order to install it:
 ```
+$ cargo install asciiarena
+```
+If you have `~/.cargo/bin` in your PATH (or similar in your OS), you will be able to use *asciiarena* everywhere in your computer!
+
+Of course, you can download the repository and compile it by yourself using `cargo`.
+
+## Try it!
+*AsciiArena* application contains both the server and the client.
+
+- To lunch the server:
+    ```sh
+    asciiarena server -p <number of players>
+    ```
+
+- To lunch the client:
+    ```sh
+    asciiarena client
+    ```
+
+Both application modes has several CLI fetures to select the host, ports, enable logs, etc...
+
+
+<!-- Links here! -->
+[cargo]: https://doc.rust-lang.org/cargo/getting-started/installation.html
+[rust]: https://www.rust-lang.org/
+[tui]: https://github.com/fdehau/tui-rs
+[message-io]: https://github.com/lemunozm/message-io
