@@ -56,7 +56,7 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
                 Ok(_) => Ok(()),
                 Err(_) => Err("Host must be a valid network address".into()),
             })
-            .help("Set the server address (ip and port). Example: '192.168.0.56:3001'")
+            .help("Set the server address (ip and port). Format example: 192.168.0.56:3549")
         )
 }
 

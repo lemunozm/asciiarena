@@ -1,13 +1,17 @@
 # AsciiArena
 
 *AsciiArena* is a terminal multiplayer deatchmatch game.
-Choose an ascii character and be the last one in the arena using your arcade skills!
+Choose an ascii character and use your arcade skills to be the last one in the arena!
+
+<p align="center">
+  <img src="https://drive.google.com/uc?export=view&id=1TMTNIbn09Ssh_e1VnhWEUhb5zYfRNyiw"/>
+</p>
+
+**Currently under development (only the menu is completed)**
 
 The game is made in [rust][rust], and built on top of
-[tui][tui] for render into the terminal user interface and
-[message-io][message-io] to make the network connections.
-
-**Currently under development**
+[tui][tui] for rendering into the terminal user interface and
+[message-io][message-io] for making the network connections.
 
 ## Install it
 *AsciiArena* is multiplatform, you can install it in Linux, MacOS or Windows.
