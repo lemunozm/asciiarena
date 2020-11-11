@@ -104,7 +104,10 @@ impl ServerProxy {
     }
 
     pub fn api(&mut self) -> ServerApi {
-        return ServerApi { sender: self.event_sender.clone() }
+        return ServerApi {
+            proxy_thread_running: self.proxy_thread_running.clone(),
+            sender: self.event_sender.clone(),
+        }
     }
 }
 
@@ -116,12 +119,16 @@ impl Drop for ServerProxy {
 }
 
 pub struct ServerApi {
+    proxy_thread_running: Arc<AtomicBool>,
     sender: EventSender<Event>,
 }
 
 impl ServerApi {
     pub fn call(&mut self, api_call: ApiCall) {
-        self.sender.send(Event::Api(api_call));
+        if self.proxy_thread_running.load(Ordering::Relaxed) {
+            // Only send the event if the server proxy thread is running
+            self.sender.send(Event::Api(api_call));
+        }
     }
 }
 
