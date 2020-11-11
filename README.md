@@ -37,7 +37,8 @@ Of course, you can download the repository and compile it by yourself using `car
     asciiarena client
     ```
 
-Both application modes has several CLI fetures to select the host, ports, enable logs, etc...
+Both application modes has several CLI flags nad options to select
+the host, ports, enable logs, etc...
 
 
 <!-- Links here! -->
