@@ -24,11 +24,17 @@ use VersionNumber::*;
 
 trait Version {
     fn number(&self, number: VersionNumber) -> usize;
+    fn is_unstable(&self) -> bool;
 }
 
 impl Version for Vec<&str> {
     fn number(&self, number: VersionNumber) -> usize {
         self.get(number as usize).unwrap_or(&"0").parse().unwrap_or(0)
+    }
+
+    fn is_unstable(&self) -> bool {
+        // It is an alpha version that could break the compatibility at any version change.
+        self.number(Major) == 0 && self.number(Minor) == 0
     }
 }
 
@@ -43,7 +49,12 @@ pub fn check(client_tag: &str, server_tag: &str) -> Compatibility {
         Compatibility::None
     }
     else if client_version.number(Patch) != server_version.number(Patch) {
-        Compatibility::NotExact
+        if client_version.is_unstable() || server_version.is_unstable() {
+            Compatibility::None
+        }
+        else {
+            Compatibility::NotExact
+        }
     }
     else {
         Compatibility::Fully

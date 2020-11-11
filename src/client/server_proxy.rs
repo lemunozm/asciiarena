@@ -165,6 +165,7 @@ where C: Fn(ServerEvent) {
     }
 
     pub fn connect(&mut self, addr: SocketAddr) -> ConnectionStatus {
+        self.disconnect(); // Ensure there is no connection, reset if there is.
         match self.network.connect_tcp(addr) {
             Ok(tcp_endpoint) => {
                 log::info!("Connected to server by tcp on {}", addr);

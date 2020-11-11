@@ -100,6 +100,10 @@ impl Store {
                     if compatibility.is_compatible() {
                         self.server.call(ApiCall::SubscribeInfo);
                     }
+                    else {
+                        // Protect the client against an unknown or not compatible server version
+                        self.server.call(ApiCall::Disconnect);
+                    }
                 },
 
                 ServerEvent::ServerInfo(info) => {

@@ -64,12 +64,13 @@ impl Application {
         let mut renderer = Renderer::new();
         loop {
             let event = self.event_queue.receive();
-            log::trace!("[Process event] - {:?}", event);
             match event {
                 AppEvent::ServerEvent(server_event) => {
+                    log::trace!("[Process server event] - {:?}", server_event);
                     self.store.dispatch(Action::ServerEvent(server_event));
                 },
                 AppEvent::InputEvent(input_event) => {
+                    log::trace!("[Process input event] - {:?}", input_event);
                     self.gui.process_event(&mut self.store, input_event);
                 },
                 AppEvent::Draw => {

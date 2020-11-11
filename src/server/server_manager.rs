@@ -150,9 +150,9 @@ impl ServerManager {
             Compatibility::Fully =>
                 log::trace!("Fully compatible versions: {}", client_version),
             Compatibility::NotExact =>
-                log::info!("Compatible client version, but not exact. Client: {}. Server: {}", client_version, version::current()),
+                log::warn!("Compatible client version, but not exact. Client: {}. Server: {}", client_version, version::current()),
             Compatibility::None =>
-                log::warn!("Incompatible client version. Client: {}. Server: {}. Rejected", client_version, version::current()),
+                log::error!("Incompatible client version. Client: {}. Server: {}. Rejected", client_version, version::current()),
         };
 
         self.network.send(endpoint, ServerMessage::Version(version::current().into(), compatibility)).unwrap();
