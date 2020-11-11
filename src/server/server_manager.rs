@@ -112,10 +112,10 @@ impl ServerManager {
                             ClientMessage::TrustUdp => {
                                 self.process_trust_udp(endpoint);
                             },
-                            ClientMessage::Move => {
+                            ClientMessage::MovePlayer => {
                                 //TODO
                             },
-                            ClientMessage::Skill => {
+                            ClientMessage::CastSkill => {
                                 //TODO
                             },
                         }

@@ -1,0 +1,59 @@
+@startuml
+
+' Orange color represents an UDP message
+' Purple color represents a prefered UDP message
+' Default color represents TCP message
+
+title Client - Server communication protocol
+
+participant Client
+participant Server
+
+== Initialization ==
+Client -> Server : Version
+Client <-- Server : Version
+
+== Server information subscription ==
+Client -> Server : SubscribeServerInfo
+Client <-- Server : ServerInfo
+group Any change in the server: e.g: a player login/logout
+    Client <<- Server : DynamicServerInfo
+end
+
+== Login/Logout ==
+Client -> Server : Login
+Client <-- Server : LoginStatus
+group If logged successful:
+    loop while not received UdpConnected, max 10
+        Client -[#orange]> Server : ConnectUdp
+        Client <[#orange]-- Server : UdpConnected
+    end
+    group If received UdpConnected:
+        Client -> Server : TrustUdp
+    end
+end
+...
+Client -> Server : Logout
+
+== Game/Arena system ==
+Client <- Server : StartGame
+loop there is not a game winner
+    Client <- Server : PrepareArena
+    ...
+    Client <- Server : StartArena
+    note over Client, Server
+       Arena round
+    end note
+    Client <- Server : EndArena
+end
+
+== Arena round ==
+loop each frame until there is an arena winner
+    group any of the following player actions:
+        Client ->> Server : MovePlayer
+        Client ->> Server : CastSkill
+    end
+    Client <[#purple]- Server : Step
+end
+
+@enduml

@@ -4,6 +4,8 @@ use serde::{Serialize, Deserialize};
 
 use std::time::{Duration};
 
+// See the protocol diagram in docs/design/communication.md
+
 // ===================================================
 //     High level messages
 // ===================================================
@@ -24,8 +26,8 @@ pub enum ClientMessage {
     TrustUdp,
 
     // Arena real time messages
-    Move, //direction
-    Skill, //id
+    MovePlayer, //direction
+    CastSkill, //id
 }
 
 /// Messages that Server sends to Client
