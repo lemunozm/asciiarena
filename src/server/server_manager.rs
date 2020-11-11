@@ -29,7 +29,7 @@ enum Event {
     Close,
 }
 
-pub struct ServerConfig {
+pub struct Config {
     pub tcp_port: u16,
     pub udp_port: u16,
     pub players_number: u8,
@@ -45,11 +45,11 @@ pub struct ServerManager {
     room: Room<Endpoint>,
     game: Option<Game>,
     timestamp_last_arena_creation: Option<Instant>,
-    config: ServerConfig,
+    config: Config,
 }
 
 impl ServerManager {
-    pub fn new(config: ServerConfig) -> Option<ServerManager> {
+    pub fn new(config: Config) -> Option<ServerManager> {
         let mut event_queue = EventQueue::new();
 
         let network_sender = event_queue.sender().clone();

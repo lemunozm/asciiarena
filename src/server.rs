@@ -3,7 +3,7 @@ mod session;
 mod game;
 mod arena;
 
-use server_manager::{ServerManager, ServerConfig};
+use server_manager::{ServerManager, Config};
 
 use crate::logger::{self};
 
@@ -69,7 +69,7 @@ pub fn run(matches: &ArgMatches) {
     let level = matches.value_of("log").unwrap().parse().unwrap();
     logger::init(level, logger::Output::Stdout);
 
-    let config = ServerConfig {
+    let config = Config {
         tcp_port: matches.value_of("tcp-port").unwrap().parse().unwrap(),
         udp_port: matches.value_of("udp-port").unwrap().parse().unwrap(),
         players_number: matches.value_of("players").unwrap().parse().unwrap(),
