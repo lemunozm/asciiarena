@@ -7,18 +7,18 @@
 </p>
 
 The left side of applications represents the modules that receive input from the outside.
-This input is processed and sending to the application.
-The application will dispatch the events synchronized to the right side of modules.
-These modules will process this input, and among with the state generate output
+This input is processed and sent to the application.
+The application will dispatch the events synchronously to the right side of modules.
+These modules will process this input, and together with the state, generate the output.
 
-The right side of the application follows a Model View Controller pattern.
+The right side of the application follows the Model View Controller pattern.
  - The model is represented by the state module.
  - The controller is management by the actions located in the store module.
- - The view is renderered by the renderer module.
+ - The view is shown by the renderer module.
 
 ### Use case Example
 
-#### The user press `enter` key to connect to the server**
+#### The user press `enter` key to connect to the server
 
 The **input** module detect the enter key pressed as an event and
 send it to the **application** module that enqueue this event to be processed in the correct order.
