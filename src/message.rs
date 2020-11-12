@@ -52,7 +52,7 @@ pub enum ServerMessage {
 
     // Arena prelude level messages
     PrepareArena(Duration),
-    StartArena(u8), // number
+    StartArena(usize), // number
     FinishArena, // winners
 
     // Arena real time messages

@@ -42,7 +42,7 @@ pub enum ServerEvent {
     StartGame,
     FinishGame,
     PrepareArena(Duration),
-    StartArena(u8),
+    StartArena(usize),
     FinishArena,
     ArenaStep,
 }
@@ -399,7 +399,7 @@ where C: Fn(ServerEvent) {
         (self.event_callback)(ServerEvent::PrepareArena(duration));
     }
 
-    fn process_start_arena(&mut self, number: u8) {
+    fn process_start_arena(&mut self, number: usize) {
         log::info!("Start arena");
         (self.event_callback)(ServerEvent::StartArena(number));
     }

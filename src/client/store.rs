@@ -154,7 +154,7 @@ impl Store {
                 ServerEvent::StartArena(number) => {
                     self.state.server.game.next_arena_timestamp = None;
                     self.state.server.game.arena = Some(Arena {
-                        number: number as usize,
+                        number,
                         status: ArenaStatus::Playing,
                     });
                 },

@@ -47,6 +47,17 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
             })
             .help("Set the udp port for client connections")
         )
+        .arg(Arg::with_name("map-size")
+            .long("map-size")
+            .short("s")
+            .value_name("SIZE")
+            .default_value("20")
+            .validator(|port| match port.parse::<usize>() {
+                Ok(_) => Ok(()),
+                Err(_) => Err("The value must be a positive number".into())
+            })
+            .help("Set the map size length")
+        )
         .arg(Arg::with_name("players")
             .long("players")
             .short("p")
@@ -73,7 +84,7 @@ pub fn run(matches: &ArgMatches) {
         tcp_port: matches.value_of("tcp-port").unwrap().parse().unwrap(),
         udp_port: matches.value_of("udp-port").unwrap().parse().unwrap(),
         players_number: matches.value_of("players").unwrap().parse().unwrap(),
-        map_size: 20,
+        map_size: matches.value_of("map-size").unwrap().parse().unwrap(),
         winner_points: 10,
         arena_waiting: Duration::from_secs(3),
     };

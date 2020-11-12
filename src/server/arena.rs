@@ -5,13 +5,13 @@ use std::collections::{HashMap};
 pub type EntityId = usize;
 
 pub struct Arena {
-    number: u8,
+    number: usize,
     players: HashMap<char, EntityId>,
     ranking: Vec<char>
 }
 
 impl Arena {
-    pub fn new(number: u8, players_it: impl IntoIterator<Item = char>) -> Arena {
+    pub fn new(number: usize, players_it: impl IntoIterator<Item = char>) -> Arena {
         Arena {
             number,
             players: players_it
@@ -23,7 +23,7 @@ impl Arena {
         }
     }
 
-    pub fn number(&self) -> u8 {
+    pub fn number(&self) -> usize {
         self.number
     }
 
