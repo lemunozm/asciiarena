@@ -27,12 +27,12 @@ Of course, you can download the repository and compile it by yourself using `car
 ## Try it!
 *AsciiArena* application contains both the server and the client.
 
-- To lunch the server:
+- To launch the server:
     ```sh
     asciiarena server -p <number of players>
     ```
 
-- To lunch the client:
+- To launch the client:
     ```sh
     asciiarena client
     ```
