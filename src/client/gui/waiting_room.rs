@@ -104,12 +104,20 @@ impl WaitingRoom {
     }
 }
 
-pub struct WaitingRoomWidget<'a>(pub &'a WaitingRoom);
+pub struct WaitingRoomWidget<'a> {
+    waiting_room: &'a WaitingRoom
+}
+
+impl<'a> WaitingRoomWidget<'a> {
+    pub fn new(waiting_room: &'a WaitingRoom) -> WaitingRoomWidget<'a> {
+        WaitingRoomWidget { waiting_room }
+    }
+}
 
 impl Widget for WaitingRoomWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        for (player, state) in &self.0.players {
-            let draw_at = (1 + state.position.0 * 2, 1 + state.position.1);
+        for (player, state) in &self.waiting_room.players {
+            let draw_at = (state.position.0 * 2, state.position.1);
             if draw_at.0 < area.width || draw_at.1 < area.height {
                 buffer
                     .get_mut(area.x + draw_at.0, area.y + draw_at.1)

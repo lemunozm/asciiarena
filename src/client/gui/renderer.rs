@@ -1,4 +1,4 @@
-use super::element::{Context, GuiElement};
+use super::elements::gui::{Gui, GuiWidget};
 
 use crate::client::state::{State};
 
@@ -25,10 +25,18 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self, state: &State, element: &dyn GuiElement) {
+    pub fn render(&mut self, state: &State, gui: &Gui) {
         self.terminal.draw(|frame| {
-            let space = frame.size();
-            element.render(&mut Context::new(&state, frame), space);
+            let main_widget = GuiWidget::new(state, gui);
+            let area = frame.size();
+            let mut cursor = None;
+
+            frame.render_stateful_widget(main_widget, area, &mut cursor);
+
+            if let Some(cursor) = cursor {
+                frame.set_cursor(cursor.0, cursor.1);
+            }
+
         }).unwrap();
     }
 }

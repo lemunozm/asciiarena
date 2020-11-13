@@ -5,7 +5,6 @@ use super::server_proxy::{ServerProxy, ServerEvent};
 
 use super::gui::input::{InputReceiver, InputEvent};
 use super::gui::renderer::{Renderer};
-use super::gui::element::{GuiElement};
 use super::gui::elements::gui::{Gui};
 
 use message_io::events::{EventSender, EventQueue};

@@ -1,13 +1,13 @@
 use crossterm::event::{KeyEvent, KeyCode};
 
-pub struct InputTextWidget {
+pub struct InputText {
     content: String,
     cursor: Option<usize>,
 }
 
-impl InputTextWidget {
-    pub fn new(content: Option<String>) -> InputTextWidget {
-        InputTextWidget {
+impl InputText {
+    pub fn new(content: Option<String>) -> InputText {
+        InputText {
             content: content.unwrap_or_default(),
             cursor: None,
         }
@@ -76,14 +76,14 @@ impl InputTextWidget {
     }
 }
 
-pub struct InputCapitalLetterWidget {
+pub struct InputCapitalLetter {
     content: Option<char>,
     focus: bool,
 }
 
-impl InputCapitalLetterWidget {
-    pub fn new(content: Option<char>) -> InputCapitalLetterWidget {
-        InputCapitalLetterWidget {
+impl InputCapitalLetter {
+    pub fn new(content: Option<char>) -> InputCapitalLetter {
+        InputCapitalLetter {
             content,
             focus: false,
         }

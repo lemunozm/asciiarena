@@ -1,6 +1,6 @@
 use tui::layout::{Rect};
 
-pub fn centered_space(base: Rect, dimension: (u16, u16)) -> Rect {
+pub fn centered_area(base: Rect, dimension: (u16, u16)) -> Rect {
     let width_diff = base.width as i16 - dimension.0 as i16;
     let height_diff = base.height as i16 - dimension.1 as i16;
     let x = if width_diff > 0 { width_diff / 2 } else { 0 };

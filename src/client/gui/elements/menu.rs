@@ -3,14 +3,14 @@ use crate::client::state::{State, VersionInfo};
 use crate::client::server_proxy::{ConnectionStatus};
 use crate::client::store::{Store, Action};
 use crate::client::gui::input::{InputEvent};
-use crate::client::gui::element::{Context, GuiElement};
-use crate::client::gui::widgets::{InputTextWidget, InputCapitalLetterWidget};
+use crate::client::gui::widgets::{InputText, InputCapitalLetter};
 use crate::client::gui::waiting_room::{WaitingRoom, WaitingRoomWidget};
 
 use crate::version::{self, Compatibility};
 use crate::message::{LoginStatus};
 
-use tui::widgets::{Block, Borders, BorderType, Paragraph};
+use tui::buffer::{Buffer};
+use tui::widgets::{Block, Borders, BorderType, Paragraph, Widget, StatefulWidget};
 use tui::layout::{Layout, Constraint, Direction, Rect, Alignment, Margin};
 use tui::style::{Style, Modifier, Color};
 use tui::text::{Span, Spans};
@@ -33,13 +33,30 @@ pub const WAITING_ROOM_DIMENSION: (u16, u16) = (20, 7);
 pub const DIMENSION: (u16, u16) = (70, 23);
 
 pub struct Menu {
-    server_addr_input: InputTextWidget,
-    character_input: InputCapitalLetterWidget,
+    server_addr_input: InputText,
+    character_input: InputCapitalLetter,
     waiting_room: WaitingRoom,
 }
 
-impl GuiElement for Menu {
-    fn process_event(&mut self, store: &mut Store, event: InputEvent) {
+impl Menu {
+    pub fn new(config: &Config) -> Menu {
+        Menu {
+            server_addr_input: InputText::new(
+                config.server_addr.map(|addr| addr.to_string())
+            ),
+            character_input: InputCapitalLetter::new(config.character),
+            waiting_room: WaitingRoom::new(
+                WAITING_ROOM_DIMENSION.0 - 2,
+                WAITING_ROOM_DIMENSION.1 - 2
+            ),
+        }
+    }
+
+    pub fn dimension() {
+        //TODO
+    }
+
+    pub fn process_event(&mut self, store: &mut Store, event: InputEvent) {
         match event {
             InputEvent::KeyPressed(key_event) => {
                 match key_event.code {
@@ -78,9 +95,8 @@ impl GuiElement for Menu {
         }
     }
 
-    fn update(&mut self, state: &State) {
+    pub fn update(&mut self, state: &State) {
         let (server_addr_focus, character_focus) =
-
         if !state.server.connection_status.is_connected()
         || !state.server.has_compatible_version() {
             (true, false)
@@ -96,38 +112,46 @@ impl GuiElement for Menu {
         self.server_addr_input.focus(server_addr_focus);
         self.waiting_room.update(state);
     }
+}
 
-    fn render(&self, ctx: &mut Context, space: Rect) {
-        let gui_layout = Layout::default()
+pub struct MenuWidget<'a> {
+    state: &'a State,
+    menu: &'a Menu
+}
+
+impl<'a> MenuWidget<'a> {
+    pub fn new(state: &'a State, menu: &'a Menu) -> MenuWidget<'a> {
+        MenuWidget { state, menu }
+    }
+}
+
+impl StatefulWidget for MenuWidget<'_> {
+    type State = Option<(u16, u16)>;
+    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Option<(u16, u16)>) {
+        let column = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(MAIN_TITLE.chars().filter(|&c| c == '\n').count() as u16),
-                Constraint::Length(3), // Margin
+                Constraint::Length(1),
+                Constraint::Length(2), // Margin
                 Constraint::Length(2),
                 Constraint::Length(2), // Margin
                 Constraint::Length(WAITING_ROOM_DIMENSION.1),
                 Constraint::Length(1), // Margin
                 Constraint::Length(2),
             ].as_ref())
-            .split(space);
+            .split(area);
 
-        self.draw_menu_panel(ctx, gui_layout[0]);
+        TitlePanelWidget
+            .render(column[0], buffer);
 
-        let version_space = Rect::new(gui_layout[0].x + 54, gui_layout[0].y + 6, 14, 1);
-        self.draw_version_panel(ctx, version_space);
+        VersionPanelWidget
+            .render(column[1], buffer);
 
-        let client_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .horizontal_margin(4)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Length(1),
-            ].as_ref())
-            .split(gui_layout[2]);
+        ClientInfoPanelWidget{state: self.state, menu: self.menu}
+            .render(column[3], buffer, cursor);
 
-        self.draw_client_info_panel(ctx, client_layout);
-
-        let server_layout = Layout::default()
+        let row = Layout::default()
             .direction(Direction::Horizontal)
             .horizontal_margin(2)
             .constraints([
@@ -135,76 +159,104 @@ impl GuiElement for Menu {
                 Constraint::Length(2), // Margin
                 Constraint::Length(WAITING_ROOM_DIMENSION.0),
             ].as_ref())
-            .split(gui_layout[4]);
+            .split(column[5]);
 
-        self.draw_server_info_panel(ctx, server_layout[0]);
-        self.draw_waiting_room_panel(ctx, server_layout[2]);
+        ServerInfoPanelWidget{state: self.state}
+            .render(row[0], buffer);
 
-        self.draw_starting_notify_panel(ctx, gui_layout[6]);
+        WaitingRoomPanelWidget{menu: self.menu}
+            .render(row[2], buffer);
+
+        NotifyPanelWidget{state: self.state, menu: self.menu}
+            .render(column[7], buffer);
     }
 }
 
-impl Menu {
-    pub fn new(config: &Config) -> Menu {
-        Menu {
-            server_addr_input: InputTextWidget::new(
-                config.server_addr.map(|addr| addr.to_string())
-            ),
-            character_input: InputCapitalLetterWidget::new(config.character),
-            waiting_room: WaitingRoom::new(
-                WAITING_ROOM_DIMENSION.0 - 2,
-                WAITING_ROOM_DIMENSION.1 - 2
-            ),
-        }
-    }
+struct TitlePanelWidget;
 
-    fn draw_menu_panel(&self, ctx: &mut Context, space: Rect) {
-        let main_title = Paragraph::new(MAIN_TITLE)
+impl Widget for TitlePanelWidget {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        Paragraph::new(MAIN_TITLE)
             .style(Style::default().add_modifier(Modifier::BOLD))
-            .alignment(Alignment::Left);
-
-        ctx.frame.render_widget(main_title, space);
+            .alignment(Alignment::Left)
+            .render(area, buffer);
     }
+}
 
-    fn draw_version_panel(&self, ctx: &mut Context, space: Rect) {
+struct VersionPanelWidget;
+
+impl Widget for VersionPanelWidget {
+    fn render(self, mut area: Rect, buffer: &mut Buffer) {
+        area.x += 54;
+        area.width -= 54;
+
         let message = format!("version: {}", version::current());
         let version = Span::styled(message, Style::default().fg(Color::Gray));
-        let panel = Paragraph::new(version).alignment(Alignment::Left);
-        ctx.frame.render_widget(panel, space);
-    }
 
-    fn draw_client_info_panel(&self, ctx: &mut Context, spaces: Vec<Rect>) {
-        self.draw_server_address_panel(ctx, spaces[0]);
-        self.draw_character_panel(ctx, spaces[1]);
+        Paragraph::new(version)
+            .alignment(Alignment::Left)
+            .render(area, buffer);
     }
+}
 
-    fn draw_server_address_panel(&self, ctx: &mut Context, space: Rect) {
+struct ClientInfoPanelWidget<'a> {state: &'a State, menu: &'a Menu}
+
+impl ClientInfoPanelWidget<'_> {
+    pub const INITIAL_CURSOR: u16 = 17;
+}
+
+impl StatefulWidget for ClientInfoPanelWidget<'_> {
+    type State = Option<(u16, u16)>;
+    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Option<(u16, u16)>) {
+        let column = Layout::default()
+            .direction(Direction::Vertical)
+            .horizontal_margin(4)
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ].as_ref())
+            .split(area);
+
+        ServerAddressLabelWidget{state: self.state, menu: self.menu}
+            .render(column[0], buffer, cursor);
+
+        CharacterLabelWidget{state: self.state, menu: self.menu}
+            .render(column[1], buffer, cursor);
+    }
+}
+
+struct ServerAddressLabelWidget<'a> {state: &'a State, menu: &'a Menu}
+
+impl StatefulWidget for ServerAddressLabelWidget<'_> {
+    type State = Option<(u16, u16)>;
+    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Option<(u16, u16)>) {
         let server_addrees = Spans::from(vec![
             Span::raw("Server address:  "),
             Span::styled(
-                self.server_addr_input.content(),
+                self.menu.server_addr_input.content(),
                 Style::default().add_modifier(Modifier::BOLD),
             ),
         ]);
 
-        let left_panel = Paragraph::new(server_addrees).alignment(Alignment::Left);
-        ctx.frame.render_widget(left_panel, space);
+        Paragraph::new(server_addrees)
+            .alignment(Alignment::Left)
+            .render(area, buffer);
 
         let (message, hint_color) =
-        if self.server_addr_input.content().is_empty() {
+        if self.menu.server_addr_input.content().is_empty() {
             ("Not connected", Color::DarkGray)
         }
         else {
-            match self.server_addr_input.content().parse::<SocketAddr>() {
+            match self.menu.server_addr_input.content().parse::<SocketAddr>() {
                 Err(_) => ("Use 'ip:port' syntax", Color::Yellow),
-                Ok(_) => match ctx.state.server.connection_status {
+                Ok(_) => match self.state.server.connection_status {
                     ConnectionStatus::Connected => ("Connected", Color::LightGreen),
                     ConnectionStatus::NotConnected => {
                         ("Not connected", Color::DarkGray)
                     }
                     ConnectionStatus::NotFound => ("Server not found", Color::LightRed),
                     ConnectionStatus::Lost => {
-                        if !ctx.state.server.has_compatible_version() {
+                        if !self.state.server.has_compatible_version() {
                             ("Version error", Color::LightRed)
                         }
                         else {
@@ -216,16 +268,22 @@ impl Menu {
         };
 
         let hint = Span::styled(message, Style::default().fg(hint_color));
-        let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
-        ctx.frame.render_widget(right_panel, space);
+        Paragraph::new(hint)
+            .alignment(Alignment::Right)
+            .render(area, buffer);
 
-        if let Some(ref cursor) = self.server_addr_input.cursor_position() {
-            ctx.frame.set_cursor(space.x + 17 + *cursor as u16, space.y);
+        if let Some(ref pos) = self.menu.server_addr_input.cursor_position() {
+            *cursor = Some((area.x + ClientInfoPanelWidget::INITIAL_CURSOR + *pos as u16, area.y));
         }
     }
+}
 
-    fn draw_character_panel(&self, ctx: &mut Context, space: Rect) {
-        let character_input = match self.character_input.content() {
+struct CharacterLabelWidget<'a> {state: &'a State, menu: &'a Menu}
+
+impl StatefulWidget for CharacterLabelWidget<'_> {
+    type State = Option<(u16, u16)>;
+    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Option<(u16, u16)>) {
+        let character_input = match self.menu.character_input.content() {
             Some(character) => character.to_string(),
             None => String::new(),
         };
@@ -235,11 +293,12 @@ impl Menu {
             Span::styled(character_input, Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
-        let left_panel = Paragraph::new(character).alignment(Alignment::Left);
-        ctx.frame.render_widget(left_panel, space);
+        Paragraph::new(character)
+            .alignment(Alignment::Left)
+            .render(area, buffer);
 
         let (status_message, status_color) =
-        if let Some(login_status) = ctx.state.user.login_status {
+        if let Some(login_status) = self.state.user.login_status {
             match login_status {
                 LoginStatus::Logged(_, _) => {
                     ("Logged", Color::LightGreen)
@@ -260,65 +319,90 @@ impl Menu {
         };
 
         let hint = Span::styled(status_message, Style::default().fg(status_color));
-        let right_panel = Paragraph::new(hint).alignment(Alignment::Right);
-        ctx.frame.render_widget(right_panel, space);
+        Paragraph::new(hint)
+            .alignment(Alignment::Right)
+            .render(area, buffer);
 
-        if self.character_input.has_focus() {
-            ctx.frame.set_cursor(space.x + 17, space.y);
+        if self.menu.character_input.has_focus() {
+            *cursor = Some((area.x + ClientInfoPanelWidget::INITIAL_CURSOR, area.y));
         }
     }
+}
 
-    fn draw_server_info_panel(&self, ctx: &mut Context, space: Rect) {
-        let border = Block::default()
+struct ServerInfoPanelWidget<'a> {state: &'a State}
+
+impl Widget for ServerInfoPanelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .title(Span::styled(
                 "Server info",
                 Style::default().add_modifier(Modifier::BOLD)
-            ));
+            ))
+            .render(area, buffer);
 
-        ctx.frame.render_widget(border, space);
+        let inner = area.inner(&Margin {vertical: 1, horizontal: 1});
 
-        let inner = space.inner(&Margin {vertical: 1, horizontal: 2});
+        if self.state.server.game_info.is_some() {
+            ServerInfoWithContentPanelWidget{state: self.state}
+                .render(inner, buffer);
+        }
+        else {
+            ServerInfoWithoutContentPanelWidget{state: self.state}
+                .render(inner, buffer);
+        }
+    }
+}
 
-        let vertical_center_inner = Layout::default()
+struct ServerInfoWithoutContentPanelWidget<'a> {state: &'a State}
+
+impl Widget for ServerInfoWithoutContentPanelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        let message =
+        if let Some(VersionInfo{version, compatibility}) = &self.state.server.version_info {
+            if !compatibility.is_compatible() {
+                Spans::from(vec![
+                    Span::styled("Incompatible versions: ", Style::default().fg(Color::LightRed)),
+                    Span::styled(
+                        version,
+                        Style::default()
+                            .fg(Color::LightRed)
+                            .add_modifier(Modifier::BOLD)
+                    ),
+                ])
+            }
+            else {
+                Spans::from(
+                    Span::styled("Loading information...", Style::default().fg(Color::Gray))
+                )
+            }
+        }
+        else {
+            Spans::from(
+                Span::styled("Without information", Style::default().fg(Color::Gray))
+            )
+        };
+
+        let vertical_center = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Percentage(40), // Margin
                 Constraint::Length(1),
             ].as_ref())
-            .split(inner)[1];
+            .split(area);
 
-        if let Some(VersionInfo {version, compatibility}) = &ctx.state.server.version_info {
-            if !compatibility.is_compatible() {
-                return self.draw_server_info_panel_err_version(ctx, vertical_center_inner, &version);
-            }
-
-            if let ConnectionStatus::Connected = ctx.state.server.connection_status {
-                return self.draw_server_info_panel_ok(ctx, inner);
-            }
-        }
-
-        self.draw_server_info_panel_no_info(ctx, vertical_center_inner);
+        Paragraph::new(message)
+            .alignment(Alignment::Center)
+            .render(vertical_center[1], buffer);
     }
+}
 
-    fn draw_server_info_panel_no_info(&self, ctx: &mut Context, space: Rect) {
-        let message = Span::styled("Without information", Style::default().fg(Color::Gray));
-        let right_panel = Paragraph::new(message).alignment(Alignment::Center);
-        ctx.frame.render_widget(right_panel, space);
-    }
+struct ServerInfoWithContentPanelWidget<'a> {state: &'a State}
 
-    fn draw_server_info_panel_err_version(&self, ctx: &mut Context, space: Rect, version: &str) {
-        let message = Spans::from(vec![
-            Span::styled("Incompatible versions: ", Style::default().fg(Color::LightRed)),
-            Span::styled(version, Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
-        ]);
-        let right_panel = Paragraph::new(message).alignment(Alignment::Center);
-        ctx.frame.render_widget(right_panel, space);
-    }
-
-    fn draw_server_info_panel_ok(&self, ctx: &mut Context, space: Rect){
-        let layout = Layout::default()
+impl Widget for ServerInfoWithContentPanelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        let column = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(1),
@@ -327,24 +411,40 @@ impl Menu {
                 Constraint::Length(1),
                 Constraint::Length(1),
             ].as_ref())
-            .split(space);
+            .split(area);
 
-        self.draw_server_info_version_panel(ctx, layout[0]);
-        self.draw_server_info_udp_panel(ctx, layout[1]);
-        self.draw_server_info_map_size_panel(ctx, layout[2]);
-        self.draw_server_info_points_panel(ctx, layout[3]);
-        self.draw_server_info_players_panel(ctx, layout[4]);
+        ServerInfoVersionLabelWidget{state: self.state}
+            .render(column[0], buffer);
+
+        ServerInfoUdpLabelWidget{state: self.state}
+            .render(column[1], buffer);
+
+        ServerInfoMapSizeLabelWidget{state: self.state}
+            .render(column[2], buffer);
+
+        ServerInfoPointsLabelWidget{state: self.state}
+            .render(column[3], buffer);
+
+        ServerInfoPlayersLabelWidget{state: self.state}
+            .render(column[4], buffer);
     }
+}
 
-    fn draw_server_info_version_panel(&self, ctx: &mut Context, space: Rect) {
-        let VersionInfo {version, compatibility} = ctx.state.server.version_info.as_ref().unwrap();
+struct ServerInfoVersionLabelWidget<'a> {state: &'a State}
+
+impl Widget for ServerInfoVersionLabelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        let VersionInfo {version, compatibility} =
+            self.state.server.version_info.as_ref().unwrap();
+
         let left = Spans::from(vec![
             Span::raw("Version:  "),
             Span::styled(version, Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
-        let left_panel = Paragraph::new(left).alignment(Alignment::Left);
-        ctx.frame.render_widget(left_panel, space);
+        Paragraph::new(left)
+            .alignment(Alignment::Left)
+            .render(area, buffer);
 
         let compatibility_color = match compatibility {
             Compatibility::Fully => Color::LightGreen,
@@ -354,120 +454,147 @@ impl Menu {
 
         let right = Span::styled("Compatible", Style::default().fg(compatibility_color));
 
-        let right_panel = Paragraph::new(right).alignment(Alignment::Right);
-        ctx.frame.render_widget(right_panel, space);
+        Paragraph::new(right)
+            .alignment(Alignment::Right)
+            .render(area, buffer);
     }
+}
 
-    fn draw_server_info_map_size_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(static_game_info) = &ctx.state.server.game_info {
-            let map_size = static_game_info.map_size;
-            let dimension = format!("{}x{}", map_size, map_size);
-            let left = Spans::from(vec![
-                Span::raw("Map size: "),
-                Span::styled(dimension, Style::default().add_modifier(Modifier::BOLD)),
-            ]);
+struct ServerInfoUdpLabelWidget<'a> {state: &'a State}
 
-            let left_panel = Paragraph::new(left).alignment(Alignment::Left);
-            ctx.frame.render_widget(left_panel, space);
-        }
-    }
+impl Widget for ServerInfoUdpLabelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        let udp_port = self.state.server.udp_port.unwrap();
+        let left = Spans::from(vec![
+            Span::raw("UDP port: "),
+            Span::styled(udp_port.to_string(), Style::default().add_modifier(Modifier::BOLD)),
+        ]);
 
-    fn draw_server_info_points_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(static_game_info) = &ctx.state.server.game_info {
-            let points = static_game_info.winner_points.to_string();
-            let left = Spans::from(vec![
-                Span::raw("Points:   "),
-                Span::styled(points, Style::default().add_modifier(Modifier::BOLD)),
-            ]);
+        Paragraph::new(left)
+            .alignment(Alignment::Left)
+            .render(area, buffer);
 
-            let left_panel = Paragraph::new(left).alignment(Alignment::Left);
-            ctx.frame.render_widget(left_panel, space);
-        }
-    }
-
-    fn draw_server_info_udp_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(udp_port) = ctx.state.server.udp_port {
-            let left = Spans::from(vec![
-                Span::raw("UDP port: "),
-                Span::styled(udp_port.to_string(), Style::default().add_modifier(Modifier::BOLD)),
-            ]);
-
-            let left_panel = Paragraph::new(left).alignment(Alignment::Left);
-            ctx.frame.render_widget(left_panel, space);
-
-            if let Some(LoginStatus::Logged(..)) = ctx.state.user.login_status {
-                let (status_message, status_color) =
-                match ctx.state.server.udp_confirmed {
-                    Some(value) => match value {
-                        true => ("Checked", Color::LightGreen),
-                        false => ("Not available", Color::Yellow),
-                    }
-                    None => ("Checking...", Color::LightYellow)
-                };
-
-                let right = Span::styled(status_message, Style::default().fg(status_color));
-
-                let right_panel = Paragraph::new(right).alignment(Alignment::Right);
-                ctx.frame.render_widget(right_panel, space);
+        let (status_message, status_color) =
+        match self.state.server.udp_confirmed {
+            Some(value) => match value {
+                true => ("Checked", Color::LightGreen),
+                false => ("Not available", Color::Yellow),
             }
-        }
+            None => ("Checking...", Color::LightYellow)
+        };
+
+        let right = Span::styled(status_message, Style::default().fg(status_color));
+
+        Paragraph::new(right)
+            .alignment(Alignment::Right)
+            .render(area, buffer);
     }
+}
 
-    fn draw_server_info_players_panel(&self, ctx: &mut Context, space: Rect) {
-        if let Some(static_game_info) = &ctx.state.server.game_info {
-            let current_players_number = ctx.state.server.logged_players.len();
+struct ServerInfoMapSizeLabelWidget<'a> {state: &'a State}
 
-            let players_ratio = format!("{}/{}", current_players_number, static_game_info.players_number);
-            let left = Spans::from(vec![
-                Span::raw("Players:  "),
-                Span::styled(players_ratio, Style::default().add_modifier(Modifier::BOLD)),
-            ]);
+impl Widget for ServerInfoMapSizeLabelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        let game_info = self.state.server.game_info.as_ref().unwrap();
+        let map_size = game_info.map_size;
+        let dimension = format!("{}x{}", map_size, map_size);
+        let left = Spans::from(vec![
+            Span::raw("Map size: "),
+            Span::styled(dimension, Style::default().add_modifier(Modifier::BOLD)),
+        ]);
 
-            let left_panel = Paragraph::new(left).alignment(Alignment::Left);
-            ctx.frame.render_widget(left_panel, space);
+        Paragraph::new(left)
+            .alignment(Alignment::Left)
+            .render(area, buffer);
+    }
+}
 
-            let (status_message, status_color) =
-            if current_players_number == static_game_info.players_number {
-                if ctx.state.user.is_logged() {
-                    let waiting_secs = match ctx.state.server.game.next_arena_timestamp {
-                        Some(timestamp) => {
-                            timestamp.saturating_duration_since(Instant::now()).as_secs()
-                        }
-                        None => 0
-                    };
-                    let message = format!("Ready in {}...", waiting_secs);
-                    (message, Color::LightGreen)
-                }
-                else {
-                    ("Completed".into(), Color::LightRed)
-                }
+struct ServerInfoPointsLabelWidget<'a> {state: &'a State}
+
+impl Widget for ServerInfoPointsLabelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        let game_info = self.state.server.game_info.as_ref().unwrap();
+        let points = game_info.winner_points.to_string();
+        let left = Spans::from(vec![
+            Span::raw("Points:   "),
+            Span::styled(points, Style::default().add_modifier(Modifier::BOLD)),
+        ]);
+
+        Paragraph::new(left)
+            .alignment(Alignment::Left)
+            .render(area, buffer);
+    }
+}
+
+struct ServerInfoPlayersLabelWidget<'a> {state: &'a State}
+
+impl Widget for ServerInfoPlayersLabelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        let game_info = self.state.server.game_info.as_ref().unwrap();
+        let current_players_number = self.state.server.logged_players.len();
+
+        let players_ratio = format!("{}/{}", current_players_number, game_info.players_number);
+        let left = Spans::from(vec![
+            Span::raw("Players:  "),
+            Span::styled(players_ratio, Style::default().add_modifier(Modifier::BOLD)),
+        ]);
+
+        Paragraph::new(left)
+            .alignment(Alignment::Left)
+            .render(area, buffer);
+
+        let (status_message, status_color) =
+        if current_players_number == game_info.players_number {
+            if self.state.user.is_logged() {
+                let waiting_secs = match self.state.server.game.next_arena_timestamp {
+                    Some(timestamp) => {
+                        timestamp.saturating_duration_since(Instant::now()).as_secs()
+                    }
+                    None => 0
+                };
+                let message = format!("Ready in {}...", waiting_secs);
+                (message, Color::LightGreen)
             }
             else {
-                ("Waiting other players...".into(), Color::LightYellow)
-            };
-
-            let right = Span::styled(status_message, Style::default().fg(status_color));
-
-            let right_panel = Paragraph::new(right).alignment(Alignment::Right);
-            ctx.frame.render_widget(right_panel, space);
+                ("Completed".into(), Color::LightRed)
+            }
         }
+        else {
+            ("Waiting other players...".into(), Color::LightYellow)
+        };
+
+        let right = Span::styled(status_message, Style::default().fg(status_color));
+
+        Paragraph::new(right)
+            .alignment(Alignment::Right)
+            .render(area, buffer);
     }
+}
 
-    fn draw_waiting_room_panel(&self, ctx: &mut Context, space: Rect) {
-        let panel = Paragraph::new("")
-            .block(Block::default()
-                .borders(Borders::ALL)
-                .title(Span::styled(
-                    "Waiting room",
-                    Style::default().add_modifier(Modifier::BOLD)
-                )))
-            .alignment(Alignment::Left);
+struct WaitingRoomPanelWidget<'a>{menu: &'a Menu}
 
-        ctx.frame.render_widget(WaitingRoomWidget(&self.waiting_room), space);
-        ctx.frame.render_widget(panel, space);
+impl Widget for WaitingRoomPanelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .title(Span::styled(
+                "Waiting room",
+                Style::default().add_modifier(Modifier::BOLD)
+            ))
+            .render(area, buffer);
+
+        let inner = area.inner(&Margin {vertical: 1, horizontal: 1});
+
+        WaitingRoomWidget::new(&self.menu.waiting_room)
+            .render(inner, buffer);
     }
+}
 
-    fn draw_starting_notify_panel(&self, ctx: &mut Context, space: Rect) {
+struct NotifyPanelWidget<'a> {state: &'a State, menu: &'a Menu}
+
+impl Widget for NotifyPanelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
         let enter = Span::styled(" <Enter> ", Style::default()
             .add_modifier(Modifier::BOLD)
             .fg(Color::Cyan));
@@ -477,7 +604,7 @@ impl Menu {
             .fg(Color::Yellow));
 
         let messages =
-        if !ctx.state.server.is_connected() || !ctx.state.server.has_compatible_version() {
+        if !self.state.server.is_connected() || !self.state.server.has_compatible_version() {
             vec![
                 Spans::from(vec![
                     Span::raw("Press"), enter, Span::raw("to connect to server")
@@ -487,9 +614,9 @@ impl Menu {
                 ]),
             ]
         }
-        else if !ctx.state.user.is_logged() {
+        else if !self.state.user.is_logged() {
             vec![
-                if self.character_input.content().is_none() {
+                if self.menu.character_input.content().is_none() {
                     Spans::from(vec![
                         Span::raw("Choose a character (an ascii uppercase letter)"),
                     ])
@@ -512,10 +639,8 @@ impl Menu {
             ]
         };
 
-        //" Starting arena in 2..."
-        let panel = Paragraph::new(messages)
-            .alignment(Alignment::Center);
-
-        ctx.frame.render_widget(panel, space);
+        Paragraph::new(messages)
+            .alignment(Alignment::Center)
+            .render(area, buffer);
     }
 }
