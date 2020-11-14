@@ -498,20 +498,22 @@ impl Widget for ServerInfoUdpLabelWidget<'_> {
             .alignment(Alignment::Left)
             .render(area, buffer);
 
-        let (status_message, status_color) =
-        match self.state.server.udp_confirmed {
-            Some(value) => match value {
-                true => ("Checked", Color::LightGreen),
-                false => ("Not available", Color::Yellow),
-            }
-            None => ("Checking...", Color::LightYellow)
-        };
+        if self.state.user.is_logged() {
+            let (status_message, status_color) =
+            match self.state.server.udp_confirmed {
+                Some(value) => match value {
+                    true => ("Checked", Color::LightGreen),
+                    false => ("Not available", Color::Yellow),
+                }
+                None => ("Checking...", Color::LightYellow)
+            };
 
-        let right = Span::styled(status_message, Style::default().fg(status_color));
+            let right = Span::styled(status_message, Style::default().fg(status_color));
 
-        Paragraph::new(right)
-            .alignment(Alignment::Right)
-            .render(area, buffer);
+            Paragraph::new(right)
+                .alignment(Alignment::Right)
+                .render(area, buffer);
+        }
     }
 }
 
