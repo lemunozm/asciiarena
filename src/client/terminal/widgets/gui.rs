@@ -68,15 +68,10 @@ impl Gui {
 }
 
 
+#[derive(derive_new::new)]
 pub struct GuiWidget<'a> {
     state: &'a State,
     gui: &'a Gui,
-}
-
-impl<'a> GuiWidget<'a> {
-    pub fn new(state: &'a State, gui: &'a Gui) -> GuiWidget<'a> {
-        GuiWidget { state, gui }
-    }
 }
 
 impl StatefulWidget for GuiWidget<'_> {

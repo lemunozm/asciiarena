@@ -104,14 +104,9 @@ impl WaitingRoom {
     }
 }
 
+#[derive(derive_new::new)]
 pub struct WaitingRoomWidget<'a> {
     waiting_room: &'a WaitingRoom
-}
-
-impl<'a> WaitingRoomWidget<'a> {
-    pub fn new(waiting_room: &'a WaitingRoom) -> WaitingRoomWidget<'a> {
-        WaitingRoomWidget { waiting_room }
-    }
 }
 
 impl Widget for WaitingRoomWidget<'_> {

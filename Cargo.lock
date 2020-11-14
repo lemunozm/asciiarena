@@ -24,6 +24,7 @@ dependencies = [
  "colored",
  "crossterm",
  "ctrlc",
+ "derive-new",
  "fern",
  "itertools",
  "lazy_static",
@@ -192,6 +193,17 @@ checksum = "d0b676fa23f995faf587496dcd1c80fead847ed58d2da52ac1caca9a72790dd2"
 dependencies = [
  "nix",
  "winapi",
+]
+
+[[package]]
+name = "derive-new"
+version = "0.5.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71f31892cd5c62e414316f2963c5689242c43d8e7bbcaaeca97e5e28c95d91d9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

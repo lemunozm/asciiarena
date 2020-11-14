@@ -22,8 +22,6 @@ use crossterm::event::{KeyCode};
 use std::net::{SocketAddr};
 use std::time::{Instant};
 
-pub const DIMENSION: (u16, u16) = (70, 23);
-
 pub struct Menu {
     server_addr_input: InputText,
     character_input: InputCapitalLetter,
@@ -102,16 +100,13 @@ impl Menu {
     }
 }
 
+#[derive(derive_new::new)]
 pub struct MenuWidget<'a> {
     state: &'a State,
     menu: &'a Menu
 }
 
 impl<'a> MenuWidget<'a> {
-    pub fn new(state: &'a State, menu: &'a Menu) -> MenuWidget<'a> {
-        MenuWidget { state, menu }
-    }
-
     pub fn dimension() -> (u16, u16) {
         (TitlePanelWidget::MAIN_TITLE.find('\n').unwrap() as u16,
         TitlePanelWidget::dimension().1 +
@@ -146,7 +141,7 @@ impl StatefulWidget for MenuWidget<'_> {
         VersionPanelWidget
             .render(column[1], buffer);
 
-        ClientInfoPanelWidget{state: self.state, menu: self.menu}
+        ClientInfoPanelWidget::new(self.state, self.menu)
             .render(column[3], buffer, cursor);
 
         let row = Layout::default()
@@ -159,13 +154,13 @@ impl StatefulWidget for MenuWidget<'_> {
             ].as_ref())
             .split(column[5]);
 
-        ServerInfoPanelWidget{state: self.state}
+        ServerInfoPanelWidget::new(self.state)
             .render(row[0], buffer);
 
-        WaitingRoomPanelWidget{menu: self.menu}
+        WaitingRoomPanelWidget::new(self.menu)
             .render(row[2], buffer);
 
-        NotifyPanelWidget{state: self.state, menu: self.menu}
+        NotifyPanelWidget::new(self.state, self.menu)
             .render(column[7], buffer);
     }
 }
@@ -217,6 +212,7 @@ impl Widget for VersionPanelWidget {
     }
 }
 
+#[derive(derive_new::new)]
 struct ClientInfoPanelWidget<'a> {state: &'a State, menu: &'a Menu}
 
 impl ClientInfoPanelWidget<'_> {
@@ -233,14 +229,15 @@ impl StatefulWidget for ClientInfoPanelWidget<'_> {
             .constraints((0..Self::HEIGHT).map(|_| Constraint::Length(1)).collect::<Vec<_>>())
             .split(area);
 
-        ServerAddressLabelWidget{state: self.state, menu: self.menu}
+        ServerAddressLabelWidget::new(self.state, self.menu)
             .render(column[0], buffer, cursor);
 
-        CharacterLabelWidget{state: self.state, menu: self.menu}
+        CharacterLabelWidget::new(self.state, self.menu)
             .render(column[1], buffer, cursor);
     }
 }
 
+#[derive(derive_new::new)]
 struct ServerAddressLabelWidget<'a> {state: &'a State, menu: &'a Menu}
 
 impl StatefulWidget for ServerAddressLabelWidget<'_> {
@@ -294,6 +291,7 @@ impl StatefulWidget for ServerAddressLabelWidget<'_> {
     }
 }
 
+#[derive(derive_new::new)]
 struct CharacterLabelWidget<'a> {state: &'a State, menu: &'a Menu}
 
 impl StatefulWidget for CharacterLabelWidget<'_> {
@@ -345,6 +343,7 @@ impl StatefulWidget for CharacterLabelWidget<'_> {
     }
 }
 
+#[derive(derive_new::new)]
 struct ServerInfoPanelWidget<'a> {state: &'a State}
 
 impl ServerInfoPanelWidget<'_> {
@@ -365,16 +364,17 @@ impl Widget for ServerInfoPanelWidget<'_> {
         let inner = area.inner(&Margin {vertical: 1, horizontal: 1});
 
         if self.state.server.game_info.is_some() {
-            ServerInfoWithContentPanelWidget{state: self.state}
+            ServerInfoWithContentPanelWidget::new(self.state)
                 .render(inner, buffer);
         }
         else {
-            ServerInfoWithoutContentPanelWidget{state: self.state}
+            ServerInfoWithoutContentPanelWidget::new(self.state)
                 .render(inner, buffer);
         }
     }
 }
 
+#[derive(derive_new::new)]
 struct ServerInfoWithoutContentPanelWidget<'a> {state: &'a State}
 
 impl Widget for ServerInfoWithoutContentPanelWidget<'_> {
@@ -421,6 +421,7 @@ impl Widget for ServerInfoWithoutContentPanelWidget<'_> {
     }
 }
 
+#[derive(derive_new::new)]
 struct ServerInfoWithContentPanelWidget<'a> {state: &'a State}
 
 impl ServerInfoWithContentPanelWidget<'_> {
@@ -434,23 +435,24 @@ impl Widget for ServerInfoWithContentPanelWidget<'_> {
             .constraints((0..Self::HEIGHT).map(|_| Constraint::Length(1)).collect::<Vec<_>>())
             .split(area);
 
-        ServerInfoVersionLabelWidget{state: self.state}
+        ServerInfoVersionLabelWidget::new(self.state)
             .render(column[0], buffer);
 
-        ServerInfoUdpLabelWidget{state: self.state}
+        ServerInfoUdpLabelWidget::new(self.state)
             .render(column[1], buffer);
 
-        ServerInfoMapSizeLabelWidget{state: self.state}
+        ServerInfoMapSizeLabelWidget::new(self.state)
             .render(column[2], buffer);
 
-        ServerInfoPointsLabelWidget{state: self.state}
+        ServerInfoPointsLabelWidget::new(self.state)
             .render(column[3], buffer);
 
-        ServerInfoPlayersLabelWidget{state: self.state}
+        ServerInfoPlayersLabelWidget::new(self.state)
             .render(column[4], buffer);
     }
 }
 
+#[derive(derive_new::new)]
 struct ServerInfoVersionLabelWidget<'a> {state: &'a State}
 
 impl Widget for ServerInfoVersionLabelWidget<'_> {
@@ -481,6 +483,7 @@ impl Widget for ServerInfoVersionLabelWidget<'_> {
     }
 }
 
+#[derive(derive_new::new)]
 struct ServerInfoUdpLabelWidget<'a> {state: &'a State}
 
 impl Widget for ServerInfoUdpLabelWidget<'_> {
@@ -512,6 +515,7 @@ impl Widget for ServerInfoUdpLabelWidget<'_> {
     }
 }
 
+#[derive(derive_new::new)]
 struct ServerInfoMapSizeLabelWidget<'a> {state: &'a State}
 
 impl Widget for ServerInfoMapSizeLabelWidget<'_> {
@@ -530,6 +534,7 @@ impl Widget for ServerInfoMapSizeLabelWidget<'_> {
     }
 }
 
+#[derive(derive_new::new)]
 struct ServerInfoPointsLabelWidget<'a> {state: &'a State}
 
 impl Widget for ServerInfoPointsLabelWidget<'_> {
@@ -547,6 +552,7 @@ impl Widget for ServerInfoPointsLabelWidget<'_> {
     }
 }
 
+#[derive(derive_new::new)]
 struct ServerInfoPlayersLabelWidget<'a> {state: &'a State}
 
 impl Widget for ServerInfoPlayersLabelWidget<'_> {
@@ -592,6 +598,7 @@ impl Widget for ServerInfoPlayersLabelWidget<'_> {
     }
 }
 
+#[derive(derive_new::new)]
 struct WaitingRoomPanelWidget<'a>{menu: &'a Menu}
 
 impl WaitingRoomPanelWidget<'_> {
@@ -616,6 +623,7 @@ impl Widget for WaitingRoomPanelWidget<'_> {
     }
 }
 
+#[derive(derive_new::new)]
 struct NotifyPanelWidget<'a> {state: &'a State, menu: &'a Menu}
 
 impl NotifyPanelWidget<'_> {

@@ -30,16 +30,14 @@ impl Arena {
     pub fn update(&mut self, _state: &State) { }
 }
 
+
+#[derive(derive_new::new)]
 pub struct ArenaWidget<'a> {
     state: &'a State,
     _arena: &'a Arena,
 }
 
 impl<'a> ArenaWidget<'a> {
-    pub fn new(state: &'a State, _arena: &'a Arena) -> ArenaWidget<'a> {
-        ArenaWidget { state, _arena }
-    }
-
     pub fn dimension(state: &State) -> (u16, u16) {
         let map_size = state.server.game_info.as_ref().unwrap().map_size as u16;
         let map_dim = MapWidget::dimension(map_size);
@@ -62,7 +60,7 @@ impl Widget for ArenaWidget<'_> {
             ].as_ref())
             .split(area);
 
-        ArenaInfoLabelWidget{state: self.state}
+        ArenaInfoLabelWidget::new(self.state)
             .render(column[0], buffer);
 
         let row = Layout::default()
@@ -74,15 +72,15 @@ impl Widget for ArenaWidget<'_> {
             ].as_ref())
             .split(column[1]);
 
-        CharacterPanelListWidget{state: self.state}
+        CharacterPanelListWidget::new(self.state)
             .render(row[0], buffer);
 
-        MapWidget{state: self.state}
+        MapWidget::new(self.state)
             .render(row[2], buffer);
     }
 }
 
-
+#[derive(derive_new::new)]
 struct ArenaInfoLabelWidget<'a> {state: &'a State}
 
 impl ArenaInfoLabelWidget<'_> {
@@ -107,7 +105,7 @@ impl Widget for ArenaInfoLabelWidget<'_> {
     }
 }
 
-
+#[derive(derive_new::new)]
 struct CharacterPanelListWidget<'a> {state: &'a State}
 
 impl CharacterPanelListWidget<'_> {
@@ -141,6 +139,7 @@ impl Widget for CharacterPanelListWidget<'_> {
 }
 
 
+#[derive(derive_new::new)]
 struct CharacterPanelWidget<'a> {
     _state: &'a State,
     _player: char,
@@ -148,10 +147,6 @@ struct CharacterPanelWidget<'a> {
 
 impl<'a> CharacterPanelWidget<'a> {
     pub const DIMENSION: (u16, u16) = (18, 3);
-
-    pub fn new(_state: &'a State, _player: char) -> CharacterPanelWidget<'a> {
-        CharacterPanelWidget {_state, _player}
-    }
 }
 
 impl Widget for CharacterPanelWidget<'_> {
@@ -164,6 +159,7 @@ impl Widget for CharacterPanelWidget<'_> {
 }
 
 
+#[derive(derive_new::new)]
 struct MapWidget<'a> {state: &'a State}
 
 impl MapWidget<'_> {
@@ -173,7 +169,7 @@ impl MapWidget<'_> {
 }
 
 impl Widget for MapWidget<'_> {
-    fn render(self, mut area: Rect, buffer: &mut Buffer) {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
         Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
