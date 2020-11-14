@@ -22,16 +22,6 @@ use crossterm::event::{KeyCode};
 use std::net::{SocketAddr};
 use std::time::{Instant};
 
-const MAIN_TITLE: &'static str = concat!(
-r"   _____                .__.__   _____                                ", "\n",
-r"  /  _  \   ______ ____ |__|__| /  _  \_______   ____   ____ _____    ", "\n",
-r" /  /_\  \ /  ___// ___\|  |  |/  /_\  \_  __ \_/ __ \ /    \\__  \   ", "\n",
-r"/    |    \\___ \\  \___|  |  /    |    \  | \/\  ___/|   |  \/ __ \_ ", "\n",
-r"\____|__  /______>\_____>__|__\____|__  /__|    \_____>___|__(______/ ", "\n",
-r"        \/                            \/", "\n",
-);
-
-pub const WAITING_ROOM_DIMENSION: (u16, u16) = (20, 7);
 pub const DIMENSION: (u16, u16) = (70, 23);
 
 pub struct Menu {
@@ -48,14 +38,10 @@ impl Menu {
             ),
             character_input: InputCapitalLetter::new(config.character),
             waiting_room: WaitingRoom::new(
-                WAITING_ROOM_DIMENSION.0 - 2,
-                WAITING_ROOM_DIMENSION.1 - 2
+                WaitingRoomPanelWidget::WIDTH - 2,
+                ServerInfoPanelWidget::HEIGHT - 2
             ),
         }
-    }
-
-    pub fn dimension() {
-        //TODO
     }
 
     pub fn process_event(&mut self, store: &mut Store, event: InputEvent) {
@@ -125,6 +111,16 @@ impl<'a> MenuWidget<'a> {
     pub fn new(state: &'a State, menu: &'a Menu) -> MenuWidget<'a> {
         MenuWidget { state, menu }
     }
+
+    pub fn dimension() -> (u16, u16) {
+        (TitlePanelWidget::MAIN_TITLE.find('\n').unwrap() as u16,
+        TitlePanelWidget::dimension().1 +
+        VersionPanelWidget::HEIGHT +
+        ClientInfoPanelWidget::HEIGHT +
+        ServerInfoPanelWidget::HEIGHT +
+        NotifyPanelWidget::HEIGHT +
+        5) // margin sum
+    }
 }
 
 impl StatefulWidget for MenuWidget<'_> {
@@ -133,14 +129,14 @@ impl StatefulWidget for MenuWidget<'_> {
         let column = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(MAIN_TITLE.chars().filter(|&c| c == '\n').count() as u16),
-                Constraint::Length(1),
+                Constraint::Length(TitlePanelWidget::dimension().1),
+                Constraint::Length(VersionPanelWidget::HEIGHT),
                 Constraint::Length(2), // Margin
-                Constraint::Length(2),
+                Constraint::Length(ClientInfoPanelWidget::HEIGHT),
                 Constraint::Length(2), // Margin
-                Constraint::Length(WAITING_ROOM_DIMENSION.1),
+                Constraint::Length(ServerInfoPanelWidget::HEIGHT),
                 Constraint::Length(1), // Margin
-                Constraint::Length(2),
+                Constraint::Length(NotifyPanelWidget::HEIGHT),
             ].as_ref())
             .split(area);
 
@@ -159,7 +155,7 @@ impl StatefulWidget for MenuWidget<'_> {
             .constraints([
                 Constraint::Min(1),
                 Constraint::Length(2), // Margin
-                Constraint::Length(WAITING_ROOM_DIMENSION.0),
+                Constraint::Length(WaitingRoomPanelWidget::WIDTH),
             ].as_ref())
             .split(column[5]);
 
@@ -176,9 +172,25 @@ impl StatefulWidget for MenuWidget<'_> {
 
 struct TitlePanelWidget;
 
+impl TitlePanelWidget {
+    const MAIN_TITLE: &'static str = concat!(
+    r"   _____                .__.__   _____                                ", "\n",
+    r"  /  _  \   ______ ____ |__|__| /  _  \_______   ____   ____ _____    ", "\n",
+    r" /  /_\  \ /  ___// ___\|  |  |/  /_\  \_  __ \_/ __ \ /    \\__  \   ", "\n",
+    r"/    |    \\___ \\  \___|  |  /    |    \  | \/\  ___/|   |  \/ __ \_ ", "\n",
+    r"\____|__  /______>\_____>__|__\____|__  /__|    \_____>___|__(______/ ", "\n",
+    r"        \/                            \/", "\n",
+    );
+
+    fn dimension() -> (u16, u16) {
+        (Self::MAIN_TITLE.find('\n').unwrap() as u16,
+        Self::MAIN_TITLE.chars().filter(|&c| c == '\n').count() as u16)
+    }
+}
+
 impl Widget for TitlePanelWidget {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        Paragraph::new(MAIN_TITLE)
+        Paragraph::new(Self::MAIN_TITLE)
             .style(Style::default().add_modifier(Modifier::BOLD))
             .alignment(Alignment::Left)
             .render(area, buffer);
@@ -186,6 +198,10 @@ impl Widget for TitlePanelWidget {
 }
 
 struct VersionPanelWidget;
+
+impl VersionPanelWidget {
+    const HEIGHT: u16 = 1;
+}
 
 impl Widget for VersionPanelWidget {
     fn render(self, mut area: Rect, buffer: &mut Buffer) {
@@ -204,7 +220,8 @@ impl Widget for VersionPanelWidget {
 struct ClientInfoPanelWidget<'a> {state: &'a State, menu: &'a Menu}
 
 impl ClientInfoPanelWidget<'_> {
-    pub const INITIAL_CURSOR: u16 = 17;
+    const INITIAL_CURSOR: u16 = 17;
+    const HEIGHT: u16 = 2;
 }
 
 impl StatefulWidget for ClientInfoPanelWidget<'_> {
@@ -213,10 +230,7 @@ impl StatefulWidget for ClientInfoPanelWidget<'_> {
         let column = Layout::default()
             .direction(Direction::Vertical)
             .horizontal_margin(4)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Length(1),
-            ].as_ref())
+            .constraints((0..Self::HEIGHT).map(|_| Constraint::Length(1)).collect::<Vec<_>>())
             .split(area);
 
         ServerAddressLabelWidget{state: self.state, menu: self.menu}
@@ -333,6 +347,10 @@ impl StatefulWidget for CharacterLabelWidget<'_> {
 
 struct ServerInfoPanelWidget<'a> {state: &'a State}
 
+impl ServerInfoPanelWidget<'_> {
+    const HEIGHT: u16 = 2 + ServerInfoWithContentPanelWidget::HEIGHT;
+}
+
 impl Widget for ServerInfoPanelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         Block::default()
@@ -405,17 +423,15 @@ impl Widget for ServerInfoWithoutContentPanelWidget<'_> {
 
 struct ServerInfoWithContentPanelWidget<'a> {state: &'a State}
 
+impl ServerInfoWithContentPanelWidget<'_> {
+    const HEIGHT: u16 = 5;
+}
+
 impl Widget for ServerInfoWithContentPanelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let column = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-            ].as_ref())
+            .constraints((0..Self::HEIGHT).map(|_| Constraint::Length(1)).collect::<Vec<_>>())
             .split(area);
 
         ServerInfoVersionLabelWidget{state: self.state}
@@ -578,6 +594,10 @@ impl Widget for ServerInfoPlayersLabelWidget<'_> {
 
 struct WaitingRoomPanelWidget<'a>{menu: &'a Menu}
 
+impl WaitingRoomPanelWidget<'_> {
+    const WIDTH: u16 = 20;
+}
+
 impl Widget for WaitingRoomPanelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         Block::default()
@@ -597,6 +617,10 @@ impl Widget for WaitingRoomPanelWidget<'_> {
 }
 
 struct NotifyPanelWidget<'a> {state: &'a State, menu: &'a Menu}
+
+impl NotifyPanelWidget<'_> {
+    const HEIGHT: u16 = 2;
+}
 
 impl Widget for NotifyPanelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {

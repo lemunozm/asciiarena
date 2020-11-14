@@ -1,5 +1,5 @@
 use super::util::{self};
-use super::menu::{self, Menu, MenuWidget};
+use super::menu::{Menu, MenuWidget};
 use super::arena::{Arena, ArenaWidget};
 
 use crate::client::configuration::{Config};
@@ -84,7 +84,7 @@ impl StatefulWidget for GuiWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Cursor) {
         match self.gui.view(self.state) {
             View::Menu => {
-                let area = util::centered_area(area, menu::DIMENSION);
+                let area = util::centered_area(area, MenuWidget::dimension());
                 MenuWidget::new(self.state, &self.gui.menu)
                     .render(area, buffer, cursor)
             },
