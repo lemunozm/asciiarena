@@ -157,7 +157,7 @@ impl StatefulWidget for MenuWidget<'_> {
         ServerInfoPanelWidget::new(self.state)
             .render(row[0], buffer);
 
-        WaitingRoomPanelWidget::new(self.menu)
+        WaitingRoomPanelWidget::new(self.state, self.menu)
             .render(row[2], buffer);
 
         NotifyPanelWidget::new(self.state, self.menu)
@@ -243,7 +243,7 @@ struct ServerAddressLabelWidget<'a> {state: &'a State, menu: &'a Menu}
 impl StatefulWidget for ServerAddressLabelWidget<'_> {
     type State = Cursor;
     fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Cursor) {
-        let server_addrees = Spans::from(vec![
+        let server_addrees_msg = Spans::from(vec![
             Span::raw("Server address:  "),
             Span::styled(
                 self.menu.server_addr_input.content(),
@@ -251,7 +251,7 @@ impl StatefulWidget for ServerAddressLabelWidget<'_> {
             ),
         ]);
 
-        Paragraph::new(server_addrees)
+        Paragraph::new(server_addrees_msg)
             .alignment(Alignment::Left)
             .render(area, buffer);
 
@@ -297,36 +297,32 @@ struct CharacterLabelWidget<'a> {state: &'a State, menu: &'a Menu}
 impl StatefulWidget for CharacterLabelWidget<'_> {
     type State = Cursor;
     fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Cursor) {
-        let character_input = match self.menu.character_input.content() {
-            Some(character) => character.to_string(),
-            None => String::new(),
+        let character = match self.menu.character_input.content() {
+            Some(character) => character,
+            None => ' ',
         };
 
-        let character = Spans::from(vec![
+        let character_msg = Spans::from(vec![
             Span::raw("Character name:  "),
-            Span::styled(character_input, Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(character.to_string(), Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
-        Paragraph::new(character)
+        Paragraph::new(character_msg)
             .alignment(Alignment::Left)
             .render(area, buffer);
 
         let (status_message, status_color) =
-        if let Some(login_status) = self.state.user.login_status {
-            match login_status {
-                LoginStatus::Logged(_, _) => {
-                    ("Logged", Color::LightGreen)
-                },
-                LoginStatus::InvalidPlayerName => {
-                    ("Invalid player name", Color::LightRed)
-                },
-                LoginStatus::AlreadyLogged => {
-                    ("Name already chosen", Color::LightRed)
-                },
-                LoginStatus::PlayerLimit => {
-                    ("Player limit reached", Color::LightYellow)
-                },
-            }
+        if self.state.user.is_logged() {
+            ("Logged", Color::LightGreen)
+        }
+        else if self.state.server.is_full() {
+            ("Player limit reached", Color::LightYellow)
+        }
+        else if self.state.server.logged_players.contains(&character) {
+            ("Name already chosen", Color::LightRed)
+        }
+        else if let Some(LoginStatus::InvalidPlayerName) = self.state.user.login_status {
+            ("Invalid player name", Color::LightRed)
         }
         else {
             ("Not logged", Color::DarkGray)
@@ -601,7 +597,7 @@ impl Widget for ServerInfoPlayersLabelWidget<'_> {
 }
 
 #[derive(derive_new::new)]
-struct WaitingRoomPanelWidget<'a>{menu: &'a Menu}
+struct WaitingRoomPanelWidget<'a>{state:&'a State, menu: &'a Menu}
 
 impl WaitingRoomPanelWidget<'_> {
     const WIDTH: u16 = 20;
@@ -609,11 +605,19 @@ impl WaitingRoomPanelWidget<'_> {
 
 impl Widget for WaitingRoomPanelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
+        let message =
+        if self.state.server.is_full() && !self.state.user.is_logged() {
+            "Players at game"
+        }
+        else {
+            "Waiting room"
+        };
+
         Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .title(Span::styled(
-                "Waiting room",
+                message,
                 Style::default().add_modifier(Modifier::BOLD)
             ))
             .render(area, buffer);
