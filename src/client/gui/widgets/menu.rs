@@ -3,8 +3,8 @@ use crate::client::state::{State, VersionInfo};
 use crate::client::server_proxy::{ConnectionStatus};
 use crate::client::store::{Store, Action};
 use crate::client::gui::input::{InputEvent};
-use crate::client::gui::widgets::{InputText, InputCapitalLetter};
-use crate::client::gui::waiting_room::{WaitingRoom, WaitingRoomWidget};
+use crate::client::gui::widgets::util::{InputText, InputCapitalLetter};
+use crate::client::gui::widgets::waiting_room::{WaitingRoom, WaitingRoomWidget};
 use crate::client::gui::renderer::{Cursor};
 
 use crate::version::{self, Compatibility};

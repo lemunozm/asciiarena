@@ -7,7 +7,7 @@ use crate::client::state::{State};
 
 use crate::client::gui::input::{InputEvent};
 use crate::client::gui::renderer::{Cursor};
-use crate::client::gui::elements::util::{self};
+use crate::client::gui::widgets::util::{self};
 
 use tui::buffer::{Buffer};
 use tui::widgets::{Widget, StatefulWidget};

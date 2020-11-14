@@ -1,4 +1,4 @@
-use super::elements::gui::{Gui, GuiWidget};
+use super::widgets::gui::{Gui, GuiWidget};
 
 use crate::client::state::{State};
 
