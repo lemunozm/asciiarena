@@ -142,8 +142,8 @@ struct ConnectionInfo {
 }
 
 struct ServerConnection<C> {
-    event_sender: EventSender<Event>,
     network: NetworkManager,
+    event_sender: EventSender<Event>,
     connection: ConnectionInfo,
     event_callback: C,
 }
