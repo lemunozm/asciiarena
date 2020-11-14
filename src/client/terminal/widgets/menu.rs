@@ -1,11 +1,12 @@
+use super::util::{InputText, InputCapitalLetter};
+use super::waiting_room::{WaitingRoom, WaitingRoomWidget};
+
 use crate::client::configuration::{Config};
 use crate::client::state::{State, VersionInfo};
 use crate::client::server_proxy::{ConnectionStatus};
 use crate::client::store::{Store, Action};
-use crate::client::gui::input::{InputEvent};
-use crate::client::gui::widgets::util::{InputText, InputCapitalLetter};
-use crate::client::gui::widgets::waiting_room::{WaitingRoom, WaitingRoomWidget};
-use crate::client::gui::renderer::{Cursor};
+use crate::client::terminal::input::{InputEvent};
+use crate::client::terminal::renderer::{Cursor};
 
 use crate::version::{self, Compatibility};
 use crate::message::{LoginStatus};

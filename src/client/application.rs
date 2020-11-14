@@ -3,9 +3,9 @@ use super::state::{State};
 use super::store::{Store, Action, AppController};
 use super::server_proxy::{ServerProxy, ServerEvent};
 
-use super::gui::input::{InputReceiver, InputEvent};
-use super::gui::renderer::{Renderer};
-use super::gui::widgets::gui::{Gui};
+use super::terminal::input::{InputReceiver, InputEvent};
+use super::terminal::renderer::{Renderer};
+use super::terminal::widgets::gui::{Gui};
 
 use message_io::events::{EventSender, EventQueue};
 

@@ -1,3 +1,4 @@
+use super::util::{self};
 use super::menu::{self, Menu, MenuWidget};
 use super::arena::{Arena, ArenaWidget};
 
@@ -5,9 +6,8 @@ use crate::client::configuration::{Config};
 use crate::client::store::{Store, Action};
 use crate::client::state::{State};
 
-use crate::client::gui::input::{InputEvent};
-use crate::client::gui::renderer::{Cursor};
-use crate::client::gui::widgets::util::{self};
+use crate::client::terminal::input::{InputEvent};
+use crate::client::terminal::renderer::{Cursor};
 
 use tui::buffer::{Buffer};
 use tui::widgets::{Widget, StatefulWidget};

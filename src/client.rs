@@ -3,7 +3,7 @@ mod configuration;
 mod state;
 mod store;
 mod server_proxy;
-mod gui;
+mod terminal;
 
 use application::{Application};
 use configuration::{Config};

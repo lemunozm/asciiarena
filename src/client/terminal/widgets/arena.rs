@@ -1,6 +1,6 @@
 use crate::client::state::{State, GameStatus};
 use crate::client::store::{Store, Action};
-use crate::client::gui::input::{InputEvent};
+use crate::client::terminal::input::{InputEvent};
 
 use tui::buffer::{Buffer};
 use tui::widgets::{Paragraph, Block, Borders, Widget};
