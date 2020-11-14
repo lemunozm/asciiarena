@@ -5,6 +5,7 @@ use crate::client::store::{Store, Action};
 use crate::client::gui::input::{InputEvent};
 use crate::client::gui::widgets::{InputText, InputCapitalLetter};
 use crate::client::gui::waiting_room::{WaitingRoom, WaitingRoomWidget};
+use crate::client::gui::renderer::{Cursor};
 
 use crate::version::{self, Compatibility};
 use crate::message::{LoginStatus};
@@ -126,8 +127,8 @@ impl<'a> MenuWidget<'a> {
 }
 
 impl StatefulWidget for MenuWidget<'_> {
-    type State = Option<(u16, u16)>;
-    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Option<(u16, u16)>) {
+    type State = Cursor;
+    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Cursor) {
         let column = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -206,8 +207,8 @@ impl ClientInfoPanelWidget<'_> {
 }
 
 impl StatefulWidget for ClientInfoPanelWidget<'_> {
-    type State = Option<(u16, u16)>;
-    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Option<(u16, u16)>) {
+    type State = Cursor;
+    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Cursor) {
         let column = Layout::default()
             .direction(Direction::Vertical)
             .horizontal_margin(4)
@@ -228,8 +229,8 @@ impl StatefulWidget for ClientInfoPanelWidget<'_> {
 struct ServerAddressLabelWidget<'a> {state: &'a State, menu: &'a Menu}
 
 impl StatefulWidget for ServerAddressLabelWidget<'_> {
-    type State = Option<(u16, u16)>;
-    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Option<(u16, u16)>) {
+    type State = Cursor;
+    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Cursor) {
         let server_addrees = Spans::from(vec![
             Span::raw("Server address:  "),
             Span::styled(
@@ -273,7 +274,7 @@ impl StatefulWidget for ServerAddressLabelWidget<'_> {
             .render(area, buffer);
 
         if let Some(ref pos) = self.menu.server_addr_input.cursor_position() {
-            *cursor = Some((area.x + ClientInfoPanelWidget::INITIAL_CURSOR + *pos as u16, area.y));
+            cursor.set(area.x + ClientInfoPanelWidget::INITIAL_CURSOR + *pos as u16, area.y);
         }
     }
 }
@@ -281,8 +282,8 @@ impl StatefulWidget for ServerAddressLabelWidget<'_> {
 struct CharacterLabelWidget<'a> {state: &'a State, menu: &'a Menu}
 
 impl StatefulWidget for CharacterLabelWidget<'_> {
-    type State = Option<(u16, u16)>;
-    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Option<(u16, u16)>) {
+    type State = Cursor;
+    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Cursor) {
         let character_input = match self.menu.character_input.content() {
             Some(character) => character.to_string(),
             None => String::new(),
@@ -324,7 +325,7 @@ impl StatefulWidget for CharacterLabelWidget<'_> {
             .render(area, buffer);
 
         if self.menu.character_input.has_focus() {
-            *cursor = Some((area.x + ClientInfoPanelWidget::INITIAL_CURSOR, area.y));
+            cursor.set(area.x + ClientInfoPanelWidget::INITIAL_CURSOR, area.y);
         }
     }
 }

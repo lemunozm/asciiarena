@@ -6,6 +6,7 @@ use crate::client::store::{Store, Action};
 use crate::client::state::{State};
 
 use crate::client::gui::input::{InputEvent};
+use crate::client::gui::renderer::{Cursor};
 use crate::client::gui::elements::util::{self};
 
 use tui::buffer::{Buffer};
@@ -79,8 +80,8 @@ impl<'a> GuiWidget<'a> {
 }
 
 impl StatefulWidget for GuiWidget<'_> {
-    type State = Option<(u16, u16)>;
-    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Option<(u16, u16)>) {
+    type State = Cursor;
+    fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Cursor) {
         match self.gui.view(self.state) {
             View::Menu => {
                 let area = util::centered_area(area, menu::DIMENSION);
