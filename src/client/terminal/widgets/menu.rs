@@ -2,7 +2,7 @@ use super::util::{InputText, InputCapitalLetter};
 use super::waiting_room::{WaitingRoom, WaitingRoomWidget};
 
 use crate::client::configuration::{Config};
-use crate::client::state::{State, VersionInfo};
+use crate::client::state::{State, VersionInfo, GameStatus};
 use crate::client::server_proxy::{ConnectionStatus};
 use crate::client::store::{Store, Action};
 use crate::client::terminal::input::{InputEvent};
@@ -315,11 +315,11 @@ impl StatefulWidget for CharacterLabelWidget<'_> {
         if self.state.user.is_logged() {
             ("Logged", Color::LightGreen)
         }
-        else if self.state.server.is_full() {
-            ("Player limit reached", Color::LightYellow)
-        }
         else if self.state.server.logged_players.contains(&character) {
             ("Name already chosen", Color::LightRed)
+        }
+        else if self.state.server.is_full() {
+            ("Player limit reached", Color::LightYellow)
         }
         else if let Some(LoginStatus::InvalidPlayerName) = self.state.user.login_status {
             ("Invalid player name", Color::LightRed)
@@ -571,14 +571,7 @@ impl Widget for ServerInfoPlayersLabelWidget<'_> {
         let (status_message, status_color) =
         if current_players_number == game_info.players_number {
             if self.state.user.is_logged() {
-                let waiting_secs = match self.state.server.game.next_arena_timestamp {
-                    Some(timestamp) => {
-                        timestamp.saturating_duration_since(Instant::now()).as_secs()
-                    }
-                    None => 0
-                };
-                let message = format!("Ready in {}...", waiting_secs);
-                (message, Color::LightGreen)
+                ("Ready", Color::LightGreen)
             }
             else {
                 ("Completed".into(), Color::LightRed)
@@ -674,7 +667,21 @@ impl Widget for NotifyPanelWidget<'_> {
                 ]),
             ]
         }
-        else {
+        else if let GameStatus::Started = self.state.server.game.status {
+            let waiting_secs = match self.state.server.game.next_arena_timestamp {
+                Some(timestamp) => {
+                    timestamp.saturating_duration_since(Instant::now()).as_secs()
+                }
+                None => 0
+            };
+
+            vec![
+                Spans::from(vec![
+                    Span::raw(format!("Starting game in {}...", waiting_secs))
+                ]),
+            ]
+        }
+        else{
             vec![
                 Spans::from(vec![
                     Span::raw("Press"), esc, Span::raw("to logout the character")
