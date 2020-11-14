@@ -90,6 +90,7 @@ impl Store {
                     else {
                         self.dispatch(Action::ServerEvent(ServerEvent::FinishGame));
                         self.state.server.game.arena = None;
+                        self.state.server.game_info = None;
                     }
                 },
 

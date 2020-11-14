@@ -3,7 +3,7 @@ use crate::client::store::{Store, Action};
 use crate::client::terminal::input::{InputEvent};
 
 use tui::buffer::{Buffer};
-use tui::widgets::{Paragraph, Block, Borders, Widget};
+use tui::widgets::{Paragraph, Block, Borders, BorderType, Widget};
 use tui::layout::{Layout, Constraint, Direction, Rect, Alignment};
 use tui::style::{Style, Modifier, Color};
 use tui::text::{Span, Spans};
@@ -52,11 +52,13 @@ impl<'a> ArenaWidget<'a> {
 impl Widget for ArenaWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let map_size = self.state.server.game_info.as_ref().unwrap().map_size as u16;
+        let map_dim = MapWidget::dimension(map_size);
+
         let column = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(ArenaInfoLabelWidget::HEIGHT),
-                Constraint::Length(map_size),
+                Constraint::Length(map_dim.1),
             ].as_ref())
             .split(area);
 
@@ -68,10 +70,9 @@ impl Widget for ArenaWidget<'_> {
             .constraints([
                 Constraint::Length(CharacterPanelListWidget::WIDTH),
                 Constraint::Length(1),
-                Constraint::Length(map_size * 2 + 1),
+                Constraint::Length(map_dim.0),
             ].as_ref())
             .split(column[1]);
-
 
         CharacterPanelListWidget{state: self.state}
             .render(row[0], buffer);
@@ -167,22 +168,15 @@ struct MapWidget<'a> {state: &'a State}
 
 impl MapWidget<'_> {
     pub fn dimension(map_size: u16) -> (u16, u16) {
-        (2 + map_size, 2 + map_size * 2 + 1)
+        (2 + map_size * 2 + 1, 2 + map_size)
     }
 }
 
 impl Widget for MapWidget<'_> {
     fn render(self, mut area: Rect, buffer: &mut Buffer) {
-        let map_size = self.state.server.game_info.as_ref().unwrap().map_size as u16;
-
-        let map_y_offset = (area.height - map_size) / 2;
-        if map_y_offset > 0 {
-            area.y += map_y_offset;
-            area.height -= map_y_offset;
-        }
-
         Block::default()
             .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
             .render(area, buffer);
     }
 }

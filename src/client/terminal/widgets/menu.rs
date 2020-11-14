@@ -365,7 +365,10 @@ impl Widget for ServerInfoWithoutContentPanelWidget<'_> {
         if let Some(VersionInfo{version, compatibility}) = &self.state.server.version_info {
             if !compatibility.is_compatible() {
                 Spans::from(vec![
-                    Span::styled("Incompatible versions: ", Style::default().fg(Color::LightRed)),
+                    Span::styled(
+                        "Incompatible versions. Server:",
+                        Style::default().fg(Color::LightRed)
+                    ),
                     Span::styled(
                         version,
                         Style::default()
