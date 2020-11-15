@@ -89,6 +89,7 @@ impl Store {
                     }
                     else {
                         self.dispatch(Action::ServerEvent(ServerEvent::FinishGame));
+                        self.state.server.logged_players = Vec::new();
                         self.state.server.game.arena = None;
                         self.state.server.game_info = None;
                     }
@@ -140,7 +141,6 @@ impl Store {
 
                 ServerEvent::FinishGame => {
                     self.state.server.game.status = GameStatus::Finished;
-                    self.state.server.logged_players = Vec::new();
                     self.state.server.udp_confirmed = None;
                     self.state.user.character = None;
                     self.state.user.login_status = None;
