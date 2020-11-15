@@ -1,4 +1,4 @@
-use super::util::{InputText, InputCapitalLetter};
+use super::util::{self, InputText, InputCapitalLetter};
 use super::waiting_room::{WaitingRoom, WaitingRoomWidget};
 
 use crate::client::configuration::{Config};
@@ -403,17 +403,9 @@ impl Widget for ServerInfoWithoutContentPanelWidget<'_> {
             )
         };
 
-        let vertical_center = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(40), // Margin
-                Constraint::Length(1),
-            ].as_ref())
-            .split(area);
-
         Paragraph::new(message)
             .alignment(Alignment::Center)
-            .render(vertical_center[1], buffer);
+            .render(util::vertically_centered(area, 1), buffer);
     }
 }
 
@@ -670,14 +662,18 @@ impl Widget for NotifyPanelWidget<'_> {
         else if let GameStatus::Started = self.state.server.game.status {
             let waiting_secs = match self.state.server.game.next_arena_timestamp {
                 Some(timestamp) => {
-                    timestamp.saturating_duration_since(Instant::now()).as_secs()
+                    timestamp.saturating_duration_since(Instant::now()).as_secs() + 1
                 }
                 None => 0
             };
 
+            let style = Style::default().fg(Color::LightCyan);
+
             vec![
                 Spans::from(vec![
-                    Span::raw(format!("Starting game in {}...", waiting_secs))
+                    Span::styled("Starting game in ", style),
+                    Span::styled(waiting_secs.to_string(), style.add_modifier(Modifier::BOLD)),
+                    Span::styled("...", style),
                 ]),
             ]
         }

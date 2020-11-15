@@ -1,10 +1,12 @@
+use super::util::{self};
+
 use crate::client::state::{State, GameStatus};
 use crate::client::store::{Store, Action};
 use crate::client::terminal::input::{InputEvent};
 
 use tui::buffer::{Buffer};
 use tui::widgets::{Paragraph, Block, Borders, BorderType, Widget};
-use tui::layout::{Layout, Constraint, Direction, Rect, Alignment};
+use tui::layout::{Layout, Constraint, Direction, Rect, Alignment, Margin};
 use tui::style::{Style, Modifier, Color};
 use tui::text::{Span, Spans};
 
@@ -116,18 +118,15 @@ impl Widget for CharacterPanelListWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let logged_players = &self.state.server.logged_players;
 
-        Block::default()
-            .style(Style::default().fg(Color::DarkGray))
-            .borders(Borders::ALL)
-            .render(area, buffer);
-
-        let constraints = logged_players
+        let mut constraints = logged_players
             .iter()
             .map(|_| Constraint::Length(CharacterPanelWidget::DIMENSION.1))
             .collect::<Vec<_>>();
 
+        constraints.push(Constraint::Min(0)); // Bottom margin
+
         let row = Layout::default()
-            .direction(Direction::Horizontal)
+            .direction(Direction::Vertical)
             .constraints(constraints)
             .split(area);
 
@@ -146,7 +145,7 @@ struct CharacterPanelWidget<'a> {
 }
 
 impl<'a> CharacterPanelWidget<'a> {
-    pub const DIMENSION: (u16, u16) = (18, 3);
+    pub const DIMENSION: (u16, u16) = (25, 4);
 }
 
 impl Widget for CharacterPanelWidget<'_> {
@@ -174,5 +173,46 @@ impl Widget for MapWidget<'_> {
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .render(area, buffer);
+
+        let inner = area.inner(&Margin {vertical: 1, horizontal: 1});
+
+        FinishGameMessageWidget::new(self.state)
+            .render(inner, buffer);
+    }
+}
+
+#[derive(derive_new::new)]
+struct FinishGameMessageWidget<'a> {state: &'a State}
+
+impl Widget for FinishGameMessageWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        let number = self.state.server.game.arena().number;
+        let message = match self.state.server.game.status {
+            GameStatus::Finished => {
+                vec![
+                    Spans::from(Span::raw(format!("Arena {} view (Finished)", number))),
+                    Spans::from(Span::raw(format!("Under construcion..."))),
+                    Spans::from(Span::raw("")),
+                    Spans::from(vec![
+                       Span::raw("Press"),
+                       Span::styled(" <Enter> ", Style::default()
+                           .add_modifier(Modifier::BOLD)
+                           .fg(Color::Cyan)),
+                       Span::raw("to back to the menu"),
+                    ]),
+                ]
+            }
+            _ => {
+                vec![
+                    Spans::from(Span::raw(format!("Arena {} view (Playing)", number))),
+                    Spans::from(Span::raw(format!("Under construcion..."))),
+                ]
+            }
+        };
+
+        let height = message.len() as u16;
+        Paragraph::new(message)
+            .alignment(Alignment::Center)
+            .render(util::vertically_centered(area, height), buffer);
     }
 }

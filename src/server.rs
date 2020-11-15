@@ -85,7 +85,7 @@ pub fn run(matches: &ArgMatches) {
         udp_port: matches.value_of("udp-port").unwrap().parse().unwrap(),
         players_number: matches.value_of("players").unwrap().parse().unwrap(),
         map_size: matches.value_of("map-size").unwrap().parse().unwrap(),
-        winner_points: 10,
+        winner_points: 5,
         arena_waiting: Duration::from_secs(3),
     };
 
