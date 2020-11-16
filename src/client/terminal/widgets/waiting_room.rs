@@ -113,7 +113,7 @@ impl Widget for WaitingRoomWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         for (player, state) in &self.waiting_room.players {
             let draw_at = (state.position.0 * 2, state.position.1);
-            if draw_at.0 < area.width || draw_at.1 < area.height {
+            if draw_at.0 < area.width && draw_at.1 < area.height {
                 buffer
                     .get_mut(area.x + draw_at.0, area.y + draw_at.1)
                     .set_char(*player)

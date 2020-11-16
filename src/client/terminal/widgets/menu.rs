@@ -195,20 +195,23 @@ impl Widget for TitlePanelWidget {
 struct VersionPanelWidget;
 
 impl VersionPanelWidget {
+    const X_OFFSET: u16 = 54;
     const HEIGHT: u16 = 1;
 }
 
 impl Widget for VersionPanelWidget {
     fn render(self, mut area: Rect, buffer: &mut Buffer) {
-        area.x += 54;
-        area.width -= 54;
+        if area.width >= Self::X_OFFSET {
+            area.x += Self::X_OFFSET;
+            area.width -= Self::X_OFFSET;
 
-        let message = format!("version: {}", version::current());
-        let version = Span::styled(message, Style::default().fg(Color::Gray));
+            let message = format!("version: {}", version::current());
+            let version = Span::styled(message, Style::default().fg(Color::Gray));
 
-        Paragraph::new(version)
-            .alignment(Alignment::Left)
-            .render(area, buffer);
+            Paragraph::new(version)
+                .alignment(Alignment::Left)
+                .render(area, buffer);
+        }
     }
 }
 
