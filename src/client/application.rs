@@ -45,7 +45,9 @@ impl Application {
             event_sender.send(AppEvent::InputEvent(input_event))
         });
 
-        let app_controller = ApplicationController { sender: event_queue.sender().clone() };
+        let app_controller = ApplicationController {
+            sender: event_queue.sender().clone()
+        };
 
         Application {
             event_queue,

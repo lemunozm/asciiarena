@@ -142,8 +142,8 @@ struct ConnectionInfo {
 }
 
 struct ServerConnection<C> {
+    event_sender: EventSender<Event>, // Should be before NetworkManager in order to drop first
     network: NetworkManager,
-    event_sender: EventSender<Event>,
     connection: ConnectionInfo,
     event_callback: C,
 }
