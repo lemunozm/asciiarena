@@ -7,9 +7,11 @@ use super::terminal::input::{InputReceiver, InputEvent};
 use super::terminal::renderer::{Renderer};
 use super::terminal::widgets::gui::{Gui};
 
-use message_io::events::{EventSender, EventQueue};
+use message_io::events::{EventQueue};
 
 use std::time::{Duration};
+use std::rc::{Rc};
+use std::cell::{Cell};
 
 lazy_static! {
     static ref APP_FRAME_DURATION: Duration = Duration::from_secs_f32(1.0 / 30.0);
@@ -20,7 +22,6 @@ pub enum AppEvent {
     ServerEvent(ServerEvent),
     InputEvent(InputEvent),
     Draw,
-    Close,
 }
 
 pub struct Application {
@@ -29,6 +30,7 @@ pub struct Application {
     gui: Gui,
     server: Option<ServerProxy>,
     input: Option<InputReceiver>,
+    app_controller: ApplicationController,
 }
 
 impl Application {
@@ -45,16 +47,15 @@ impl Application {
             event_sender.send(AppEvent::InputEvent(input_event))
         });
 
-        let app_controller = ApplicationController {
-            sender: event_queue.sender().clone()
-        };
+        let app_controller = ApplicationController::default();
 
         Application {
             event_queue,
-            store: Store::new(State::new(&config), app_controller, server.api()),
+            store: Store::new(State::new(&config), app_controller.clone(), server.api()),
             gui: Gui::new(&config),
             server: Some(server),
             input: Some(input),
+            app_controller,
         }
     }
 
@@ -64,6 +65,10 @@ impl Application {
 
         let mut renderer = Renderer::new();
         loop {
+            if self.app_controller.should_close() {
+                return log::info!("Closing client");
+            }
+
             let event = self.event_queue.receive();
             match event {
                 AppEvent::ServerEvent(server_event) => {
@@ -79,10 +84,6 @@ impl Application {
                     renderer.render(self.store.state(), &self.gui);
                     self.event_queue.sender().send_with_timer(AppEvent::Draw, *APP_FRAME_DURATION);
                 },
-                AppEvent::Close => {
-                    log::info!("Closing client");
-                    break
-                },
             }
         }
     }
@@ -95,12 +96,27 @@ impl Drop for Application {
     }
 }
 
+#[derive(Clone)]
 pub struct ApplicationController {
-    sender: EventSender<AppEvent>
+    should_close: Rc<Cell<bool>>
+}
+
+impl ApplicationController {
+    pub fn should_close(&self) -> bool {
+        self.should_close.get()
+    }
+}
+
+impl Default for ApplicationController {
+    fn default() -> ApplicationController {
+       ApplicationController {
+           should_close: Rc::new(Cell::new(false))
+       }
+    }
 }
 
 impl AppController for ApplicationController {
     fn close(&mut self) {
-        self.sender.send_with_priority(AppEvent::Close);
+        self.should_close.set(true);
     }
 }
