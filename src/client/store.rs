@@ -6,10 +6,6 @@ use crate::version::{self};
 use std::net::{SocketAddr};
 use std::time::{Instant};
 
-pub trait AppController {
-    fn close(&mut self);
-}
-
 /// Action API
 #[derive(Debug)]
 pub enum Action {
@@ -19,27 +15,31 @@ pub enum Action {
     Login(char),
     Logout,
     CloseGame,
-    Close,
+    CloseApp,
     ServerEvent(ServerEvent),
 }
 
 pub struct Store {
     state: State,
-    app: Box<dyn AppController>,
     server: ServerApi,
+    close : bool,
 }
 
 impl Store {
-    pub fn new(state: State, app: impl AppController + 'static, server: ServerApi) -> Store {
+    pub fn new(state: State, server: ServerApi) -> Store {
         Store {
             state,
-            app: Box::new(app),
-            server
+            server,
+            close: false,
         }
     }
 
     pub fn state(&self) -> &State {
         &self.state
+    }
+
+    pub fn should_close(&self) -> bool {
+        self.close
     }
 
     pub fn dispatch(&mut self, action: Action) {
@@ -77,8 +77,8 @@ impl Store {
                 self.state.server.game.arena = None;
             }
 
-            Action::Close => {
-                self.app.close();
+            Action::CloseApp => {
+                self.close = true;
             }
 
             Action::ServerEvent(server_event) => match server_event {

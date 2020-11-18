@@ -1,6 +1,6 @@
 use super::configuration::{Config};
 use super::state::{State};
-use super::store::{Store, Action, AppController};
+use super::store::{Store, Action};
 use super::server_proxy::{ServerProxy, ServerEvent};
 
 use super::terminal::input::{InputReceiver, InputEvent};
@@ -10,8 +10,6 @@ use super::terminal::widgets::gui::{Gui};
 use message_io::events::{EventQueue};
 
 use std::time::{Duration};
-use std::rc::{Rc};
-use std::cell::{Cell};
 
 lazy_static! {
     static ref APP_FRAME_DURATION: Duration = Duration::from_secs_f32(1.0 / 30.0);
@@ -30,7 +28,6 @@ pub struct Application {
     gui: Gui,
     server: Option<ServerProxy>,
     input: Option<InputReceiver>,
-    app_controller: ApplicationController,
 }
 
 impl Application {
@@ -47,15 +44,12 @@ impl Application {
             event_sender.send(AppEvent::InputEvent(input_event))
         });
 
-        let app_controller = ApplicationController::default();
-
         Application {
             event_queue,
-            store: Store::new(State::new(&config), app_controller.clone(), server.api()),
+            store: Store::new(State::new(&config), server.api()),
             gui: Gui::new(&config),
             server: Some(server),
             input: Some(input),
-            app_controller,
         }
     }
 
@@ -65,7 +59,7 @@ impl Application {
 
         let mut renderer = Renderer::new();
         loop {
-            if self.app_controller.should_close() {
+            if self.store.should_close() {
                 return log::info!("Closing client");
             }
 
@@ -93,30 +87,5 @@ impl Drop for Application {
     fn drop(&mut self) {
         self.server = None; // Server thread stop here (before event_queue drop)
         self.input = None; // Input thread stop here (before event_queue drop)
-    }
-}
-
-#[derive(Clone)]
-pub struct ApplicationController {
-    should_close: Rc<Cell<bool>>
-}
-
-impl ApplicationController {
-    pub fn should_close(&self) -> bool {
-        self.should_close.get()
-    }
-}
-
-impl Default for ApplicationController {
-    fn default() -> ApplicationController {
-       ApplicationController {
-           should_close: Rc::new(Cell::new(false))
-       }
-    }
-}
-
-impl AppController for ApplicationController {
-    fn close(&mut self) {
-        self.should_close.set(true);
     }
 }

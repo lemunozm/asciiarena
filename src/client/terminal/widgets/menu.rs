@@ -69,7 +69,7 @@ impl Menu {
                             store.dispatch(Action::Disconnect);
                         }
                         else {
-                            return store.dispatch(Action::Close);
+                            return store.dispatch(Action::CloseApp);
                         }
                     },
                     _ => (),

@@ -45,7 +45,7 @@ impl Gui {
             InputEvent::KeyPressed(key_event) => match key_event.code {
                 KeyCode::Char(character) => {
                     if character == 'c' && key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                        return store.dispatch(Action::Close);
+                        return store.dispatch(Action::CloseApp);
                     }
                 },
                 _ => (),
