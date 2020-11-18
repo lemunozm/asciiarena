@@ -207,13 +207,19 @@ struct BarWidget {
 
 impl Widget for BarWidget {
     fn render(self, area: Rect, buffer: &mut Buffer) {
+        let bar_style = Style::default().fg(self.color).add_modifier(Modifier::BOLD);
+        let bar_off_style = Style::default().fg(self.color);
+
         let bar_len = 10 as u16;
         let current_len = ((self.current + 9) as f32 / bar_len as f32) as usize;
-
-        let bar_style = Style::default().fg(self.color).add_modifier(Modifier::BOLD);
-        let bar = (0..current_len)
-            .map(|_| {
-                Span::styled("=", bar_style)
+        let bar = (0..bar_len as usize)
+            .map(|index| {
+                if index < current_len {
+                    Span::styled("=", bar_style)
+                }
+                else {
+                    Span::styled("-", bar_off_style)
+                }
             })
             .collect::<Vec<_>>();
 
