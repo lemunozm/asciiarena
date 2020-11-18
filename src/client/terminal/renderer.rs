@@ -2,7 +2,7 @@ use super::widgets::gui::{Gui, GuiWidget};
 
 use crate::client::state::{State};
 
-use crossterm::terminal::{self, EnterAlternateScreen};
+use crossterm::terminal::{self};
 use crossterm::{ExecutableCommand};
 
 use tui::{Terminal};
@@ -17,9 +17,9 @@ pub struct Renderer {
 impl Renderer {
     pub fn new() -> Renderer {
         terminal::enable_raw_mode().unwrap();
-        io::stdout().execute(EnterAlternateScreen).unwrap();
-        let terminal = Terminal::new(CrosstermBackend::new(io::stdout())).unwrap();
+        io::stdout().execute(terminal::EnterAlternateScreen).unwrap();
 
+        let terminal = Terminal::new(CrosstermBackend::new(io::stdout())).unwrap();
         Renderer {
             terminal: terminal,
         }

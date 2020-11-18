@@ -360,7 +360,7 @@ impl Widget for ServerInfoPanelWidget<'_> {
             ))
             .render(area, buffer);
 
-        let inner = area.inner(&Margin {vertical: 1, horizontal: 1});
+        let inner = area.inner(&Margin {vertical: 1, horizontal: 2});
 
         if self.state.server.game_info.is_some() {
             ServerInfoWithContentPanelWidget::new(self.state)

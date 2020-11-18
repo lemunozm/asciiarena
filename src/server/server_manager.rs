@@ -60,16 +60,16 @@ impl ServerManager {
 
         let network_interface = "0.0.0.0";
         if let Err(_) = network.listen_tcp((network_interface, config.tcp_port)) {
-            log::error!("Can not run server on tcp port {}", config.tcp_port);
+            log::error!("Can not run server on TCP port {}", config.tcp_port);
             return None;
         }
 
         if let Err(_) = network.listen_udp((network_interface, config.udp_port)) {
-            log::error!("Can not run server on udp port {}", config.udp_port);
+            log::error!("Can not run server on UDP port {}", config.udp_port);
             return None;
         }
 
-        log::info!("Server running on tcp ports {} (tcp) and {} (udp) for {} players", config.tcp_port, config.udp_port, config.players_number);
+        log::info!("Server running on ports {} (tcp) and {} (udp) for {} players", config.tcp_port, config.udp_port, config.players_number);
         Some(ServerManager {
             event_queue,
             network,
