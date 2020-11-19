@@ -11,7 +11,11 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(players_it: impl IntoIterator<Item = char>, winner_points: usize, map_size: usize) -> Game {
+    pub fn new(
+        players_it: impl IntoIterator<Item = char>,
+        winner_points: usize,
+        map_size: usize) -> Game
+    {
         Game {
             arena_number: 0,
             arena: None,
@@ -59,7 +63,6 @@ impl Game {
             }
         }
     }
-
 
     pub fn has_finished(&self) -> bool {
         self.player_points.values().find(|&&p| p >= self.winner_points).is_some()

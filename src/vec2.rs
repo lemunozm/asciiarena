@@ -1,6 +1,8 @@
 use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign, SubAssign, MulAssign, DivAssign};
 
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy, PartialEq)]
 pub struct Vec2 {
     pub x: i32,
     pub y: i32,

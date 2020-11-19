@@ -1,5 +1,5 @@
-use crate::server::entity::{Entity};
 use crate::server::map::{Map};
+use crate::entity::{Entity};
 
 use rand::seq::SliceRandom;
 
@@ -26,7 +26,7 @@ impl Arena {
         };
 
         for (index, player) in players_it.enumerate() {
-            let entity = Entity::new(player, arena.map.initial_position(index).unwrap());
+            let entity = Entity::new(player, arena.map.initial_position(index).unwrap(), 100, 100);
             let id = arena.add_entity(entity);
             arena.players.insert(player, id);
         }
@@ -51,5 +51,9 @@ impl Arena {
 
     pub fn ranking(&self) -> &Vec<char> {
         &self.ranking
+    }
+
+    pub fn entities(&self) -> impl Iterator<Item = &Entity> {
+        self.entities.values()
     }
 }

@@ -1,4 +1,5 @@
 use crate::version::{Compatibility};
+use crate::entity::{Entity};
 
 use serde::{Serialize, Deserialize};
 
@@ -56,7 +57,7 @@ pub enum ServerMessage {
     FinishArena, // winners
 
     // Arena real time messages
-    Step, //arena state
+    Step(Vec<Entity>), //arena state
 }
 
 // ===================================================

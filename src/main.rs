@@ -11,6 +11,7 @@ mod message;
 mod util;
 mod direction;
 mod vec2;
+mod entity;
 
 use clap::{self, App, AppSettings};
 

@@ -157,6 +157,7 @@ impl Store {
                     self.state.server.game.arena = Some(Arena {
                         number,
                         status: ArenaStatus::Playing,
+                        entities: Vec::new(),
                     });
                 },
 
@@ -165,8 +166,8 @@ impl Store {
                     arena.status = ArenaStatus::Finished;
                 },
 
-                ServerEvent::ArenaStep => {
-                    //TODO
+                ServerEvent::ArenaStep(entities) => {
+                    self.state.server.game.arena_mut().entities = entities
                 },
             },
         }

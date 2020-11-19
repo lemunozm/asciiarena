@@ -1,5 +1,6 @@
 use crate::version::{Compatibility};
 use crate::message::{LoginStatus};
+use crate::entity::{Entity};
 
 use super::server_proxy::{ConnectionStatus};
 use super::configuration::{Config};
@@ -41,6 +42,7 @@ pub enum ArenaStatus {
 pub struct Arena {
     pub number: usize,
     pub status: ArenaStatus,
+    pub entities: Vec<Entity>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -59,6 +61,10 @@ pub struct Game {
 impl Game {
     pub fn arena(&self) -> &Arena {
         self.arena.as_ref().unwrap()
+    }
+
+    pub fn arena_mut(&mut self) -> &mut Arena {
+        self.arena.as_mut().unwrap()
     }
 }
 

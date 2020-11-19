@@ -385,7 +385,10 @@ impl ServerManager {
         game.step();
 
         let arena = game.arena().unwrap();
-        self.network.send_all(self.room.faster_endpoints(), ServerMessage::Step).ok();
+        let entities = arena.entities().map(|entity| entity.clone()).collect();
+
+        let message = ServerMessage::Step(entities);
+        self.network.send_all(self.room.faster_endpoints(), message).ok();
 
         if arena.has_finished() {
             log::info!(
