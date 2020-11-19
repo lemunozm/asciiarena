@@ -92,7 +92,7 @@ impl ArenaInfoLabelWidget<'_> {
 impl Widget for ArenaInfoLabelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let points = self.state.server.game_info.as_ref().unwrap().winner_points;
-        let number = self.state.server.game.arena.as_ref().unwrap().number;
+        let number = self.state.server.game.arena_number;
 
         let title = Spans::from(vec![
             Span::raw("Arena "),
@@ -262,7 +262,7 @@ struct FinishGameMessageWidget<'a> {state: &'a State}
 
 impl Widget for FinishGameMessageWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        let number = self.state.server.game.arena().number;
+        let number = self.state.server.game.arena_number;
         let message = match self.state.server.game.status {
             GameStatus::Finished => {
                 vec![

@@ -154,8 +154,8 @@ impl Store {
 
                 ServerEvent::StartArena(number) => {
                     self.state.server.game.next_arena_timestamp = None;
+                    self.state.server.game.arena_number = number;
                     self.state.server.game.arena = Some(Arena {
-                        number,
                         status: ArenaStatus::Playing,
                         entities: Vec::new(),
                     });

@@ -40,7 +40,6 @@ pub enum ArenaStatus {
 }
 
 pub struct Arena {
-    pub number: usize,
     pub status: ArenaStatus,
     pub entities: Vec<Entity>,
 }
@@ -55,6 +54,7 @@ pub enum GameStatus {
 pub struct Game {
     pub status: GameStatus,
     pub next_arena_timestamp: Option<Instant>,
+    pub arena_number: usize,
     pub arena: Option<Arena>,
 }
 
@@ -126,6 +126,7 @@ impl State {
                 logged_players: Vec::new(),
                 game: Game {
                     status: GameStatus::NotStarted,
+                    arena_number: 0,
                     next_arena_timestamp: None,
                     arena: None,
                 },
