@@ -3,17 +3,21 @@ use super::arena::{Arena};
 use std::collections::{HashMap};
 
 pub struct Game {
+    arena_number: usize,
     arena: Option<Arena>,
     player_points: HashMap<char, usize>,
     winner_points: usize,
+    map_size: usize,
 }
 
 impl Game {
-    pub fn new(players_it: impl IntoIterator<Item = char>, winner_points: usize) -> Game {
+    pub fn new(players_it: impl IntoIterator<Item = char>, winner_points: usize, map_size: usize) -> Game {
         Game {
+            arena_number: 0,
             arena: None,
             player_points: players_it.into_iter().map(|player|(player, 0)).collect(),
             winner_points,
+            map_size,
         }
     }
 
@@ -21,20 +25,25 @@ impl Game {
         self.arena.as_ref()
     }
 
+    pub fn arena_number(&self) -> usize {
+        self.arena_number
+    }
+
     pub fn pole(&self) -> Vec<(char, usize)> {
-        let mut sorted_players: Vec<(char, usize)> = self.player_points.clone().into_iter().collect();
+        let mut sorted_players = self.player_points
+            .clone()
+            .into_iter()
+            .collect::<Vec<_>>();
+
         sorted_players.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
         sorted_players
     }
 
     pub fn create_new_arena(&mut self) -> &Arena {
-        let new_id = match self.arena.as_ref() {
-            Some(arena) => arena.number() + 1,
-            None => 1,
-        };
+        self.arena_number += 1;
 
         let players = self.player_points.keys().map(|player| *player);
-        self.arena = Some(Arena::new(new_id, players));
+        self.arena = Some(Arena::new(self.map_size, players));
         &self.arena.as_ref().unwrap()
     }
 

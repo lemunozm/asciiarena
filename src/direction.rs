@@ -12,10 +12,10 @@ pub enum Direction {
 impl Direction {
     pub fn vec2(&self) -> Vec2 {
         match *self {
-            Direction::Up => Vec2::y(-1.0),
-            Direction::Right => Vec2::x(1.0),
-            Direction::Down => Vec2::y(1.0),
-            Direction::Left => Vec2::x(-1.0),
+            Direction::Up => Vec2::y(-1),
+            Direction::Right => Vec2::x(1),
+            Direction::Down => Vec2::y(1),
+            Direction::Left => Vec2::x(-1),
         }
     }
 

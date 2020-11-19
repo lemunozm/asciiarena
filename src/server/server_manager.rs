@@ -223,11 +223,13 @@ impl ServerManager {
                         let timestamp = self.timestamp_last_arena_creation.as_ref().unwrap();
                         let duration_since_arena_creation = Instant::now().duration_since(*timestamp);
                         if let Some(waiting) = self.config.arena_waiting.checked_sub(duration_since_arena_creation) {
-                            self.network.send(endpoint, ServerMessage::PrepareArena(waiting)).ok();
+                            let message = ServerMessage::PrepareArena(waiting);
+                            self.network.send(endpoint, message).ok();
                         }
 
-                        if let Some(arena) = game.arena() {
-                            self.network.send(endpoint, ServerMessage::StartArena(arena.number())).ok();
+                        if let Some(_) = game.arena() {
+                            let message = ServerMessage::StartArena(game.arena_number());
+                            self.network.send(endpoint, message).ok();
                         }
                     }
                 }
@@ -277,7 +279,7 @@ impl ServerManager {
     fn process_create_game(&mut self) {
         log::info!("Starting new game");
         let characters = self.room.sessions().map(|session| session.character());
-        let game = Game::new(characters, self.config.winner_points);
+        let game = Game::new(characters, self.config.winner_points, self.config.map_size);
         self.game = Some(game);
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartGame).ok();
@@ -296,10 +298,10 @@ impl ServerManager {
 
     fn process_start_arena(&mut self) {
         let game = self.game.as_mut().unwrap();
-        let arena = game.create_new_arena();
-        log::info!("Start arena {}", arena.number());
+        game.create_new_arena();
+        log::info!("Start arena {}", game.arena_number());
 
-        self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartArena(arena.number())).ok();
+        self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartArena(game.arena_number())).ok();
 
         self.event_queue.sender().send(Event::GameStep);
     }
@@ -314,7 +316,7 @@ impl ServerManager {
         self.network.send_all(self.room.faster_endpoints(), ServerMessage::Step).ok();
 
         if arena.has_finished() {
-            log::info!("End arena {}. Raking: {}", arena.number(), util::format::character_list(arena.ranking().clone()));
+            log::info!("End arena {}. Raking: {}", game.arena_number(), util::format::character_list(arena.ranking().clone()));
             log::info!("Game points: {}", util::format::character_points_list(game.pole()));
             self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishArena).ok();
 

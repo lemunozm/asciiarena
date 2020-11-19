@@ -2,6 +2,8 @@ mod server_manager;
 mod session;
 mod game;
 mod arena;
+mod map;
+mod entity;
 
 use server_manager::{ServerManager, Config};
 
