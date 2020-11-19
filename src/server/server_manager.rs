@@ -41,7 +41,7 @@ pub struct Config {
 pub struct ServerManager {
     event_queue: EventQueue<Event>,
     network: NetworkManager,
-    server_info_subscriptions: HashSet<Endpoint>,
+    subscriptions: HashSet<Endpoint>,
     room: Room<Endpoint>,
     game: Option<Game>,
     timestamp_last_arena_creation: Option<Instant>,
@@ -53,10 +53,14 @@ impl ServerManager {
         let mut event_queue = EventQueue::new();
 
         let network_sender = event_queue.sender().clone();
-        let mut network = NetworkManager::new(move |net_event| network_sender.send(Event::Network(net_event)));
+        let mut network = NetworkManager::new(move |net_event| {
+            network_sender.send(Event::Network(net_event))
+        });
 
-        let network_sender = event_queue.sender().clone();
-        ctrlc::set_handler(move || network_sender.send_with_priority(Event::Close)).unwrap();
+        let signal_sender = event_queue.sender().clone();
+        ctrlc::set_handler(move || {
+            signal_sender.send_with_priority(Event::Close)
+        }).unwrap();
 
         let network_interface = "0.0.0.0";
         if let Err(_) = network.listen_tcp((network_interface, config.tcp_port)) {
@@ -69,11 +73,17 @@ impl ServerManager {
             return None;
         }
 
-        log::info!("Server running on ports {} (tcp) and {} (udp) for {} players", config.tcp_port, config.udp_port, config.players_number);
+        log::info!(
+            "Server running on ports {} (tcp) and {} (udp) for {} players",
+            config.tcp_port,
+            config.udp_port,
+            config.players_number
+        );
+
         Some(ServerManager {
             event_queue,
             network,
-            server_info_subscriptions: HashSet::new(),
+            subscriptions: HashSet::new(),
             room: Room::new(config.players_number as usize),
             game: None,
             timestamp_last_arena_creation: None,
@@ -86,6 +96,25 @@ impl ServerManager {
             let event = self.event_queue.receive();
             log::trace!("[Process event] - {:?}", event);
             match event {
+                Event::CreateGame => {
+                    self.process_create_game();
+                },
+                Event::PrepareArena => {
+                    self.process_prepare_arena();
+                },
+                Event::StartArena => {
+                    self.process_start_arena();
+                },
+                Event::GameStep => {
+                    self.process_game_step();
+                },
+                Event::Reset => {
+                    self.process_reset();
+                }
+                Event::Close => {
+                    log::info!("Closing server");
+                    break
+                },
                 Event::Network(net_event) => match net_event {
                     NetEvent::AddedEndpoint(_) => (),
                     NetEvent::RemovedEndpoint(endpoint) => {
@@ -121,25 +150,6 @@ impl ServerManager {
                         }
                     },
                 },
-                Event::CreateGame => {
-                    self.process_create_game();
-                },
-                Event::PrepareArena => {
-                    self.process_prepare_arena();
-                },
-                Event::StartArena => {
-                    self.process_start_arena();
-                },
-                Event::GameStep => {
-                    self.process_game_step();
-                },
-                Event::Reset => {
-                    self.process_reset();
-                }
-                Event::Close => {
-                    log::info!("Closing server");
-                    break
-                },
             }
         }
     }
@@ -150,12 +160,22 @@ impl ServerManager {
             Compatibility::Fully =>
                 log::trace!("Fully compatible versions: {}", client_version),
             Compatibility::NotExact =>
-                log::warn!("Compatible client version, but not exact. Client: {}. Server: {}", client_version, version::current()),
+                log::warn!(
+                    "Compatible client version, but not exact. Client: {}. Server: {}",
+                    client_version,
+                    version::current()
+                ),
             Compatibility::None =>
-                log::error!("Incompatible client version. Client: {}. Server: {}. Connection rejected", client_version, version::current()),
+                log::error!(
+                    "Incompatible client version. Client: {}. Server: {}. Connection rejected",
+                    client_version,
+                    version::current()
+                ),
         };
 
-        self.network.send(endpoint, ServerMessage::Version(version::current().into(), compatibility)).unwrap();
+        let message = ServerMessage::Version(version::current().into(), compatibility);
+        self.network.send(endpoint, message).ok();
+
         if let Compatibility::None = compatibility {
             self.network.remove_resource(endpoint.resource_id()).unwrap();
         }
@@ -167,11 +187,14 @@ impl ServerManager {
             players_number: self.config.players_number,
             map_size: self.config.map_size as u16,
             winner_points: self.config.winner_points as u16,
-            logged_players: self.room.sessions().map(|session| session.character()).collect(),
+            logged_players: self.room
+                .sessions()
+                .map(|session| session.character())
+                .collect(),
         };
 
         log::trace!("Client {} has subscribed to server info", endpoint.addr());
-        self.server_info_subscriptions.insert(endpoint);
+        self.subscriptions.insert(endpoint);
         self.network.send(endpoint, ServerMessage::ServerInfo(info)).unwrap();
     }
 
@@ -184,8 +207,16 @@ impl ServerManager {
         else {
             match self.room.create_session(character, endpoint) {
                 SessionCreationResult::Created(token) => {
-                    let characters = self.room.sessions().map(|session| session.character()).sorted();
-                    log::info!("New player logged: {}, current players: {}", character, util::format::character_list(characters));
+                    let characters = self.room
+                        .sessions()
+                        .map(|session| session.character())
+                        .sorted();
+
+                    log::info!(
+                        "New player logged: {}, current players: {}",
+                        character,
+                        util::format::character_list(characters)
+                    );
                     LoginStatus::Logged(token, LoggedKind::FirstTime)
                 },
                 SessionCreationResult::Recycled(token) => {
@@ -193,24 +224,41 @@ impl ServerManager {
                     LoginStatus::Logged(token, LoggedKind::Reconnection)
                 },
                 SessionCreationResult::AlreadyLogged => {
-                    log::warn!("Player '{}' has tried to login but the character name is already logged", character);
+                    log::warn!(
+                        "Player '{}' has tried to login but the character name is already logged",
+                        character
+                    );
                     LoginStatus::AlreadyLogged
                 },
                 SessionCreationResult::Full => {
-                    log::warn!("Player '{}' has tried to login but the player limit has been reached", character);
+                    log::warn!(
+                        "Player '{}' has tried to login but the player limit has been reached",
+                        character
+                    );
                     LoginStatus::PlayerLimit
                 },
             }
         };
 
-        log::trace!("{} with player name '{}' attempts to login. Status: {:?}", endpoint.addr(), character, status);
+        log::trace!(
+            "{} with player name '{}' attempts to login. Status: {:?}",
+            endpoint.addr(),
+            character,
+            status
+        );
+
         self.network.send(endpoint, ServerMessage::LoginStatus(character, status)).unwrap();
 
         if let LoginStatus::Logged(_, kind) = status { // First time connection
             match kind {
                 LoggedKind::FirstTime => {
-                    let characters = self.room.sessions().map(|session| session.character()).collect();
-                    self.network.send_all(self.server_info_subscriptions.iter(), ServerMessage::DynamicServerInfo(characters)).ok();
+                    let characters = self.room
+                        .sessions()
+                        .map(|session| session.character())
+                        .collect();
+
+                    let message = ServerMessage::DynamicServerInfo(characters);
+                    self.network.send_all(self.subscriptions.iter(), message).ok();
 
                     if self.game.is_none() && self.room.is_full() {
                         self.event_queue.sender().send(Event::CreateGame);
@@ -221,8 +269,8 @@ impl ServerManager {
                         self.network.send(endpoint, ServerMessage::StartGame).ok();
 
                         let timestamp = self.timestamp_last_arena_creation.as_ref().unwrap();
-                        let duration_since_arena_creation = Instant::now().duration_since(*timestamp);
-                        if let Some(waiting) = self.config.arena_waiting.checked_sub(duration_since_arena_creation) {
+                        let duration = Instant::now().duration_since(*timestamp);
+                        if let Some(waiting) = self.config.arena_waiting.checked_sub(duration) {
                             let message = ServerMessage::PrepareArena(waiting);
                             self.network.send(endpoint, message).ok();
                         }
@@ -246,11 +294,19 @@ impl ServerManager {
         }
         else {
             if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
-                log::info!("Player '{}' logout, current players: {} ", session.character(),
-                    util::format::character_list(self.room.sessions().map(|session| session.character()).sorted()));
+                let characters = self.room
+                    .sessions()
+                    .map(|session| session.character())
+                    .collect::<Vec<_>>();
 
-                let characters = self.room.sessions().map(|session| session.character()).collect();
-                self.network.send_all(self.server_info_subscriptions.iter(), ServerMessage::DynamicServerInfo(characters)).ok();
+                log::info!(
+                    "Player '{}' logout, current players: {} ",
+                    session.character(),
+                    util::format::character_list(characters.iter().sorted())
+                );
+
+                let message = ServerMessage::DynamicServerInfo(characters);
+                self.network.send_all(self.subscriptions.iter(), message).ok();
             }
         }
     }
@@ -262,15 +318,27 @@ impl ServerManager {
                 session.set_untrusted_fast_endpoint(udp_endpoint);
                 self.network.send(udp_endpoint, ServerMessage::UdpConnected).unwrap();
             }
-            None => log::warn!("Attempt to attach udp endpoint to non-existent session '{}'", session_token),
+            None =>
+                log::warn!(
+                    "Attempt to attach udp endpoint to non-existent session '{}'",
+                    session_token
+                )
         }
     }
 
     fn process_trust_udp(&mut self, related_tcp_endpoint: Endpoint) {
         match self.room.session_by_endpoint_mut(related_tcp_endpoint) {
             Some(session) => match session.trust_in_fast_endpoint() {
-                Some(_) => log::trace!("Trusted udp endpoint for session '{}'", session.token()),
-                None => log::error!("Attempt to trust into a non-existent udp endpoint. Session '{}'", session.token()),
+                Some(_) =>
+                    log::trace!(
+                        "Trusted udp endpoint for session '{}'",
+                        session.token()
+                    ),
+                None =>
+                    log::error!(
+                        "Attempt to trust into a non-existent udp endpoint. Session '{}'",
+                        session.token()
+                    ),
             },
             None => log::error!("Attempt to trust an udp endpoint in an non-existent session"),
         }
@@ -279,8 +347,7 @@ impl ServerManager {
     fn process_create_game(&mut self) {
         log::info!("Starting new game");
         let characters = self.room.sessions().map(|session| session.character());
-        let game = Game::new(characters, self.config.winner_points, self.config.map_size);
-        self.game = Some(game);
+        self.game = Some(Game::new(characters, self.config.winner_points, self.config.map_size));
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartGame).ok();
 
@@ -288,9 +355,13 @@ impl ServerManager {
     }
 
     fn process_prepare_arena(&mut self) {
-        log::trace!("Initializing next arena in {} seconds...", self.config.arena_waiting.as_secs_f32());
+        log::trace!(
+            "Initializing next arena in {} seconds...",
+            self.config.arena_waiting.as_secs_f32()
+        );
 
-        self.network.send_all(self.room.safe_endpoints(), ServerMessage::PrepareArena(self.config.arena_waiting)).ok();
+        let message = ServerMessage::PrepareArena(self.config.arena_waiting);
+        self.network.send_all(self.room.safe_endpoints(), message).ok();
 
         self.event_queue.sender().send_with_timer(Event::StartArena, self.config.arena_waiting);
         self.timestamp_last_arena_creation = Some(Instant::now());
@@ -301,7 +372,8 @@ impl ServerManager {
         game.create_new_arena();
         log::info!("Start arena {}", game.arena_number());
 
-        self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartArena(game.arena_number())).ok();
+        let message = ServerMessage::StartArena(game.arena_number());
+        self.network.send_all(self.room.safe_endpoints(), message).ok();
 
         self.event_queue.sender().send(Event::GameStep);
     }
@@ -316,7 +388,11 @@ impl ServerManager {
         self.network.send_all(self.room.faster_endpoints(), ServerMessage::Step).ok();
 
         if arena.has_finished() {
-            log::info!("End arena {}. Raking: {}", game.arena_number(), util::format::character_list(arena.ranking().clone()));
+            log::info!(
+                "End arena {}. Raking: {}",
+                game.arena_number(),
+                util::format::character_list(arena.ranking().clone())
+            );
             log::info!("Game points: {}", util::format::character_points_list(game.pole()));
             self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishArena).ok();
 
@@ -340,12 +416,17 @@ impl ServerManager {
         self.game = None;
         self.room.clear();
 
-        let characters = self.room.sessions().map(|session| session.character()).collect();
-        self.network.send_all(self.server_info_subscriptions.iter(), ServerMessage::DynamicServerInfo(characters)).ok();
+        let characters = self.room
+            .sessions()
+            .map(|session| session.character())
+            .collect();
+
+        let message = ServerMessage::DynamicServerInfo(characters);
+        self.network.send_all(self.subscriptions.iter(), message).ok();
     }
 
     fn process_disconnection(&mut self, endpoint: Endpoint) {
-        if self.server_info_subscriptions.remove(&endpoint) {
+        if self.subscriptions.remove(&endpoint) {
             log::trace!("Client {} has unsubscribed to server info", endpoint.addr());
         }
         self.process_logout(endpoint);
