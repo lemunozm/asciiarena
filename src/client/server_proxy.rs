@@ -1,7 +1,6 @@
 pub use crate::message::{LoginStatus, ServerInfo};
-use crate::message::{ClientMessage, ServerMessage, LoggedKind};
+use crate::message::{ClientMessage, ServerMessage, LoggedKind, EntityData};
 use crate::version::{self, Compatibility};
-use crate::entity::{Entity};
 use crate::util::{self};
 
 use message_io::events::{EventQueue, EventSender};
@@ -45,7 +44,7 @@ pub enum ServerEvent {
     PrepareArena(Duration),
     StartArena(usize),
     FinishArena,
-    ArenaStep(Vec<Entity>),
+    ArenaStep(Vec<EntityData>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -410,7 +409,7 @@ where C: Fn(ServerEvent) {
         (self.event_callback)(ServerEvent::FinishArena);
     }
 
-    fn process_arena_step(&mut self, entities: Vec<Entity>) {
+    fn process_arena_step(&mut self, entities: Vec<EntityData>) {
         log::info!("Process arena step");
         (self.event_callback)(ServerEvent::ArenaStep(entities));
     }

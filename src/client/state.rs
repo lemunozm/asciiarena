@@ -1,6 +1,5 @@
 use crate::version::{Compatibility};
-use crate::message::{LoginStatus};
-use crate::entity::{Entity};
+use crate::message::{LoginStatus, EntityData};
 
 use super::server_proxy::{ConnectionStatus};
 use super::configuration::{Config};
@@ -41,7 +40,7 @@ pub enum ArenaStatus {
 
 pub struct Arena {
     pub status: ArenaStatus,
-    pub entities: Vec<Entity>,
+    pub entities: Vec<EntityData>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

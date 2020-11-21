@@ -2,8 +2,9 @@ use super::session::{Room, SessionCreationResult};
 use super::game::{Game};
 
 use crate::message::{ClientMessage, ServerMessage, ServerInfo,
-    LoginStatus, LoggedKind, SessionToken};
+    LoginStatus, LoggedKind, SessionToken, EntityData};
 use crate::version::{self, Compatibility};
+use crate::direction::{Direction};
 use crate::util::{self};
 
 use message_io::events::{EventQueue};
@@ -141,8 +142,8 @@ impl ServerManager {
                             ClientMessage::TrustUdp => {
                                 self.process_trust_udp(endpoint);
                             },
-                            ClientMessage::MovePlayer => {
-                                //TODO
+                            ClientMessage::MovePlayer(direction) => {
+                                self.process_move_player(endpoint, direction);
                             },
                             ClientMessage::CastSkill => {
                                 //TODO
@@ -347,7 +348,7 @@ impl ServerManager {
     fn process_create_game(&mut self) {
         log::info!("Starting new game");
         let characters = self.room.sessions().map(|session| session.character());
-        self.game = Some(Game::new(characters, self.config.winner_points, self.config.map_size));
+        self.game = Some(Game::new(self.config.winner_points, self.config.map_size, characters));
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartGame).ok();
 
@@ -384,19 +385,46 @@ impl ServerManager {
         log::trace!("Processing step");
         game.step();
 
-        let arena = game.arena().unwrap();
-        let entities = arena.entities().map(|entity| entity.clone()).collect();
+        if let Some(arena) = game.arena() {
+            let entities_data = arena.entities().map(|entity| {
+                EntityData {
+                    id: entity.id(),
+                    character_id: entity.character().id(),
+                    position: entity.position(),
+                    live: entity.live(),
+                    energy: entity.live(),
+                }
+            }).collect();
 
-        let message = ServerMessage::Step(entities);
-        self.network.send_all(self.room.faster_endpoints(), message).ok();
+            let message = ServerMessage::Step(entities_data);
+            self.network.send_all(self.room.faster_endpoints(), message).ok();
 
-        if arena.has_finished() {
+            self.event_queue.sender().send_with_timer(Event::GameStep, *GAME_STEP_DURATION);
+        }
+        else { // Arena finished
+            let ranking = game
+                .pole()
+                .iter()
+                .map(|player| player.character().symbol())
+                .collect::<Vec<_>>();
+
             log::info!(
                 "End arena {}. Raking: {}",
                 game.arena_number(),
-                util::format::character_list(arena.ranking().clone())
+                util::format::character_list(ranking)
             );
-            log::info!("Game points: {}", util::format::character_points_list(game.pole()));
+
+            let player_total_points_pairs = game
+                .pole()
+                .iter()
+                .map(|player| (player.character().symbol(), player.total_points()))
+                .collect::<Vec<_>>();
+
+            log::info!(
+                "Game points: {}",
+                util::format::character_points_list(player_total_points_pairs)
+            );
+
             self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishArena).ok();
 
             if game.has_finished() {
@@ -409,9 +437,20 @@ impl ServerManager {
                 self.event_queue.sender().send(Event::PrepareArena);
             }
         }
-        else {
-            self.event_queue.sender().send_with_timer(Event::GameStep, *GAME_STEP_DURATION);
-        }
+    }
+
+    fn process_move_player(&mut self, endpoint: Endpoint, direction: Direction) {
+        match self.game.as_mut() {
+            Some(game) => match self.room.session_by_endpoint(endpoint) {
+                Some(session) => {
+                    let player = game.player_mut(session.character()).unwrap();
+                    player.walk(direction);
+                }
+                None => return, // Unlogged client attempted to move a character. Maybe an attack?
+            },
+            None => return //and log: game is not started yet
+        };
+
     }
 
     fn process_reset(&mut self) {

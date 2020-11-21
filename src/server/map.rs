@@ -14,16 +14,12 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn new(size: usize, players: usize) -> Map {
+    pub fn new(size: usize, players_number: usize) -> Map {
         Map {
             size,
             ground: Vec::new(), //TODO
-            initial_positions: Self::random_separated_positions(size, players),
+            initial_positions: Self::random_separated_positions(size, players_number),
         }
-    }
-
-    pub fn initial_position(&self, index: usize) -> Option<Vec2> {
-        self.initial_positions.get(index).map(|pos| *pos)
     }
 
     fn random_separated_positions(size: usize, number: usize) -> Vec<Vec2> {
@@ -35,5 +31,9 @@ impl Map {
 
             Vec2::xy(x_range.sample(&mut rng) as i32, y_range.sample(&mut rng) as i32)
         }).collect()
+    }
+
+    pub fn initial_position(&self, index: usize) -> Vec2 {
+        *self.initial_positions.get(index).unwrap()
     }
 }

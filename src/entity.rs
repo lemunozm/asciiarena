@@ -1,27 +1,64 @@
-use crate::vec2::Vec2;
+use crate::character::{Character};
+use crate::vec2::{Vec2};
+use crate::direction::{Direction};
 
-use serde::{Serialize, Deserialize};
+use std::rc::{Rc};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+pub type EntityId = usize;
+
+pub enum Action {
+    Walk(Direction),
+   // Cast(Skill),
+}
+
+pub trait Control {
+    fn next_action(&mut self) -> Option<Action>;
+    fn notify_death(&mut self);
+}
+
 pub struct Entity {
-    symbol: char,
+    id: EntityId,
+    character: Rc<Character>,
+    direction: Direction,
     position: Vec2,
-    max_live: usize,
     live: usize,
-    max_energy: usize,
     energy: usize,
 }
 
 impl Entity {
-    pub fn new(symbol: char, position: Vec2, max_live: usize, max_energy: usize) -> Entity {
+    pub fn new(id: EntityId, character: Rc<Character>, position: Vec2) -> Entity {
         Entity {
-            symbol,
+            id,
             position,
-            max_live: 100,
-            live: 100,
-            max_energy: 100,
-            energy: 100,
+            direction: Direction::Down,
+            live: character.max_live(),
+            energy: character.max_energy(),
+            character,
         }
+    }
+
+    pub fn id(&self) -> EntityId {
+        self.id
+    }
+
+    pub fn character(&self) -> &Character {
+        &*self.character
+    }
+
+    pub fn live(&self) -> usize {
+        self.live
+    }
+
+    pub fn energy(&self) -> usize {
+        self.energy
+    }
+
+    pub fn position(&self) -> Vec2 {
+        self.position
+    }
+
+    pub fn direction(&self) -> Direction {
+        self.direction
     }
 
     pub fn set_position(&mut self, position: Vec2) {
@@ -32,28 +69,12 @@ impl Entity {
         self.position += displacement;
     }
 
-    pub fn symbol(&self) -> char {
-        self.symbol
+    pub fn walk(&mut self, direction: Direction) {
+        //TODO: compute speed
+        self.position += direction.to_vec2();
     }
 
-    pub fn position(&self) -> Vec2 {
-        self.position
-    }
-
-    pub fn max_live(&self) -> usize {
-        self.max_live
-    }
-
-    pub fn max_energy(&self) -> usize {
-        self.max_energy
-    }
-
-    pub fn live(&self) -> usize {
-        self.live
-    }
-
-    pub fn energy(&self) -> usize {
-        self.energy
+    pub fn set_direction(&mut self, direction: Direction) {
+        self.direction = direction;
     }
 }
-

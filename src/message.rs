@@ -1,5 +1,8 @@
 use crate::version::{Compatibility};
-use crate::entity::{Entity};
+use crate::character::{CharacterId};
+use crate::entity::{EntityId};
+use crate::vec2::{Vec2};
+use crate::direction::{Direction};
 
 use serde::{Serialize, Deserialize};
 
@@ -27,7 +30,7 @@ pub enum ClientMessage {
     TrustUdp,
 
     // Arena real time messages
-    MovePlayer, //direction
+    MovePlayer(Direction), //direction
     CastSkill, //id
 }
 
@@ -57,7 +60,7 @@ pub enum ServerMessage {
     FinishArena, // winners
 
     // Arena real time messages
-    Step(Vec<Entity>), //arena state
+    Step(Vec<EntityData>), //arena state
 }
 
 // ===================================================
@@ -86,4 +89,13 @@ pub struct ServerInfo {
     pub map_size: u16,
     pub winner_points: u16,
     pub logged_players: Vec<char>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EntityData {
+    pub id: EntityId,
+    pub character_id: CharacterId,
+    pub position: Vec2,
+    pub live: usize,
+    pub energy: usize,
 }

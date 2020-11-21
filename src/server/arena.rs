@@ -1,59 +1,48 @@
 use crate::server::map::{Map};
-use crate::entity::{Entity};
-
-use rand::seq::SliceRandom;
+use crate::entity::{Entity, EntityId};
+use crate::character::{Character};
+use crate::vec2::Vec2;
 
 use std::collections::{HashMap};
 
-pub type EntityId = usize;
+use std::rc::{Rc};
 
 pub struct Arena {
-    ranking: Vec<char>,
     map: Map,
-    players: HashMap<char, EntityId>,
     entities: HashMap<EntityId, Entity>,
     next_entity_id: EntityId,
 }
 
 impl Arena {
-    pub fn new(map_size: usize, players_it: impl Iterator<Item = char> + Clone) -> Arena {
-        let mut arena = Arena {
-            ranking: Vec::new(),
-            map: Map::new(map_size, players_it.clone().count()),
-            players: HashMap::new(),
+    pub fn new(map_size: usize, players_number: usize) -> Arena {
+        Arena {
+            map: Map::new(map_size, players_number),
             entities: HashMap::new(),
             next_entity_id: 0,
-        };
-
-        for (index, player) in players_it.enumerate() {
-            let entity = Entity::new(player, arena.map.initial_position(index).unwrap(), 100, 100);
-            let id = arena.add_entity(entity);
-            arena.players.insert(player, id);
         }
-
-        arena
     }
 
-    pub fn step(&mut self) {
-        self.ranking = self.players.keys().map(|player| *player).collect();
-        self.ranking.shuffle(&mut rand::thread_rng());
+    pub fn map(&self) -> &Map {
+        &self.map
     }
 
-    pub fn add_entity(&mut self, entity: Entity) -> EntityId {
-        self.entities.insert(self.next_entity_id, entity);
-        self.next_entity_id += 1;
-        self.next_entity_id
-    }
-
-    pub fn has_finished(&self) -> bool {
-        self.ranking.len() == self.players.len()
-    }
-
-    pub fn ranking(&self) -> &Vec<char> {
-        &self.ranking
+    pub fn entity_mut(&mut self, entity_id: EntityId) -> Option<&mut Entity> {
+        self.entities.get_mut(&entity_id)
     }
 
     pub fn entities(&self) -> impl Iterator<Item = &Entity> {
         self.entities.values()
+    }
+
+    pub fn create_entity(&mut self, character: Rc<Character>, position: Vec2) -> &mut Entity {
+        let id = self.next_entity_id;
+        let entity = Entity::new(id, character, position);
+        self.next_entity_id += 1;
+        self.entities.insert(id, entity);
+        self.entities.get_mut(&id).unwrap()
+    }
+
+    pub fn update(&mut self) -> Vec<Entity> {
+        Vec::new() // removed entities
     }
 }
