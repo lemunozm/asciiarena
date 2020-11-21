@@ -1,5 +1,6 @@
-use crate::server::map::{Map};
-use crate::entity::{Entity, EntityId};
+use super::map::{Map};
+use super::entity::{Entity, EntityId};
+
 use crate::character::{Character};
 use crate::vec2::Vec2;
 

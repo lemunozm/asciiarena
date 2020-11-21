@@ -1,6 +1,5 @@
 use crate::version::{Compatibility};
 use crate::character::{CharacterId};
-use crate::entity::{EntityId};
 use crate::vec2::{Vec2};
 use crate::direction::{Direction};
 
@@ -93,7 +92,7 @@ pub struct ServerInfo {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EntityData {
-    pub id: EntityId,
+    pub id: usize,
     pub character_id: CharacterId,
     pub position: Vec2,
     pub live: usize,

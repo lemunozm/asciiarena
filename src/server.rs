@@ -1,8 +1,6 @@
 mod server_manager;
 mod session;
 mod game;
-mod arena;
-mod map;
 
 use server_manager::{ServerManager, Config};
 

@@ -1,7 +1,11 @@
-use super::arena::{Arena};
+mod arena;
+mod entity;
+mod map;
+
+use arena::{Arena};
+use entity::{EntityId, Control as EntityControl, Action as EntityAction};
 
 use crate::character::{Character, CharacterId, CharacterBuilder};
-use crate::entity::{EntityId, Control as EntityControl, Action as EntityAction};
 use crate::direction::{Direction};
 
 use std::collections::{HashMap, VecDeque, HashSet};
