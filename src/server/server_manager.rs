@@ -23,7 +23,7 @@ lazy_static! {
 enum Event {
     Network(NetEvent<ClientMessage>),
     CreateGame,
-    PrepareArena,
+    WaitArena,
     StartArena,
     GameStep,
     Reset,
@@ -100,8 +100,8 @@ impl ServerManager {
                 Event::CreateGame => {
                     self.process_create_game();
                 },
-                Event::PrepareArena => {
-                    self.process_prepare_arena();
+                Event::WaitArena => {
+                    self.process_wait_arena();
                 },
                 Event::StartArena => {
                     self.process_start_arena();
@@ -272,7 +272,7 @@ impl ServerManager {
                         let timestamp = self.timestamp_last_arena_creation.as_ref().unwrap();
                         let duration = Instant::now().duration_since(*timestamp);
                         if let Some(waiting) = self.config.arena_waiting.checked_sub(duration) {
-                            let message = ServerMessage::PrepareArena(waiting);
+                            let message = ServerMessage::WaitArena(waiting);
                             self.network.send(endpoint, message).ok();
                         }
 
@@ -352,16 +352,16 @@ impl ServerManager {
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartGame).ok();
 
-        self.event_queue.sender().send(Event::PrepareArena);
+        self.event_queue.sender().send(Event::WaitArena);
     }
 
-    fn process_prepare_arena(&mut self) {
+    fn process_wait_arena(&mut self) {
         log::trace!(
             "Initializing next arena in {} seconds...",
             self.config.arena_waiting.as_secs_f32()
         );
 
-        let message = ServerMessage::PrepareArena(self.config.arena_waiting);
+        let message = ServerMessage::WaitArena(self.config.arena_waiting);
         self.network.send_all(self.room.safe_endpoints(), message).ok();
 
         self.event_queue.sender().send_with_timer(Event::StartArena, self.config.arena_waiting);
@@ -434,7 +434,7 @@ impl ServerManager {
                 self.event_queue.sender().send(Event::Reset);
             }
             else {
-                self.event_queue.sender().send(Event::PrepareArena);
+                self.event_queue.sender().send(Event::WaitArena);
             }
         }
     }

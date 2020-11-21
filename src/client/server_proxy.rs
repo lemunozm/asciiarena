@@ -41,7 +41,7 @@ pub enum ServerEvent {
     UdpReachable(bool),
     StartGame,
     FinishGame,
-    PrepareArena(Duration),
+    WaitArena(Duration),
     StartArena(usize),
     FinishArena,
     ArenaStep(Vec<EntityData>),
@@ -270,8 +270,8 @@ where C: Fn(ServerEvent) {
                     ServerMessage::FinishGame => {
                         self.process_finish_game();
                     },
-                    ServerMessage::PrepareArena(duration) => {
-                        self.process_prepare_arena(duration);
+                    ServerMessage::WaitArena(duration) => {
+                        self.process_wait_arena(duration);
                     },
                     ServerMessage::StartArena(number) => {
                         self.process_start_arena(number);
@@ -394,9 +394,9 @@ where C: Fn(ServerEvent) {
         (self.event_callback)(ServerEvent::FinishGame);
     }
 
-    fn process_prepare_arena(&mut self, duration: Duration) {
+    fn process_wait_arena(&mut self, duration: Duration) {
         log::info!("The arena will be start in {}", duration.as_secs_f32());
-        (self.event_callback)(ServerEvent::PrepareArena(duration));
+        (self.event_callback)(ServerEvent::WaitArena(duration));
     }
 
     fn process_start_arena(&mut self, number: usize) {

@@ -146,7 +146,7 @@ impl Store {
                     self.state.user.login_status = None;
                 },
 
-                ServerEvent::PrepareArena(duration) => {
+                ServerEvent::WaitArena(duration) => {
                     self.state.server.game.next_arena_timestamp = Some(
                         Instant::now() + duration
                     );

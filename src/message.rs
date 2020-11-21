@@ -53,12 +53,10 @@ pub enum ServerMessage {
     StartGame,
     FinishGame, //points
 
-    // Arena prelude level messages
-    PrepareArena(Duration),
+    // Arena level messages
+    WaitArena(Duration),
     StartArena(usize), // number
     FinishArena, // winners
-
-    // Arena real time messages
     Step(Vec<EntityData>), //arena state
 }
 
