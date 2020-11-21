@@ -1,4 +1,4 @@
-use super::session::{Room, SessionCreationResult};
+use super::session::{RoomSession, SessionStatus};
 use super::game::{Game};
 
 use crate::message::{ClientMessage, ServerMessage, ServerInfo,
@@ -43,7 +43,7 @@ pub struct ServerManager {
     event_queue: EventQueue<Event>,
     network: NetworkManager,
     subscriptions: HashSet<Endpoint>,
-    room: Room<Endpoint>,
+    room: RoomSession<Endpoint, char>,
     game: Option<Game>,
     timestamp_last_arena_creation: Option<Instant>,
     config: Config,
@@ -85,7 +85,7 @@ impl ServerManager {
             event_queue,
             network,
             subscriptions: HashSet::new(),
-            room: Room::new(config.players_number as usize),
+            room: RoomSession::new(config.players_number as usize),
             game: None,
             timestamp_last_arena_creation: None,
             config,
@@ -190,7 +190,7 @@ impl ServerManager {
             winner_points: self.config.winner_points as u16,
             logged_players: self.room
                 .sessions()
-                .map(|session| session.character())
+                .map(|session| *session.user())
                 .collect(),
         };
 
@@ -207,31 +207,31 @@ impl ServerManager {
         }
         else {
             match self.room.create_session(character, endpoint) {
-                SessionCreationResult::Created(token) => {
-                    let characters = self.room
+                SessionStatus::Created(token) => {
+                    let player_names = self.room
                         .sessions()
-                        .map(|session| session.character())
+                        .map(|session| session.user())
                         .sorted();
 
                     log::info!(
                         "New player logged: {}, current players: {}",
                         character,
-                        util::format::character_list(characters)
+                        util::format::character_list(player_names)
                     );
                     LoginStatus::Logged(token, LoggedKind::FirstTime)
                 },
-                SessionCreationResult::Recycled(token) => {
+                SessionStatus::Recycled(token) => {
                     log::info!("Player '{}' reconnected", character);
                     LoginStatus::Logged(token, LoggedKind::Reconnection)
                 },
-                SessionCreationResult::AlreadyLogged => {
+                SessionStatus::AlreadyLogged => {
                     log::warn!(
                         "Player '{}' has tried to login but the character name is already logged",
                         character
                     );
                     LoginStatus::AlreadyLogged
                 },
-                SessionCreationResult::Full => {
+                SessionStatus::Full => {
                     log::warn!(
                         "Player '{}' has tried to login but the player limit has been reached",
                         character
@@ -253,12 +253,12 @@ impl ServerManager {
         if let LoginStatus::Logged(_, kind) = status { // First time connection
             match kind {
                 LoggedKind::FirstTime => {
-                    let characters = self.room
+                    let player_names = self.room
                         .sessions()
-                        .map(|session| session.character())
+                        .map(|session| *session.user())
                         .collect();
 
-                    let message = ServerMessage::DynamicServerInfo(characters);
+                    let message = ServerMessage::DynamicServerInfo(player_names);
                     self.network.send_all(self.subscriptions.iter(), message).ok();
 
                     if self.game.is_none() && self.room.is_full() {
@@ -290,23 +290,23 @@ impl ServerManager {
         if self.game.is_some() {
             if let Some(session) = self.room.session_by_endpoint_mut(endpoint) {
                 session.disconnect();
-                log::info!("Player '{}' disconnected", session.character());
+                log::info!("Player '{}' disconnected", session.user());
             }
         }
         else {
             if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
-                let characters = self.room
+                let player_names = self.room
                     .sessions()
-                    .map(|session| session.character())
+                    .map(|session| *session.user())
                     .collect::<Vec<_>>();
 
                 log::info!(
                     "Player '{}' logout, current players: {} ",
-                    session.character(),
-                    util::format::character_list(characters.iter().sorted())
+                    session.user(),
+                    util::format::character_list(player_names.iter().sorted())
                 );
 
-                let message = ServerMessage::DynamicServerInfo(characters);
+                let message = ServerMessage::DynamicServerInfo(player_names);
                 self.network.send_all(self.subscriptions.iter(), message).ok();
             }
         }
@@ -347,8 +347,8 @@ impl ServerManager {
 
     fn process_create_game(&mut self) {
         log::info!("Starting new game");
-        let characters = self.room.sessions().map(|session| session.character());
-        self.game = Some(Game::new(self.config.winner_points, self.config.map_size, characters));
+        let player_names = self.room.sessions().map(|session| *session.user());
+        self.game = Some(Game::new(self.config.winner_points, self.config.map_size, player_names));
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartGame).ok();
 
@@ -443,7 +443,7 @@ impl ServerManager {
         match self.game.as_mut() {
             Some(game) => match self.room.session_by_endpoint(endpoint) {
                 Some(session) => {
-                    let player = game.player_mut(session.character()).unwrap();
+                    let player = game.player_mut(*session.user()).unwrap();
                     player.walk(direction);
                 }
                 None => return, // Unlogged client attempted to move a character. Maybe an attack?
@@ -458,12 +458,12 @@ impl ServerManager {
         self.game = None;
         self.room.clear();
 
-        let characters = self.room
+        let player_names = self.room
             .sessions()
-            .map(|session| session.character())
+            .map(|session| *session.user())
             .collect();
 
-        let message = ServerMessage::DynamicServerInfo(characters);
+        let message = ServerMessage::DynamicServerInfo(player_names);
         self.network.send_all(self.subscriptions.iter(), message).ok();
     }
 

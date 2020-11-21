@@ -31,6 +31,5 @@ impl Character {
     pub fn speed_base(&self) -> usize {
         self.speed_base
     }
-
 }
 
