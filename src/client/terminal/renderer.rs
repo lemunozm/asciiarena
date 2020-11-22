@@ -19,9 +19,8 @@ impl Renderer {
         terminal::enable_raw_mode().unwrap();
         io::stdout().execute(terminal::EnterAlternateScreen).unwrap();
 
-        let terminal = Terminal::new(CrosstermBackend::new(io::stdout())).unwrap();
         Renderer {
-            terminal: terminal,
+            terminal: Terminal::new(CrosstermBackend::new(io::stdout())).unwrap();
         }
     }
 
