@@ -4,25 +4,12 @@ use crate::direction::{Direction};
 
 use std::time::{Instant, Duration};
 use std::rc::{Rc};
-use std::cell::{RefCell, RefMut};
 
 pub type EntityId = usize;
-
-pub enum Action {
-    Walk(Direction),
-    Cast(usize /*Skill*/),
-}
-
-pub trait Control {
-    fn attach_entity(&mut self, entity: EntityId);
-    fn detach_entity(&mut self);
-    fn pop_action(&mut self) -> Option<Action>;
-}
 
 pub struct Entity {
     id: EntityId,
     character: Rc<Character>,
-    control: Rc<RefCell<dyn Control>>,
     direction: Direction,
     position: Vec2,
     live: usize,
@@ -36,11 +23,9 @@ impl Entity {
         id: EntityId,
         character: Rc<Character>,
         position: Vec2,
-        control: Rc<RefCell<dyn Control>>
     ) -> Entity {
         Entity {
             id,
-            control,
             position,
             direction: Direction::Down,
             live: character.max_live(),
@@ -59,10 +44,6 @@ impl Entity {
         &*self.character
     }
 
-    pub fn control_mut(&self) -> RefMut<'_, dyn Control> {
-        self.control.borrow_mut()
-    }
-
     pub fn live(&self) -> usize {
         self.live
     }
@@ -77,6 +58,10 @@ impl Entity {
 
     pub fn direction(&self) -> Direction {
         self.direction
+    }
+
+    pub fn is_alive(&self) -> bool {
+        self.live > 0
     }
 
     pub fn set_position(&mut self, position: Vec2) {

@@ -2,6 +2,7 @@ mod player;
 mod arena;
 mod entity;
 mod map;
+mod control;
 
 use player::{Player};
 use arena::{Arena};
@@ -101,8 +102,10 @@ impl Game {
         for (index, player) in self.players.values_mut().enumerate() {
             let position = arena.map().initial_position(index);
             let character = player.character().clone();
+            let entity = arena.create_entity(character, position);
             let control = player.control().clone();
-            arena.create_entity(character, position, control);
+            control.borrow_mut().attach_entity(entity.id());
+            arena.attach_entity_control(control);
             player.reset_partial_points();
         }
 
@@ -128,7 +131,7 @@ impl Game {
     pub fn living_players(&self) -> HashSet<char> {
         self.players
             .values()
-            .filter(|player| !player.is_dead())
+            .filter(|player| player.is_alive())
             .map(|player| player.character().symbol())
             .collect()
     }

@@ -406,16 +406,16 @@ impl<'a> ServerManager<'a> {
             self.event_queue.sender().send_with_timer(Event::GameStep, *GAME_STEP_DURATION);
         }
         else { // Arena finished
-            let ranking = game
+            let player_partial_points_pairs = game
                 .pole()
                 .iter()
-                .map(|player| player.character().symbol())
+                .map(|player| (player.character().symbol(), player.partial_points()))
                 .collect::<Vec<_>>();
 
             log::info!(
                 "End arena {}. Raking: {}",
                 game.arena_number(),
-                util::format::symbol_list(ranking)
+                util::format::symbol_points_list(player_partial_points_pairs)
             );
 
             let player_total_points_pairs = game
