@@ -130,8 +130,8 @@ impl<'a> ServerManager<'a> {
                             ClientMessage::SubscribeServerInfo => {
                                 self.process_subscribe_server_info(endpoint);
                             },
-                            ClientMessage::Login(character) => {
-                                self.process_login(endpoint, character);
+                            ClientMessage::Login(user) => {
+                                self.process_login(endpoint, user);
                             },
                             ClientMessage::Logout => {
                                 self.process_logout(endpoint);
@@ -199,42 +199,42 @@ impl<'a> ServerManager<'a> {
         self.network.send(endpoint, ServerMessage::ServerInfo(info)).unwrap();
     }
 
-    fn process_login(&mut self, endpoint: Endpoint, character: char) {
+    fn process_login(&mut self, endpoint: Endpoint, player_symbol: char) {
         let status =
-        if !util::is_valid_character(character) {
-            log::warn!("Invalid character name '{}' has tried to login", character);
+        if !util::is_valid_character(player_symbol) {
+            log::warn!("Invalid character symbol '{}' has tried to login", player_symbol);
             LoginStatus::InvalidPlayerName
         }
         else {
-            match self.room.create_session(character, endpoint) {
+            match self.room.create_session(player_symbol, endpoint) {
                 SessionStatus::Created(token) => {
-                    let player_names = self.room
+                    let player_symbols = self.room
                         .sessions()
                         .map(|session| session.user())
                         .sorted();
 
                     log::info!(
                         "New player logged: {}, current players: {}",
-                        character,
-                        util::format::character_list(player_names)
+                        player_symbol,
+                        util::format::symbol_list(player_symbols)
                     );
                     LoginStatus::Logged(token, LoggedKind::FirstTime)
                 },
                 SessionStatus::Recycled(token) => {
-                    log::info!("Player '{}' reconnected", character);
+                    log::info!("Player '{}' reconnected", player_symbol);
                     LoginStatus::Logged(token, LoggedKind::Reconnection)
                 },
                 SessionStatus::AlreadyLogged => {
                     log::warn!(
-                        "Player '{}' has tried to login but the character name is already logged",
-                        character
+                        "Player '{}' has tried to login but the character symbol is already logged",
+                        player_symbol
                     );
                     LoginStatus::AlreadyLogged
                 },
                 SessionStatus::Full => {
                     log::warn!(
                         "Player '{}' has tried to login but the player limit has been reached",
-                        character
+                        player_symbol
                     );
                     LoginStatus::PlayerLimit
                 },
@@ -242,23 +242,23 @@ impl<'a> ServerManager<'a> {
         };
 
         log::trace!(
-            "{} with player name '{}' attempts to login. Status: {:?}",
+            "{} with player '{}' attempts to login. Status: {:?}",
             endpoint.addr(),
-            character,
+            player_symbol,
             status
         );
 
-        self.network.send(endpoint, ServerMessage::LoginStatus(character, status)).unwrap();
+        self.network.send(endpoint, ServerMessage::LoginStatus(player_symbol, status)).unwrap();
 
         if let LoginStatus::Logged(_, kind) = status { // First time connection
             match kind {
                 LoggedKind::FirstTime => {
-                    let player_names = self.room
+                    let player_symbols = self.room
                         .sessions()
                         .map(|session| *session.user())
                         .collect();
 
-                    let message = ServerMessage::DynamicServerInfo(player_names);
+                    let message = ServerMessage::DynamicServerInfo(player_symbols);
                     self.network.send_all(self.subscriptions.iter(), message).ok();
 
                     if self.game.is_none() && self.room.is_full() {
@@ -295,7 +295,7 @@ impl<'a> ServerManager<'a> {
         }
         else {
             if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
-                let player_names = self.room
+                let player_symbols = self.room
                     .sessions()
                     .map(|session| *session.user())
                     .collect::<Vec<_>>();
@@ -303,10 +303,10 @@ impl<'a> ServerManager<'a> {
                 log::info!(
                     "Player '{}' logout, current players: {} ",
                     session.user(),
-                    util::format::character_list(player_names.iter().sorted())
+                    util::format::symbol_list(player_symbols.iter().sorted())
                 );
 
-                let message = ServerMessage::DynamicServerInfo(player_names);
+                let message = ServerMessage::DynamicServerInfo(player_symbols);
                 self.network.send_all(self.subscriptions.iter(), message).ok();
             }
         }
@@ -347,8 +347,12 @@ impl<'a> ServerManager<'a> {
 
     fn process_create_game(&mut self) {
         log::info!("Starting new game");
-        let player_names = self.room.sessions().map(|session| *session.user());
-        self.game = Some(Game::new(self.config.winner_points, self.config.map_size, player_names));
+        let player_symbols = self.room.sessions().map(|session| *session.user());
+        self.game = Some(Game::new(
+            self.config.winner_points,
+            self.config.map_size,
+            player_symbols
+        ));
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartGame).ok();
 
@@ -411,7 +415,7 @@ impl<'a> ServerManager<'a> {
             log::info!(
                 "End arena {}. Raking: {}",
                 game.arena_number(),
-                util::format::character_list(ranking)
+                util::format::symbol_list(ranking)
             );
 
             let player_total_points_pairs = game
@@ -422,7 +426,7 @@ impl<'a> ServerManager<'a> {
 
             log::info!(
                 "Game points: {}",
-                util::format::character_points_list(player_total_points_pairs)
+                util::format::symbol_points_list(player_total_points_pairs)
             );
 
             self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishArena).ok();
@@ -458,12 +462,12 @@ impl<'a> ServerManager<'a> {
         self.game = None;
         self.room.clear();
 
-        let player_names = self.room
+        let player_symbols = self.room
             .sessions()
             .map(|session| *session.user())
             .collect();
 
-        let message = ServerMessage::DynamicServerInfo(player_names);
+        let message = ServerMessage::DynamicServerInfo(player_symbols);
         self.network.send_all(self.subscriptions.iter(), message).ok();
     }
 

@@ -1,87 +1,16 @@
+mod player;
 mod arena;
 mod entity;
 mod map;
 
+use player::{Player};
 use arena::{Arena};
-use entity::{EntityId, Control as EntityControl, Action as EntityAction};
 
 use crate::character::{Character, CharacterId, CharacterBuilder};
-use crate::direction::{Direction};
 
-use std::collections::{HashMap, VecDeque, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use std::rc::{Rc};
-
-pub struct Player {
-    character: Rc<Character>,
-    entity_id: Option<EntityId>,
-    total_points: usize,
-    partial_points: usize,
-    pending_actions: VecDeque<EntityAction>,
-}
-
-impl Player {
-    const MAX_LIFE: usize = 100;
-    const MAX_ENERGY: usize = 100;
-    const SPEED_BASE: usize = 8;
-
-    pub fn new(character: Rc<Character>) -> Player {
-        Player {
-            character,
-            entity_id: None,
-            total_points: 0,
-            partial_points: 0,
-            pending_actions: VecDeque::new(),
-        }
-    }
-
-    pub fn character(&self) -> &Character {
-        &*self.character
-    }
-
-    pub fn entity_id(&self) -> Option<EntityId> {
-        self.entity_id
-    }
-
-    pub fn total_points(&self) -> usize {
-        self.total_points
-    }
-
-    pub fn partial_points(&self) -> usize {
-        self.partial_points
-    }
-
-    pub fn is_dead(&self) -> bool {
-        self.entity_id.is_none()
-    }
-
-    pub fn walk(&mut self, direction: Direction) {
-        self.pending_actions.push_back(EntityAction::Walk(direction));
-    }
-
-    pub fn update_points(&mut self, points: usize) {
-        self.partial_points = points;
-        self.total_points += points;
-    }
-
-    pub fn reset_partial_points(&mut self) {
-        self.partial_points = 0;
-    }
-
-    pub fn attach_entity(&mut self, id: EntityId) {
-        self.entity_id = Some(id);
-    }
-}
-
-impl EntityControl for Player {
-    fn next_action(&mut self) -> Option<EntityAction> {
-        self.pending_actions.pop_front()
-    }
-
-    fn notify_death(&mut self) {
-        self.entity_id = None;
-    }
-}
 
 pub struct Game {
     map_size: usize,
@@ -162,7 +91,7 @@ impl Game {
     pub fn pole(&self) -> Vec<&Player> {
         let mut sorted_players = self.players.values().collect::<Vec<_>>();
 
-        sorted_players.sort_by(|a, b| b.total_points.partial_cmp(&a.total_points).unwrap());
+        sorted_players.sort_by(|a, b| b.total_points().partial_cmp(&a.total_points()).unwrap());
         sorted_players
     }
 
@@ -171,7 +100,7 @@ impl Game {
 
         for (index, player) in self.players.values_mut().enumerate() {
             let position = arena.map().initial_position(index);
-            let entity = arena.create_entity(player.character.clone(), position);
+            let entity = arena.create_entity(player.character().clone(), position);
             player.attach_entity(entity.id());
             player.reset_partial_points();
         }
@@ -181,8 +110,6 @@ impl Game {
     }
 
     pub fn step(&mut self) {
-        let player_number = self.players.len();
-
         let living_players_before = self.living_players();
 
         self.arena.as_mut().unwrap().update();
@@ -190,6 +117,7 @@ impl Game {
         let living_players_after = self.living_players();
         let death_players = living_players_before.difference(&living_players_after);
 
+        let player_number = self.players.len();
         for symbol in death_players {
             let player = self.players.get_mut(symbol).unwrap();
             player.update_points(player_number - living_players_before.len());
@@ -207,7 +135,7 @@ impl Game {
     pub fn has_finished(&self) -> bool {
         self.players
             .values()
-            .find(|&player| player.total_points >= self.winner_points)
+            .find(|&player| player.total_points() >= self.winner_points)
             .is_some()
     }
 }

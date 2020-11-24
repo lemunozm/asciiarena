@@ -41,10 +41,10 @@ pub enum ServerMessage {
 
     // Server info
     ServerInfo(ServerInfo),
-    DynamicServerInfo(Vec<char>), //character list
+    DynamicServerInfo(Vec<char>), //player list
 
     // Login messages
-    LoginStatus(char, LoginStatus), //character, status
+    LoginStatus(char, LoginStatus), //player, status
 
     // Udp handshake
     UdpConnected,

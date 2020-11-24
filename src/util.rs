@@ -9,7 +9,7 @@ pub fn is_valid_character(character: char) -> bool {
 pub mod format {
     use std::borrow::{Borrow};
 
-    pub fn character_list(list: impl IntoIterator<Item = impl Borrow<char>>) -> String {
+    pub fn symbol_list(list: impl IntoIterator<Item = impl Borrow<char>>) -> String {
         let mut formatted = String::new();
         let mut it = list.into_iter();
         if let Some(character) = it.next() {
@@ -21,7 +21,7 @@ pub mod format {
         formatted
     }
 
-    pub fn character_points_list(list: impl IntoIterator<Item = (char, usize)>) -> String {
+    pub fn symbol_points_list(list: impl IntoIterator<Item = (char, usize)>) -> String {
         let mut formatted = String::new();
         let mut it = list.into_iter();
         if let Some((character, points)) = it.next() {
