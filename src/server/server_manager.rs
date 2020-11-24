@@ -39,18 +39,18 @@ pub struct Config {
     pub arena_waiting: Duration,
 }
 
-pub struct ServerManager {
-    event_queue: EventQueue<Event>,
+pub struct ServerManager<'a> {
+    config: &'a Config,
     network: NetworkManager,
     subscriptions: HashSet<Endpoint>,
     room: RoomSession<Endpoint, char>,
     game: Option<Game>,
     timestamp_last_arena_creation: Option<Instant>,
-    config: Config,
+    event_queue: EventQueue<Event>,
 }
 
-impl ServerManager {
-    pub fn new(config: Config) -> Option<ServerManager> {
+impl<'a> ServerManager<'a> {
+    pub fn new(config: &'a Config) -> Option<ServerManager<'a>> {
         let mut event_queue = EventQueue::new();
 
         let network_sender = event_queue.sender().clone();

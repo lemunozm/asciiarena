@@ -71,7 +71,8 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
                     Err(_) => Err("The value must be a number".into())
                 }
             })
-            .help("Number of players (> 1). The game will not start until the number of players has been reached.")
+            .help("Number of players. \
+                The game will not start until the number of players has been reached.")
         )
 }
 
@@ -88,7 +89,7 @@ pub fn run(matches: &ArgMatches) {
         arena_waiting: Duration::from_secs(3),
     };
 
-    if let Some(mut server_manager) = ServerManager::new(config) {
+    if let Some(mut server_manager) = ServerManager::new(&config) {
         server_manager.run();
     }
 }
