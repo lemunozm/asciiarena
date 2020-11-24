@@ -100,8 +100,9 @@ impl Game {
 
         for (index, player) in self.players.values_mut().enumerate() {
             let position = arena.map().initial_position(index);
-            let entity = arena.create_entity(player.character().clone(), position);
-            player.attach_entity(entity.id());
+            let character = player.character().clone();
+            let control = player.control().clone();
+            arena.create_entity(character, position, control);
             player.reset_partial_points();
         }
 

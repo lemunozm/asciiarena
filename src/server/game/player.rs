@@ -6,13 +6,13 @@ use crate::direction::{Direction};
 use std::collections::{VecDeque};
 
 use std::rc::{Rc};
+use std::cell::{RefCell};
 
 pub struct Player {
     character: Rc<Character>,
-    entity_id: Option<EntityId>,
+    control: Rc<RefCell<PlayerControl>>,
     total_points: usize,
     partial_points: usize,
-    pending_actions: VecDeque<EntityAction>,
 }
 
 impl Player {
@@ -23,10 +23,9 @@ impl Player {
     pub fn new(character: Rc<Character>) -> Player {
         Player {
             character,
-            entity_id: None,
+            control: Rc::new(RefCell::new(PlayerControl::default())),
             total_points: 0,
             partial_points: 0,
-            pending_actions: VecDeque::new(),
         }
     }
 
@@ -34,8 +33,8 @@ impl Player {
         &self.character
     }
 
-    pub fn entity_id(&self) -> Option<EntityId> {
-        self.entity_id
+    pub fn control(&self) -> &Rc<RefCell<PlayerControl>> {
+        &self.control
     }
 
     pub fn total_points(&self) -> usize {
@@ -47,11 +46,11 @@ impl Player {
     }
 
     pub fn is_dead(&self) -> bool {
-        self.entity_id.is_none()
+        self.control.borrow().entity_id.is_none()
     }
 
     pub fn walk(&mut self, direction: Direction) {
-        self.pending_actions.push_back(EntityAction::Walk(direction));
+        self.control.borrow_mut().append_action(EntityAction::Walk(direction));
     }
 
     pub fn update_points(&mut self, points: usize) {
@@ -63,17 +62,31 @@ impl Player {
         self.partial_points = 0;
     }
 
-    pub fn attach_entity(&mut self, id: EntityId) {
-        self.entity_id = Some(id);
+}
+
+#[derive(Default)]
+pub struct PlayerControl {
+    entity_id: Option<EntityId>,
+    pending_actions: VecDeque<EntityAction>,
+}
+
+impl PlayerControl {
+    fn append_action(&mut self, action: EntityAction) {
+        self.pending_actions.push_back(action);
     }
 }
 
-impl EntityControl for Player {
-    fn next_action(&mut self) -> Option<EntityAction> {
-        self.pending_actions.pop_front()
+impl EntityControl for PlayerControl {
+    fn attach_entity(&mut self, id: EntityId) {
+        self.entity_id = Some(id);
     }
 
-    fn notify_death(&mut self) {
+    fn detach_entity(&mut self) {
         self.entity_id = None;
+        self.pending_actions.clear();
+    }
+
+    fn next_action(&mut self) -> Option<EntityAction> {
+        self.pending_actions.pop_front()
     }
 }

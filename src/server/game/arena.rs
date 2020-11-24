@@ -1,5 +1,5 @@
 use super::map::{Map};
-use super::entity::{Entity, EntityId};
+use super::entity::{Entity, EntityId, Control as EntityControl};
 
 use crate::character::{Character};
 use crate::vec2::Vec2;
@@ -7,6 +7,7 @@ use crate::vec2::Vec2;
 use std::collections::{HashMap};
 
 use std::rc::{Rc};
+use std::cell::{RefCell};
 
 pub struct Arena {
     map: Map,
@@ -35,15 +36,20 @@ impl Arena {
         self.entities.values()
     }
 
-    pub fn create_entity(&mut self, character: Rc<Character>, position: Vec2) -> &mut Entity {
+    pub fn create_entity(
+        &mut self,
+        character: Rc<Character>,
+        position: Vec2,
+        control: Rc<RefCell<dyn EntityControl>>
+    ) -> &mut Entity {
         let id = self.next_entity_id;
-        let entity = Entity::new(id, character, position);
+        control.borrow_mut().attach_entity(id);
+        let entity = Entity::new(id, character, position, control);
         self.next_entity_id += 1;
         self.entities.insert(id, entity);
         self.entities.get_mut(&id).unwrap()
     }
 
-    pub fn update(&mut self) -> Vec<Entity> {
-        Vec::new() // removed entities
+    pub fn update(&mut self) {
     }
 }

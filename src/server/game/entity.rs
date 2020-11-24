@@ -3,6 +3,7 @@ use crate::vec2::{Vec2};
 use crate::direction::{Direction};
 
 use std::rc::{Rc};
+use std::cell::{RefCell, RefMut};
 
 pub type EntityId = usize;
 
@@ -12,13 +13,15 @@ pub enum Action {
 }
 
 pub trait Control {
+    fn attach_entity(&mut self, entity: EntityId);
+    fn detach_entity(&mut self);
     fn next_action(&mut self) -> Option<Action>;
-    fn notify_death(&mut self);
 }
 
 pub struct Entity {
     id: EntityId,
     character: Rc<Character>,
+    control: Rc<RefCell<dyn Control>>,
     direction: Direction,
     position: Vec2,
     live: usize,
@@ -26,9 +29,15 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub fn new(id: EntityId, character: Rc<Character>, position: Vec2) -> Entity {
+    pub fn new(
+        id: EntityId,
+        character: Rc<Character>,
+        position: Vec2,
+        control: Rc<RefCell<dyn Control>>
+    ) -> Entity {
         Entity {
             id,
+            control,
             position,
             direction: Direction::Down,
             live: character.max_live(),
@@ -43,6 +52,10 @@ impl Entity {
 
     pub fn character(&self) -> &Character {
         &*self.character
+    }
+
+    pub fn control_mut(&self) -> RefMut<'_, dyn Control> {
+        self.control.borrow_mut()
     }
 
     pub fn live(&self) -> usize {
