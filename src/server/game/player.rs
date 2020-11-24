@@ -18,7 +18,7 @@ pub struct Player {
 impl Player {
     pub const MAX_LIFE: usize = 100;
     pub const MAX_ENERGY: usize = 100;
-    pub const SPEED_BASE: usize = 8;
+    pub const SPEED_BASE: f32 = 8.0;
 
     pub fn new(character: Rc<Character>) -> Player {
         Player {
@@ -72,7 +72,9 @@ pub struct PlayerControl {
 
 impl PlayerControl {
     fn append_action(&mut self, action: EntityAction) {
-        self.pending_actions.push_back(action);
+        if self.entity_id.is_some() {
+            self.pending_actions.push_back(action);
+        }
     }
 }
 
@@ -83,10 +85,9 @@ impl EntityControl for PlayerControl {
 
     fn detach_entity(&mut self) {
         self.entity_id = None;
-        self.pending_actions.clear();
     }
 
-    fn next_action(&mut self) -> Option<EntityAction> {
+    fn pop_action(&mut self) -> Option<EntityAction> {
         self.pending_actions.pop_front()
     }
 }

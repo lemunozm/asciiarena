@@ -2,6 +2,7 @@ use crate::character::{Character};
 use crate::vec2::{Vec2};
 use crate::direction::{Direction};
 
+use std::time::{Instant, Duration};
 use std::rc::{Rc};
 use std::cell::{RefCell, RefMut};
 
@@ -9,13 +10,13 @@ pub type EntityId = usize;
 
 pub enum Action {
     Walk(Direction),
-   // Cast(Skill),
+    Cast(usize /*Skill*/),
 }
 
 pub trait Control {
     fn attach_entity(&mut self, entity: EntityId);
     fn detach_entity(&mut self);
-    fn next_action(&mut self) -> Option<Action>;
+    fn pop_action(&mut self) -> Option<Action>;
 }
 
 pub struct Entity {
@@ -26,6 +27,8 @@ pub struct Entity {
     position: Vec2,
     live: usize,
     energy: usize,
+    speed: f32,
+    last_walk_moving: Instant,
 }
 
 impl Entity {
@@ -42,6 +45,8 @@ impl Entity {
             direction: Direction::Down,
             live: character.max_live(),
             energy: character.max_energy(),
+            speed: character.speed_base(),
+            last_walk_moving: Instant::now() - Duration::from_secs_f32(1.0 / character.speed_base()),
             character,
         }
     }
@@ -82,9 +87,11 @@ impl Entity {
         self.position += displacement;
     }
 
-    pub fn walk(&mut self, direction: Direction) {
-        //TODO: compute speed
-        self.position += direction.to_vec2();
+    pub fn walk(&mut self, direction: Direction, current: Instant) {
+        let next_move_time = self.last_walk_moving + Duration::from_secs_f32(1.0 / self.speed);
+        if current > next_move_time {
+            self.position += direction.to_vec2();
+        }
     }
 
     pub fn set_direction(&mut self, direction: Direction) {

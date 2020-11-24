@@ -8,7 +8,7 @@ pub struct Character {
     symbol: char,
     max_live: usize,
     max_energy: usize,
-    speed_base: usize,
+    speed_base: f32,
 }
 
 impl Character {
@@ -28,7 +28,7 @@ impl Character {
         self.max_energy
     }
 
-    pub fn speed_base(&self) -> usize {
+    pub fn speed_base(&self) -> f32 {
         self.speed_base
     }
 }
