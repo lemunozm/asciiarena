@@ -22,12 +22,10 @@ lazy_static! {
 #[derive(Debug)]
 enum Event {
     Network(NetEvent<ClientMessage>),
-    CreateGame,
-    WaitArena,
-    StartArena,
-    GameStep,
-    Reset,
-    Close,
+    AsyncCreateGame, // Could take time in processing
+    AsyncStartArena, // Generated Eventually
+    GameStep,        // Generated Eventually
+    Close,           // Main loop control
 }
 
 pub struct Config {
@@ -97,21 +95,15 @@ impl<'a> ServerManager<'a> {
             let event = self.event_queue.receive();
             log::trace!("[Process event] - {:?}", event);
             match event {
-                Event::CreateGame => {
+                Event::AsyncCreateGame => {
                     self.process_create_game();
                 },
-                Event::WaitArena => {
-                    self.process_wait_arena();
-                },
-                Event::StartArena => {
+                Event::AsyncStartArena => {
                     self.process_start_arena();
                 },
                 Event::GameStep => {
                     self.process_game_step();
                 },
-                Event::Reset => {
-                    self.process_reset();
-                }
                 Event::Close => {
                     log::info!("Closing server");
                     break
@@ -262,7 +254,7 @@ impl<'a> ServerManager<'a> {
                     self.network.send_all(self.subscriptions.iter(), message).ok();
 
                     if self.game.is_none() && self.room.is_full() {
-                        self.event_queue.sender().send(Event::CreateGame);
+                        self.event_queue.sender().send(Event::AsyncCreateGame);
                     }
                 },
                 LoggedKind::Reconnection => {
@@ -356,7 +348,7 @@ impl<'a> ServerManager<'a> {
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartGame).ok();
 
-        self.event_queue.sender().send(Event::WaitArena);
+        self.process_wait_arena();
     }
 
     fn process_wait_arena(&mut self) {
@@ -368,7 +360,7 @@ impl<'a> ServerManager<'a> {
         let message = ServerMessage::WaitArena(self.config.arena_waiting);
         self.network.send_all(self.room.safe_endpoints(), message).ok();
 
-        self.event_queue.sender().send_with_timer(Event::StartArena, self.config.arena_waiting);
+        self.event_queue.sender().send_with_timer(Event::AsyncStartArena, self.config.arena_waiting);
         self.timestamp_last_arena_creation = Some(Instant::now());
     }
 
@@ -381,6 +373,44 @@ impl<'a> ServerManager<'a> {
         self.network.send_all(self.room.safe_endpoints(), message).ok();
 
         self.event_queue.sender().send(Event::GameStep);
+    }
+
+    fn process_finish_arena(&mut self) {
+        let game = self.game.as_mut().unwrap();
+        let player_partial_points_pairs = game
+            .pole()
+            .iter()
+            .map(|player| (player.character().symbol(), player.partial_points()))
+            .collect::<Vec<_>>();
+
+        log::info!(
+            "End arena {}. Raking: {}",
+            game.arena_number(),
+            util::format::symbol_points_list(player_partial_points_pairs)
+        );
+
+        let player_total_points_pairs = game
+            .pole()
+            .iter()
+            .map(|player| (player.character().symbol(), player.total_points()))
+            .collect::<Vec<_>>();
+
+        log::info!(
+            "Game points: {}",
+            util::format::symbol_points_list(player_total_points_pairs)
+        );
+
+        self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishArena).ok();
+
+        if game.has_finished() {
+            log::info!("End game");
+            self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishGame).ok();
+
+            self.process_reset();
+        }
+        else {
+            self.process_wait_arena();
+        }
     }
 
     fn process_game_step(&mut self) {
@@ -406,40 +436,7 @@ impl<'a> ServerManager<'a> {
             self.event_queue.sender().send_with_timer(Event::GameStep, *GAME_STEP_DURATION);
         }
         else { // Arena finished
-            let player_partial_points_pairs = game
-                .pole()
-                .iter()
-                .map(|player| (player.character().symbol(), player.partial_points()))
-                .collect::<Vec<_>>();
-
-            log::info!(
-                "End arena {}. Raking: {}",
-                game.arena_number(),
-                util::format::symbol_points_list(player_partial_points_pairs)
-            );
-
-            let player_total_points_pairs = game
-                .pole()
-                .iter()
-                .map(|player| (player.character().symbol(), player.total_points()))
-                .collect::<Vec<_>>();
-
-            log::info!(
-                "Game points: {}",
-                util::format::symbol_points_list(player_total_points_pairs)
-            );
-
-            self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishArena).ok();
-
-            if game.has_finished() {
-                log::info!("End game");
-                self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishGame).ok();
-
-                self.event_queue.sender().send(Event::Reset);
-            }
-            else {
-                self.event_queue.sender().send(Event::WaitArena);
-            }
+            self.process_finish_arena();
         }
     }
 
