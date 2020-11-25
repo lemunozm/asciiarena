@@ -1,8 +1,8 @@
 use super::session::{RoomSession, SessionStatus};
 use super::game::{Game};
 
-use crate::message::{ClientMessage, ServerMessage, ServerInfo,
-    LoginStatus, LoggedKind, SessionToken, EntityData};
+use crate::message::{ClientMessage, ServerMessage, ServerInfo, GameInfo, ArenaInfo,
+    LoginStatus, LoggedKind, SessionToken, EntityData, Frame};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
 use crate::util::{self};
@@ -240,9 +240,9 @@ impl<'a> ServerManager<'a> {
             status
         );
 
-        self.network.send(endpoint, ServerMessage::LoginStatus(player_symbol, status)).unwrap();
+        self.network.send(endpoint, ServerMessage::LoginStatus(player_symbol, status)).ok();
 
-        if let LoginStatus::Logged(_, kind) = status { // First time connection
+        if let LoginStatus::Logged(_, kind) = status {
             match kind {
                 LoggedKind::FirstTime => {
                     let player_symbols = self.room
@@ -259,7 +259,8 @@ impl<'a> ServerManager<'a> {
                 },
                 LoggedKind::Reconnection => {
                     if let Some(game) = &self.game {
-                        self.network.send(endpoint, ServerMessage::StartGame).ok();
+                        let message = Self::create_start_game_message(game);
+                        self.network.send(endpoint, message).ok();
 
                         let timestamp = self.timestamp_last_arena_creation.as_ref().unwrap();
                         let duration = Instant::now().duration_since(*timestamp);
@@ -269,7 +270,7 @@ impl<'a> ServerManager<'a> {
                         }
 
                         if let Some(_) = game.arena() {
-                            let message = ServerMessage::StartArena(game.arena_number());
+                            let message = Self::create_start_arena_message(game);
                             self.network.send(endpoint, message).ok();
                         }
                     }
@@ -340,14 +341,16 @@ impl<'a> ServerManager<'a> {
     fn process_create_game(&mut self) {
         log::info!("Starting new game");
         let player_symbols = self.room.sessions().map(|session| *session.user());
-        self.game = Some(Game::new(
+        let game = Game::new(
             self.config.winner_points,
             self.config.map_size,
             player_symbols
-        ));
+        );
 
-        self.network.send_all(self.room.safe_endpoints(), ServerMessage::StartGame).ok();
+        let message = Self::create_start_game_message(&game);
+        self.network.send_all(self.room.safe_endpoints(), message).ok();
 
+        self.game = Some(game);
         self.process_wait_arena();
     }
 
@@ -369,7 +372,7 @@ impl<'a> ServerManager<'a> {
         game.create_new_arena();
         log::info!("Start arena {}", game.arena_number());
 
-        let message = ServerMessage::StartArena(game.arena_number());
+        let message = Self::create_start_arena_message(game);
         self.network.send_all(self.room.safe_endpoints(), message).ok();
 
         self.event_queue.sender().send(Event::GameStep);
@@ -420,7 +423,7 @@ impl<'a> ServerManager<'a> {
         game.step();
 
         if let Some(arena) = game.arena() {
-            let entities_data = arena.entities().map(|entity| {
+            let entities = arena.entities().values().map(|entity| {
                 EntityData {
                     id: entity.id(),
                     character_id: entity.character().id(),
@@ -430,12 +433,13 @@ impl<'a> ServerManager<'a> {
                 }
             }).collect();
 
-            let message = ServerMessage::Step(entities_data);
+            let message = ServerMessage::Step(Frame { entities });
+
             self.network.send_all(self.room.faster_endpoints(), message).ok();
 
             self.event_queue.sender().send_with_timer(Event::GameStep, *GAME_STEP_DURATION);
         }
-        else { // Arena finished
+        else {
             self.process_finish_arena();
         }
     }
@@ -444,14 +448,13 @@ impl<'a> ServerManager<'a> {
         match self.game.as_mut() {
             Some(game) => match self.room.session_by_endpoint(endpoint) {
                 Some(session) => {
-                    let player = game.player_mut(*session.user()).unwrap();
+                    let player = game.player_mut(*session.user()).expect("Exists");
                     player.walk(direction);
                 }
-                None => return, // Unlogged client attempted to move a character. Maybe an attack?
+                None => log::warn!("Unlogged client attempted to move a character. Maybe an attack?")
             },
-            None => return //and log: game is not started yet
+            None => log::warn!("Client attempted to move a character without a created game")
         };
-
     }
 
     fn process_reset(&mut self) {
@@ -473,6 +476,32 @@ impl<'a> ServerManager<'a> {
             log::trace!("Client {} has unsubscribed to server info", endpoint.addr());
         }
         self.process_logout(endpoint);
+    }
+
+    fn create_start_game_message(game: &Game) -> ServerMessage {
+        let game_info = GameInfo {
+            characters: game.characters()
+                .iter()
+                .map(|(_, character)| (**character).clone())
+                .collect()
+        };
+
+        ServerMessage::StartGame(game_info)
+    }
+
+    fn create_start_arena_message(game: &Game) -> ServerMessage {
+        let arena_info = ArenaInfo {
+            number: game.arena_number(),
+            players: game.players()
+                .iter()
+                .map(|(_, player)| (
+                    player.character().id(),
+                    player.control().borrow().entity_id()
+                ))
+                .collect()
+        };
+
+        ServerMessage::StartArena(arena_info)
     }
 }
 

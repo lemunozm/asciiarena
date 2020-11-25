@@ -5,6 +5,7 @@ use crate::version::{self};
 
 use std::net::{SocketAddr};
 use std::time::{Instant};
+use std::collections::{HashMap};
 
 /// Action API
 #[derive(Debug)]
@@ -135,8 +136,12 @@ impl Store {
                     self.state.server.udp_confirmed = Some(value);
                 },
 
-                ServerEvent::StartGame => {
+                ServerEvent::StartGame(game_info) => {
                     self.state.server.game.status = GameStatus::Started;
+                    self.state.server.game.characters = game_info.characters
+                        .into_iter()
+                        .map(|character| (character.id(), character))
+                        .collect();
                 },
 
                 ServerEvent::FinishGame => {
@@ -152,22 +157,39 @@ impl Store {
                     );
                 },
 
-                ServerEvent::StartArena(number) => {
+                ServerEvent::StartArena(arena_info) => {
                     self.state.server.game.next_arena_timestamp = None;
-                    self.state.server.game.arena_number = number;
+                    self.state.server.game.arena_number = arena_info.number;
+                    self.state.server.game.players = arena_info.players
+                        .into_iter()
+                        .collect();
+
                     self.state.server.game.arena = Some(Arena {
                         status: ArenaStatus::Playing,
-                        entities: Vec::new(),
+                        entities: HashMap::new(),
                     });
                 },
 
                 ServerEvent::FinishArena => {
-                    let arena = self.state.server.game.arena.as_mut().unwrap();
-                    arena.status = ArenaStatus::Finished;
+                    self.state.server.game.arena_mut().status = ArenaStatus::Finished;
                 },
 
-                ServerEvent::ArenaStep(entities) => {
-                    self.state.server.game.arena_mut().entities = entities
+                ServerEvent::ArenaStep(frame) => {
+                    let entities_map = frame.entities
+                        .into_iter()
+                        .map(|entity| (entity.id, entity))
+                        .collect::<HashMap<_, _>>();
+
+                    // If the entity no longer exists, remove it from players
+                    for (_, mut possible_entity_id) in &mut self.state.server.game.players {
+                        if let Some(id) = &mut possible_entity_id {
+                            if !entities_map.contains_key(&id) {
+                                *possible_entity_id = None;
+                            }
+                        }
+                    }
+
+                    self.state.server.game.arena_mut().entities = entities_map;
                 },
             },
         }

@@ -77,12 +77,20 @@ impl Game {
         self.arena.as_mut()
     }
 
+    pub fn characters(&self) -> &HashMap<CharacterId, Rc<Character>> {
+        &self.characters
+    }
+
     pub fn player(&self, character_symbol: char) -> Option<&Player> {
         self.players.get(&character_symbol)
     }
 
     pub fn player_mut(&mut self, character_symbol: char) -> Option<&mut Player> {
         self.players.get_mut(&character_symbol)
+    }
+
+    pub fn players(&self) -> &HashMap<char, Player> {
+        &self.players
     }
 
     pub fn arena_number(&self) -> usize {

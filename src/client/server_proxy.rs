@@ -1,5 +1,5 @@
-pub use crate::message::{LoginStatus, ServerInfo};
-use crate::message::{ClientMessage, ServerMessage, LoggedKind, EntityData};
+use crate::message::{LoginStatus, ServerInfo, ClientMessage, ServerMessage,
+    LoggedKind, GameInfo, ArenaInfo, Frame};
 use crate::version::{self, Compatibility};
 use crate::util::{self};
 
@@ -39,12 +39,12 @@ pub enum ServerEvent {
     PlayerListUpdated(Vec<char>),
     LoginStatus(LoginStatus),
     UdpReachable(bool),
-    StartGame,
+    StartGame(GameInfo),
     FinishGame,
     WaitArena(Duration),
-    StartArena(usize),
+    StartArena(ArenaInfo),
     FinishArena,
-    ArenaStep(Vec<EntityData>),
+    ArenaStep(Frame),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -264,8 +264,8 @@ where C: Fn(ServerEvent) {
                     ServerMessage::UdpConnected => {
                         self.process_udp_connected();
                     },
-                    ServerMessage::StartGame => {
-                        self.process_start_game();
+                    ServerMessage::StartGame(game_info) => {
+                        self.process_start_game(game_info);
                     },
                     ServerMessage::FinishGame => {
                         self.process_finish_game();
@@ -273,14 +273,14 @@ where C: Fn(ServerEvent) {
                     ServerMessage::WaitArena(duration) => {
                         self.process_wait_arena(duration);
                     },
-                    ServerMessage::StartArena(number) => {
-                        self.process_start_arena(number);
+                    ServerMessage::StartArena(arena_info) => {
+                        self.process_start_arena(arena_info);
                     },
                     ServerMessage::FinishArena => {
                         self.process_finish_arena();
                     },
-                    ServerMessage::Step(entities) => {
-                        self.process_arena_step(entities);
+                    ServerMessage::Step(frame) => {
+                        self.process_arena_step(frame);
                     },
                 },
                 NetEvent::AddedEndpoint(_) => unreachable!(),
@@ -320,7 +320,7 @@ where C: Fn(ServerEvent) {
     }
 
     fn process_dynamic_server_info(&mut self, players: Vec<char>) {
-        log::info!("Player list updated: {}", util::format::character_list(&players));
+        log::info!("Player list updated: {}", util::format::symbol_list(&players));
         (self.event_callback)(ServerEvent::PlayerListUpdated(players));
     }
 
@@ -383,9 +383,9 @@ where C: Fn(ServerEvent) {
         (self.event_callback)(ServerEvent::UdpReachable(true));
     }
 
-    fn process_start_game(&mut self) {
+    fn process_start_game(&mut self, game_info: GameInfo) {
         log::info!("Start game");
-        (self.event_callback)(ServerEvent::StartGame);
+        (self.event_callback)(ServerEvent::StartGame(game_info));
     }
 
     fn process_finish_game(&mut self) {
@@ -399,9 +399,9 @@ where C: Fn(ServerEvent) {
         (self.event_callback)(ServerEvent::WaitArena(duration));
     }
 
-    fn process_start_arena(&mut self, number: usize) {
+    fn process_start_arena(&mut self, arena_info: ArenaInfo) {
         log::info!("Start arena");
-        (self.event_callback)(ServerEvent::StartArena(number));
+        (self.event_callback)(ServerEvent::StartArena(arena_info));
     }
 
     fn process_finish_arena(&mut self) {
@@ -409,9 +409,9 @@ where C: Fn(ServerEvent) {
         (self.event_callback)(ServerEvent::FinishArena);
     }
 
-    fn process_arena_step(&mut self, entities: Vec<EntityData>) {
+    fn process_arena_step(&mut self, frame: Frame) {
         log::info!("Process arena step");
-        (self.event_callback)(ServerEvent::ArenaStep(entities));
+        (self.event_callback)(ServerEvent::ArenaStep(frame));
     }
 }
 

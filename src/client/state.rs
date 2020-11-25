@@ -1,11 +1,15 @@
-use crate::version::{Compatibility};
-use crate::message::{LoginStatus, EntityData};
-
 use super::server_proxy::{ConnectionStatus};
 use super::configuration::{Config};
 
+use crate::version::{Compatibility};
+use crate::message::{LoginStatus, EntityData};
+use crate::character::{CharacterId, Character};
+
 use std::net::{SocketAddr};
 use std::time::{Instant};
+use std::collections::{HashMap};
+
+pub type EntityId = usize;
 
 pub struct User {
     pub character: Option<char>,
@@ -40,7 +44,7 @@ pub enum ArenaStatus {
 
 pub struct Arena {
     pub status: ArenaStatus,
-    pub entities: Vec<EntityData>,
+    pub entities: HashMap<EntityId, EntityData>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -55,6 +59,8 @@ pub struct Game {
     pub next_arena_timestamp: Option<Instant>,
     pub arena_number: usize,
     pub arena: Option<Arena>,
+    pub characters: HashMap<CharacterId, Character>,
+    pub players: HashMap<CharacterId, Option<EntityId>>,
 }
 
 impl Game {
@@ -128,6 +134,8 @@ impl State {
                     arena_number: 0,
                     next_arena_timestamp: None,
                     arena: None,
+                    characters: HashMap::new(),
+                    players: HashMap::new()
                 },
             },
         }

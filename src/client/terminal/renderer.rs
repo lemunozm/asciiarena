@@ -20,7 +20,7 @@ impl Renderer {
         io::stdout().execute(terminal::EnterAlternateScreen).unwrap();
 
         Renderer {
-            terminal: Terminal::new(CrosstermBackend::new(io::stdout())).unwrap();
+            terminal: Terminal::new(CrosstermBackend::new(io::stdout())).unwrap()
         }
     }
 

@@ -1,8 +1,9 @@
 use super::map::{Map};
-use super::entity::{Entity, EntityId};
+use super::entity::{Entity};
 use super::control::{EntityControl, EntityAction};
 
 use crate::character::{Character};
+use crate::message::{EntityId};
 use crate::vec2::Vec2;
 
 use std::collections::{HashMap};
@@ -32,8 +33,8 @@ impl Arena {
         &self.map
     }
 
-    pub fn entities(&self) -> impl Iterator<Item = &Entity> {
-        self.entities.values()
+    pub fn entities(&self) -> &HashMap<EntityId, Entity> {
+        &self.entities
     }
 
     pub fn create_entity(

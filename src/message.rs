@@ -1,5 +1,5 @@
 use crate::version::{Compatibility};
-use crate::character::{CharacterId};
+use crate::character::{CharacterId, Character};
 use crate::vec2::{Vec2};
 use crate::direction::{Direction};
 
@@ -50,20 +50,21 @@ pub enum ServerMessage {
     UdpConnected,
 
     // Game level messages
-    StartGame,
+    StartGame(GameInfo),
     FinishGame, //points
 
     // Arena level messages
     WaitArena(Duration),
-    StartArena(usize), // number
+    StartArena(ArenaInfo), // number
     FinishArena, // winners
-    Step(Vec<EntityData>), //arena state
+    Step(Frame), //arena state
 }
 
 // ===================================================
 //     Composable message pieces
 // ===================================================
 pub type SessionToken = usize;
+pub type EntityId = usize;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum LoggedKind {
@@ -90,9 +91,25 @@ pub struct ServerInfo {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EntityData {
-    pub id: usize,
+    pub id: EntityId,
     pub character_id: CharacterId,
     pub position: Vec2,
     pub live: usize,
     pub energy: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GameInfo {
+    pub characters: Vec<Character>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ArenaInfo {
+    pub number: usize,
+    pub players: Vec<(CharacterId, Option<EntityId>)>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Frame {
+    pub entities: Vec<EntityData>,
 }
