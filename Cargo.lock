@@ -362,9 +362,9 @@ checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
 name = "message-io"
-version = "0.4.5"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b0b05b3180602b6529c59002a857ae4e0ef733c05a144788bc7cdb265160f41"
+checksum = "4c7e1740378a58d6ae684a3660640185be5d2088341d2f377193d607dfb09af6"
 dependencies = [
  "bincode",
  "crossbeam-channel",

@@ -23,11 +23,11 @@ pub enum AppEvent {
 }
 
 pub struct Application {
-    event_queue: EventQueue<AppEvent>,
     store: Store,
     gui: Gui,
-    server: Option<ServerProxy>,
-    input: Option<InputReceiver>,
+    _server: ServerProxy, //Should be dropped before event_queue
+    _input: InputReceiver, //Should be dropped before event_queue
+    event_queue: EventQueue<AppEvent>,
 }
 
 impl Application {
@@ -45,11 +45,11 @@ impl Application {
         });
 
         Application {
-            event_queue,
             store: Store::new(State::new(&config), server.api()),
             gui: Gui::new(&config),
-            server: Some(server),
-            input: Some(input),
+            _server: server,
+            _input: input,
+            event_queue,
         }
     }
 
@@ -80,12 +80,5 @@ impl Application {
                 },
             }
         }
-    }
-}
-
-impl Drop for Application {
-    fn drop(&mut self) {
-        self.server = None; // Server thread stop here (before event_queue drop)
-        self.input = None; // Input thread stop here (before event_queue drop)
     }
 }

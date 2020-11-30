@@ -4,7 +4,7 @@ use crate::version::{self, Compatibility};
 use crate::util::{self};
 
 use message_io::events::{EventQueue, EventSender};
-use message_io::network::{NetworkManager, NetEvent, Endpoint};
+use message_io::network::{Network, NetEvent, Endpoint};
 
 use std::net::{IpAddr, SocketAddr};
 use std::thread::{self, JoinHandle};
@@ -72,34 +72,36 @@ enum Event {
 }
 
 pub struct ServerProxy {
+    event_sender: EventSender<Event>,
     proxy_thread_running: Arc<AtomicBool>,
     proxy_thread_handle: Option<JoinHandle<()>>,
-    event_sender: EventSender<Event>,
 }
 
 impl ServerProxy {
     pub fn new(event_callback: impl Fn(ServerEvent) + Send + 'static) -> ServerProxy {
         let mut event_queue = EventQueue::new();
         let event_sender = event_queue.sender().clone();
-        let internal_event_sender = event_queue.sender().clone();
 
         let proxy_thread_running = Arc::new(AtomicBool::new(true));
         let proxy_thread_handle = {
             let running = proxy_thread_running.clone();
-            let mut server_connection = ServerConnection::new(internal_event_sender, event_callback);
-            thread::Builder::new().name("asciiarena: server event collector".into()).spawn(move || {
+            thread::Builder::new()
+                .name("asciiarena: server event collector".into())
+                .spawn(move || {
+                let sender = event_queue.sender().clone();
+                let mut connection = ServerConnection::new(sender, event_callback);
                 while running.load(Ordering::Relaxed) {
-                    if let Some(event) = event_queue.receive_event_timeout(*EVENT_SAMPLING_TIMEOUT) {
-                        server_connection.process_event(event);
+                    if let Some(event) = event_queue.receive_timeout(*EVENT_SAMPLING_TIMEOUT) {
+                        connection.process_event(event);
                     }
                 }
             })
         }.unwrap();
 
         ServerProxy {
+            event_sender,
             proxy_thread_running,
             proxy_thread_handle: Some(proxy_thread_handle),
-            event_sender,
         }
     }
 
@@ -142,8 +144,8 @@ struct ConnectionInfo {
 }
 
 struct ServerConnection<C> {
-    event_sender: EventSender<Event>, // Should be before NetworkManager in order to drop first
-    network: NetworkManager,
+    event_sender: EventSender<Event>,
+    network: Network,
     connection: ConnectionInfo,
     event_callback: C,
 }
@@ -151,10 +153,8 @@ struct ServerConnection<C> {
 impl<C> ServerConnection<C>
 where C: Fn(ServerEvent) {
     pub fn new(event_sender: EventSender<Event>, event_callback: C) -> ServerConnection<C> {
-        let network_sender = event_sender.clone();
-        let network = NetworkManager::new(move |net_event| {
-            network_sender.send(Event::Network(net_event))
-        });
+        let sender = event_sender.clone();
+        let network = Network::new(move |net_event| sender.send(Event::Network(net_event)));
 
         ServerConnection {
             event_sender,
@@ -205,7 +205,7 @@ where C: Fn(ServerEvent) {
         self.connection.session_token = None;
         self.connection.udp = None;
         let tcp = *self.connection.tcp.as_ref().unwrap();
-        self.network.send(tcp, ClientMessage::Logout).unwrap();
+        self.network.send(tcp, ClientMessage::Logout);
     }
 
     pub fn process_event(&mut self, event: Event) {
@@ -222,15 +222,15 @@ where C: Fn(ServerEvent) {
                     },
                     ApiCall::CheckVersion(version) => {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::Version(version)).unwrap();
+                        self.network.send(tcp, ClientMessage::Version(version));
                     },
                     ApiCall::SubscribeInfo => {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::SubscribeServerInfo).unwrap();
+                        self.network.send(tcp, ClientMessage::SubscribeServerInfo);
                     },
                     ApiCall::Login(character) => {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::Login(character)).unwrap();
+                        self.network.send(tcp, ClientMessage::Login(character));
                     },
                     ApiCall::Logout => {
                         self.logout()
@@ -288,6 +288,13 @@ where C: Fn(ServerEvent) {
                     let result = ConnectionStatus::Lost;
                     (self.event_callback)(ServerEvent::ConnectionResult(result));
                 },
+                NetEvent::DeserializationError(endpoint) => {
+                    log::error!(
+                        "Server sends an unknown message. Connection rejected. \
+                        Ensure the version compatibility.",
+                    );
+                    self.network.remove_resource(endpoint.resource_id()).unwrap();
+                }
             },
             Event::HelloUdp(attempt) => {
                 self.process_hello_udp(attempt);
@@ -331,7 +338,10 @@ where C: Fn(ServerEvent) {
                     LoggedKind::FirstTime => "Logged",
                     LoggedKind::Reconnection => "Reconnected",
                 };
-                log::info!("{} with name '{}' successful. Token Id: {}", kind_str, character, token);
+                log::info!(
+                    "{} with name '{}' successful. Token Id: {}",
+                    kind_str, character, token
+                );
 
                 let udp_port = *self.connection.udp_port.as_ref().unwrap();
                 let ip = *self.connection.ip.as_ref().unwrap();
@@ -360,9 +370,11 @@ where C: Fn(ServerEvent) {
                     Some(udp_endpoint) =>
                         if attempt < UDP_HANDSHAKE_MAX_ATTEMPS {
                             log::trace!("Udp handshake attempt: {}", attempt);
-                            self.network.send(udp_endpoint, ClientMessage::ConnectUdp(token)).unwrap();
-                            let next_message_timer = Duration::from_millis((attempt * attempt) as u64 + 1);
-                            self.event_sender.send_with_timer(Event::HelloUdp(attempt + 1), next_message_timer);
+                            self.network.send(udp_endpoint, ClientMessage::ConnectUdp(token));
+                            let next_time = (attempt * attempt) as u64 + 1;
+                            let next_message_timer = Duration::from_millis(next_time);
+                            let hello_udp = Event::HelloUdp(attempt + 1);
+                            self.event_sender.send_with_timer(hello_udp, next_message_timer);
                         }
                         else {
                             log::warn!("Unable to communicate by udp.");
@@ -377,7 +389,7 @@ where C: Fn(ServerEvent) {
 
     fn process_udp_connected(&mut self) {
         let tcp = *self.connection.tcp.as_ref().unwrap();
-        self.network.send(tcp, ClientMessage::TrustUdp).unwrap();
+        self.network.send(tcp, ClientMessage::TrustUdp);
         self.connection.has_udp_hasdshake = true;
         log::info!("Client udp successful reachable from server");
         (self.event_callback)(ServerEvent::UdpReachable(true));
