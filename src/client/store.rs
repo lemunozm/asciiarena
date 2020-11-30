@@ -2,6 +2,7 @@ use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena, ArenaS
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
 use crate::version::{self};
+use crate::direction::{Direction};
 
 use std::net::{SocketAddr};
 use std::time::{Instant};
@@ -17,6 +18,7 @@ pub enum Action {
     Logout,
     CloseGame,
     CloseApp,
+    MovePlayer(Direction),
     ServerEvent(ServerEvent),
 }
 
@@ -80,6 +82,10 @@ impl Store {
 
             Action::CloseApp => {
                 self.close = true;
+            }
+
+            Action::MovePlayer(direction) => {
+                //TODO
             }
 
             Action::ServerEvent(server_event) => match server_event {

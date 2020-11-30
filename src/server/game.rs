@@ -104,7 +104,7 @@ impl Game {
         sorted_players
     }
 
-    pub fn create_new_arena(&mut self) {
+    pub fn create_new_arena(&mut self) -> &Arena {
         let mut arena = Arena::new(self.map_size, self.players.len());
 
         for (index, player) in self.players.values_mut().enumerate() {
@@ -119,6 +119,7 @@ impl Game {
 
         self.arena = Some(arena);
         self.arena_number += 1;
+        self.arena.as_ref().unwrap()
     }
 
     pub fn step(&mut self) {

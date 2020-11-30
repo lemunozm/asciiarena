@@ -7,27 +7,32 @@ pub fn is_valid_character(character: char) -> bool {
 }
 
 pub mod format {
-    use std::borrow::{Borrow};
-
-    pub fn symbol_list(list: impl IntoIterator<Item = impl Borrow<char>>) -> String {
+    pub fn items_to_string<I>(items: I) -> String
+    where I: IntoIterator,
+          I::Item: std::fmt::Display,
+    {
         let mut formatted = String::new();
-        let mut it = list.into_iter();
-        if let Some(character) = it.next() {
-            formatted.push(*character.borrow());
-            for character in it {
-                formatted.push_str(&format!(", {}", *character.borrow()));
+        let mut it = items.into_iter();
+        if let Some(item) = it.next() {
+            formatted.push_str(&format!("{}", item));
+            for item in it {
+                formatted.push_str(&format!(", {}", item));
             }
         }
         formatted
     }
 
-    pub fn symbol_points_list(list: impl IntoIterator<Item = (char, usize)>) -> String {
+    pub fn pair_items_to_string<I, D1, D2>(items: I) -> String
+    where D1: std::fmt::Display,
+          D2: std::fmt::Display,
+          I: IntoIterator<Item = (D1, D2)>,
+    {
         let mut formatted = String::new();
-        let mut it = list.into_iter();
-        if let Some((character, points)) = it.next() {
-            formatted.push_str(&format!("{}: {}", character, points));
-            for (character, points) in it {
-                formatted.push_str(&format!(", {}: {}", character, points));
+        let mut it = items.into_iter();
+        if let Some((id, content)) = it.next() {
+            formatted.push_str(&format!(", {}: {}", id, content));
+            for character in it {
+                formatted.push_str(&format!(", {}: {}", id, content));
             }
         }
         formatted

@@ -320,7 +320,7 @@ where C: Fn(ServerEvent) {
     }
 
     fn process_dynamic_server_info(&mut self, players: Vec<char>) {
-        log::info!("Player list updated: {}", util::format::symbol_list(&players));
+        log::info!("Player list updated: {}", util::format::items_to_string(&players));
         (self.event_callback)(ServerEvent::PlayerListUpdated(players));
     }
 

@@ -4,9 +4,11 @@ use crate::client::state::{State, GameStatus};
 use crate::client::store::{Store, Action};
 use crate::client::terminal::input::{InputEvent};
 
+use crate::direction::{Direction};
+
 use tui::buffer::{Buffer};
 use tui::widgets::{Paragraph, Block, Borders, BorderType, Widget};
-use tui::layout::{Layout, Constraint, Direction, Rect, Alignment, Margin};
+use tui::layout::{Layout, Constraint, Direction as Dir, Rect, Alignment, Margin};
 use tui::style::{Style, Modifier, Color};
 use tui::text::{Span, Spans};
 
@@ -22,6 +24,13 @@ impl Arena {
                     if let GameStatus::Finished = store.state().server.game.status {
                         store.dispatch(Action::CloseGame);
                     }
+                }
+                KeyCode::Char(c) => match c {
+                    'w' => store.dispatch(Action::MovePlayer(Direction::Up)),
+                    'a' => store.dispatch(Action::MovePlayer(Direction::Left)),
+                    's' => store.dispatch(Action::MovePlayer(Direction::Down)),
+                    'd' => store.dispatch(Action::MovePlayer(Direction::Right)),
+                    _ => (),
                 }
                 _ => (),
             },
@@ -55,7 +64,7 @@ impl Widget for ArenaWidget<'_> {
         let map_dim = MapWidget::dimension(map_size);
 
         let column = Layout::default()
-            .direction(Direction::Vertical)
+            .direction(Dir::Vertical)
             .constraints([
                 Constraint::Length(ArenaInfoLabelWidget::HEIGHT),
                 Constraint::Length(map_dim.1),
@@ -66,7 +75,7 @@ impl Widget for ArenaWidget<'_> {
             .render(column[0], buffer);
 
         let row = Layout::default()
-            .direction(Direction::Horizontal)
+            .direction(Dir::Horizontal)
             .constraints([
                 Constraint::Length(CharacterPanelListWidget::WIDTH),
                 Constraint::Length(1),
@@ -127,7 +136,7 @@ impl Widget for CharacterPanelListWidget<'_> {
         constraints.push(Constraint::Min(0)); // Bottom margin
 
         let row = Layout::default()
-            .direction(Direction::Vertical)
+            .direction(Dir::Vertical)
             .constraints(constraints)
             .split(area);
 
@@ -251,6 +260,20 @@ impl Widget for MapWidget<'_> {
             .render(area, buffer);
 
         let inner = area.inner(&Margin {vertical: 1, horizontal: 1});
+
+        let entity_style = Style::default().fg(Color::White);
+        let player_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
+
+        for (_, entity) in &self.state.server.game.arena().entities {
+            let x = entity.position.x as u16;
+            let y = entity.position.y as u16;
+            let character = self.state.server.game.characters.get(&entity.character_id).unwrap();
+            let style = match self.state.server.game.players.get(&entity.character_id) {
+                Some(_) => player_style,
+                None => entity_style,
+            };
+            buffer.set_string(inner.x + x, inner.y + y, &character.symbol().to_string(), style);
+        }
 
         FinishGameMessageWidget::new(self.state)
             .render(inner, buffer);

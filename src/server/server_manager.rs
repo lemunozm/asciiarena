@@ -208,7 +208,7 @@ impl<'a> ServerManager<'a> {
                     log::info!(
                         "New player logged: {}, current players: {}",
                         player_symbol,
-                        util::format::symbol_list(player_symbols)
+                        util::format::items_to_string(player_symbols)
                     );
                     LoginStatus::Logged(token, LoggedKind::FirstTime)
                 },
@@ -296,7 +296,7 @@ impl<'a> ServerManager<'a> {
                 log::info!(
                     "Player '{}' logout, current players: {} ",
                     session.user(),
-                    util::format::symbol_list(player_symbols.iter().sorted())
+                    util::format::items_to_string(player_symbols.iter().sorted())
                 );
 
                 let message = ServerMessage::DynamicServerInfo(player_symbols);
@@ -368,9 +368,31 @@ impl<'a> ServerManager<'a> {
     }
 
     fn process_start_arena(&mut self) {
-        let game = self.game.as_mut().unwrap();
-        game.create_new_arena();
+        self.game.as_mut().unwrap().create_new_arena();
+        let game = self.game.as_ref().unwrap();
+        let arena = game.arena().unwrap();
         log::info!("Start arena {}", game.arena_number());
+
+        let entities = arena.entities();
+        let player_positions = game
+            .players()
+            .iter()
+            .map(|(symbol, player)| {
+                let entity = player
+                    .control()
+                    .borrow()
+                    .entity_id()
+                    .map(|id| entities.get(&id).unwrap());
+
+                let position = match entity {
+                    Some(entity) => entity.position().to_string(),
+                    None => "-".into(),
+                };
+                (symbol, position)
+            })
+            .collect::<Vec<_>>();
+
+        log::trace!("Player positions: {}", util::format::pair_items_to_string(player_positions));
 
         let message = Self::create_start_arena_message(game);
         self.network.send_all(self.room.safe_endpoints(), message).ok();
@@ -389,7 +411,7 @@ impl<'a> ServerManager<'a> {
         log::info!(
             "End arena {}. Raking: {}",
             game.arena_number(),
-            util::format::symbol_points_list(player_partial_points_pairs)
+            util::format::pair_items_to_string(player_partial_points_pairs)
         );
 
         let player_total_points_pairs = game
@@ -400,7 +422,7 @@ impl<'a> ServerManager<'a> {
 
         log::info!(
             "Game points: {}",
-            util::format::symbol_points_list(player_total_points_pairs)
+            util::format::pair_items_to_string(player_total_points_pairs)
         );
 
         self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishArena).ok();
