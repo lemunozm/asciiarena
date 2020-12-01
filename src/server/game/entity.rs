@@ -19,11 +19,7 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub fn new(
-        id: EntityId,
-        character: Rc<Character>,
-        position: Vec2,
-    ) -> Entity {
+    pub fn new(id: EntityId, character: Rc<Character>, position: Vec2) -> Entity {
         let now = Instant::now();
         Entity {
             id,

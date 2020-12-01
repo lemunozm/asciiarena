@@ -54,6 +54,10 @@ pub enum GameStatus {
     Finished,
 }
 
+pub struct Player {
+
+}
+
 pub struct Game {
     pub status: GameStatus,
     pub next_arena_timestamp: Option<Instant>,

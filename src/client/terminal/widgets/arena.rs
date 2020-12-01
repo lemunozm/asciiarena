@@ -6,7 +6,7 @@ use crate::client::terminal::input::{InputEvent};
 
 use crate::direction::{Direction};
 use crate::character::{CharacterId, Character};
-use crate::message::{EntityId, EntityData};
+use crate::message::{EntityData};
 
 use tui::buffer::{Buffer};
 use tui::widgets::{Paragraph, Block, Borders, BorderType, Widget};
@@ -173,22 +173,29 @@ impl Widget for PlayerPanelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let box_style = Style::default().fg(Color::White);
 
-        // Char panel
-        let char_area = Rect::new(area.x, area.y, 5, 3).intersection(area);
+        // Symbol panel
+        let symbol_area = Rect::new(area.x, area.y, 5, 3).intersection(area);
         Block::default()
             .borders(Borders::ALL)
             .style(box_style)
             .border_type(BorderType::Rounded)
-            .render(char_area, buffer);
+            .render(symbol_area, buffer);
 
         let player_style  = Style::default().add_modifier(Modifier::BOLD);
         let symbol = self.character.symbol().to_string();
         buffer.set_string(area.x + 2, area.y + 1, symbol, player_style);
 
         // Main panel
-        let panel_area = Rect::new(char_area.right(), area.y, 22, 4).intersection(area);
+        let panel_area = Rect::new(symbol_area.right(), area.y, 22, 4).intersection(area);
+        let points = 3; //TODO fix it
         Block::default()
-            .title(Span::styled("Pts: 3", Style::default().add_modifier(Modifier::BOLD)))
+            .title(Spans::from(
+                vec![
+                    Span::raw("───Pts: "),
+                    Span::styled(points.to_string(), Style::default().add_modifier(Modifier::BOLD)),
+                    Span::raw(" "),
+                ]
+            ))
             .borders(Borders::ALL)
             .style(box_style)
             .border_type(BorderType::Rounded)
@@ -198,11 +205,13 @@ impl Widget for PlayerPanelWidget<'_> {
         let content = panel_area.inner(&Margin {vertical: 1, horizontal: 1});
 
         let bar_area = Rect::new(content.x, content.y, content.width, 1).intersection(area);
-        BarWidget::new(100, 100, Color::Green)
+        let live = self.entity.map(|e| e.live).unwrap_or(0);
+        BarWidget::new(live, self.character.max_live(), Color::Green)
             .render(bar_area, buffer);
 
         let bar_area = Rect::new(content.x, content.y + 1, content.width, 1).intersection(area);
-        BarWidget::new(80, 100, Color::Cyan)
+        let energy = self.entity.map(|e| e.energy).unwrap_or(0);
+        BarWidget::new(energy, self.character.max_energy(), Color::Cyan)
             .render(bar_area, buffer);
 
         // Bottom
