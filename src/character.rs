@@ -1,8 +1,11 @@
 use serde::{Serialize, Deserialize};
 
-pub type CharacterId = usize;
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CharacterId {
+    Player(char),
+}
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Builder)]
+#[derive(Serialize, Deserialize, Debug, Clone, Builder)]
 pub struct Character {
     id: CharacterId,
     symbol: char,

@@ -21,7 +21,6 @@ pub struct Game {
     arena: Option<Arena>,
 
     characters: HashMap<CharacterId, Rc<Character>>,
-    next_character_id: usize,
 
     players: HashMap<char, Player>,
 }
@@ -33,11 +32,10 @@ impl Game {
         player_characters: impl Iterator<Item = char>)
         -> Game
     {
-        let mut next_character_id = 0;
         let characters = player_characters
             .map(|symbol| {
                 let character = CharacterBuilder::default()
-                    .id(next_character_id)
+                    .id(CharacterId::Player(symbol))
                     .symbol(symbol)
                     .max_live(Player::MAX_LIFE)
                     .max_energy(Player::MAX_ENERGY)
@@ -45,9 +43,7 @@ impl Game {
                     .build()
                     .unwrap();
 
-                let entry = (next_character_id, Rc::new(character));
-                next_character_id += 1;
-                entry
+                (character.id(), Rc::new(character))
             })
             .collect::<HashMap<_, _>>();
 
@@ -65,7 +61,6 @@ impl Game {
             arena: None,
             players,
             characters,
-            next_character_id,
         }
     }
 
