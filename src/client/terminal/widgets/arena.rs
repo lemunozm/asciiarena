@@ -25,12 +25,15 @@ impl Arena {
                         store.dispatch(Action::CloseGame);
                     }
                 }
-                KeyCode::Char(c) => match c {
-                    'w' => store.dispatch(Action::MovePlayer(Direction::Up)),
-                    'a' => store.dispatch(Action::MovePlayer(Direction::Left)),
-                    's' => store.dispatch(Action::MovePlayer(Direction::Down)),
-                    'd' => store.dispatch(Action::MovePlayer(Direction::Right)),
-                    _ => (),
+                KeyCode::Char(c) => {
+                    //TODO: check arena
+                    match c {
+                        'w' => store.dispatch(Action::MovePlayer(Direction::Up)),
+                        'a' => store.dispatch(Action::MovePlayer(Direction::Left)),
+                        's' => store.dispatch(Action::MovePlayer(Direction::Down)),
+                        'd' => store.dispatch(Action::MovePlayer(Direction::Right)),
+                        _ => (),
+                    }
                 }
                 _ => (),
             },
@@ -286,32 +289,24 @@ struct FinishGameMessageWidget<'a> {state: &'a State}
 impl Widget for FinishGameMessageWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let number = self.state.server.game.arena_number;
-        let message = match self.state.server.game.status {
-            GameStatus::Finished => {
-                vec![
-                    Spans::from(Span::raw(format!("Arena {} view (Finished)", number))),
-                    Spans::from(Span::raw(format!("Under construcion..."))),
-                    Spans::from(Span::raw("")),
-                    Spans::from(vec![
-                       Span::raw("Press"),
-                       Span::styled(" <Enter> ", Style::default()
-                           .add_modifier(Modifier::BOLD)
-                           .fg(Color::Cyan)),
-                       Span::raw("to back to the menu"),
-                    ]),
-                ]
-            }
-            _ => {
-                vec![
-                    Spans::from(Span::raw(format!("Arena {} view (Playing)", number))),
-                    Spans::from(Span::raw(format!("Under construcion..."))),
-                ]
-            }
-        };
+        if let GameStatus::Finished = self.state.server.game.status {
+            let message = vec![
+                Spans::from(Span::raw(format!("Arena {} view (Finished)", number))),
+                Spans::from(Span::raw(format!("Under construcion..."))),
+                Spans::from(Span::raw("")),
+                Spans::from(vec![
+                   Span::raw("Press"),
+                   Span::styled(" <Enter> ", Style::default()
+                       .add_modifier(Modifier::BOLD)
+                       .fg(Color::Cyan)),
+                   Span::raw("to back to the menu"),
+                ]),
+            ];
 
-        let height = message.len() as u16;
-        Paragraph::new(message)
-            .alignment(Alignment::Center)
-            .render(util::vertically_centered(area, height), buffer);
+            let height = message.len() as u16;
+            Paragraph::new(message)
+                .alignment(Alignment::Center)
+                .render(util::vertically_centered(area, height), buffer);
+        }
     }
 }

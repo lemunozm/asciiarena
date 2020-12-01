@@ -30,8 +30,8 @@ pub mod format {
         let mut formatted = String::new();
         let mut it = items.into_iter();
         if let Some((id, content)) = it.next() {
-            formatted.push_str(&format!(", {}: {}", id, content));
-            for character in it {
+            formatted.push_str(&format!("{}: {}", id, content));
+            for (id, content) in it {
                 formatted.push_str(&format!(", {}: {}", id, content));
             }
         }

@@ -85,7 +85,7 @@ impl Store {
             }
 
             Action::MovePlayer(direction) => {
-                //TODO
+                self.server.call(ApiCall::MovePlayer(direction));
             }
 
             Action::ServerEvent(server_event) => match server_event {

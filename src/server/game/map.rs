@@ -22,10 +22,10 @@ impl Map {
         }
     }
 
-    fn random_separated_positions(size: usize, number: usize) -> Vec<Vec2> {
+    fn random_separated_positions(size: usize, count: usize) -> Vec<Vec2> {
         let mut rng = rand::thread_rng();
 
-        (0..number).map(|_| {
+        (0..count).map(|_| {
             let x_range = Uniform::from(0..size);
             let y_range = Uniform::from(0..size);
 

@@ -1,6 +1,7 @@
 use crate::message::{LoginStatus, ServerInfo, ClientMessage, ServerMessage,
     LoggedKind, GameInfo, ArenaInfo, Frame};
 use crate::version::{self, Compatibility};
+use crate::direction::{Direction};
 use crate::util::{self};
 
 use message_io::events::{EventQueue, EventSender};
@@ -26,7 +27,7 @@ pub enum ApiCall {
     SubscribeInfo,
     Login(char),
     Logout,
-    //MovePlayer, //TODO
+    MovePlayer(Direction),
     //CastSkill, //TODO
 }
 
@@ -235,14 +236,14 @@ where C: Fn(ServerEvent) {
                     ApiCall::Logout => {
                         self.logout()
                     },
-                    /*
-                    ApiCall::MovePlayer => {
+                    ApiCall::MovePlayer(direction) => {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::Move).unwrap();
+                        self.network.send(tcp, ClientMessage::MovePlayer(direction));
                     },
+                    /*
                     ApiCall::CastSkill => {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::Skill).unwrap();
+                        self.network.send(tcp, ClientMessage::Skill);
                     },
                     */
                 }

@@ -346,8 +346,8 @@ impl<'a> ServerManager<'a> {
         log::info!("Starting new game");
         let player_symbols = self.room.sessions().map(|session| *session.user());
         let game = Game::new(
-            self.config.winner_points,
             self.config.map_size,
+            self.config.winner_points,
             player_symbols
         );
 
