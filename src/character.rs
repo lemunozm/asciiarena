@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CharacterId {
     Player(char),
+    Mob(char),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Builder)]

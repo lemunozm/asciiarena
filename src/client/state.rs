@@ -60,7 +60,7 @@ pub struct Game {
     pub arena_number: usize,
     pub arena: Option<Arena>,
     pub characters: HashMap<CharacterId, Character>,
-    pub players: HashMap<CharacterId, Option<EntityId>>,
+    pub players: Vec<(CharacterId, Option<EntityId>)>,
 }
 
 impl Game {
@@ -135,7 +135,7 @@ impl State {
                     next_arena_timestamp: None,
                     arena: None,
                     characters: HashMap::new(),
-                    players: HashMap::new()
+                    players: Vec::new()
                 },
             },
         }

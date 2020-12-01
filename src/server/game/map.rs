@@ -3,22 +3,22 @@ use crate::vec2::Vec2;
 use rand::{distributions::{Distribution, Uniform}};
 
 pub enum Terrain {
-    //Empty,
+    //Floor,
     //Wall,
 }
 
 pub struct Map {
-    _size: usize,
+    size: usize,
     _ground: Vec<Terrain>,
     initial_positions: Vec<Vec2>,
 }
 
 impl Map {
-    pub fn new(_size: usize, players_number: usize) -> Map {
+    pub fn new(size: usize, players_number: usize) -> Map {
         Map {
-            _size,
+            size,
             _ground: Vec::new(), //TODO
-            initial_positions: Self::random_separated_positions(_size, players_number),
+            initial_positions: Self::random_separated_positions(size, players_number),
         }
     }
 
@@ -35,5 +35,12 @@ impl Map {
 
     pub fn initial_position(&self, index: usize) -> Vec2 {
         *self.initial_positions.get(index).unwrap()
+    }
+
+    pub fn contains(&self, position: Vec2) -> bool {
+        position.x >= 0 &&
+        position.y >= 0 &&
+        position.x < self.size as i32 &&
+        position.y < self.size as i32
     }
 }

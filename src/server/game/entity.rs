@@ -24,6 +24,7 @@ impl Entity {
         character: Rc<Character>,
         position: Vec2,
     ) -> Entity {
+        let now = Instant::now();
         Entity {
             id,
             position,
@@ -31,7 +32,7 @@ impl Entity {
             live: character.max_live(),
             energy: character.max_energy(),
             speed: character.speed_base(),
-            last_walk_moving: Instant::now() - Duration::from_secs_f32(1.0 / character.speed_base()),
+            last_walk_moving: now - Duration::from_secs_f32(1.0 / character.speed_base()),
             character,
         }
     }

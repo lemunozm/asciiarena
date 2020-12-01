@@ -5,6 +5,8 @@ use crate::client::store::{Store, Action};
 use crate::client::terminal::input::{InputEvent};
 
 use crate::direction::{Direction};
+use crate::character::{CharacterId, Character};
+use crate::message::{EntityId, EntityData};
 
 use tui::buffer::{Buffer};
 use tui::widgets::{Paragraph, Block, Borders, BorderType, Widget};
@@ -56,7 +58,7 @@ impl<'a> ArenaWidget<'a> {
         let map_size = state.server.game_info.as_ref().unwrap().map_size as u16;
         let map_dim = MapWidget::dimension(map_size);
 
-        (CharacterPanelListWidget::WIDTH + 1 + map_dim.0,
+        (PlayerPanelListWidget::WIDTH + 1 + map_dim.0,
          ArenaInfoLabelWidget::HEIGHT + map_dim.1)
     }
 }
@@ -80,13 +82,13 @@ impl Widget for ArenaWidget<'_> {
         let row = Layout::default()
             .direction(Dir::Horizontal)
             .constraints([
-                Constraint::Length(CharacterPanelListWidget::WIDTH),
+                Constraint::Length(PlayerPanelListWidget::WIDTH),
                 Constraint::Length(1),
                 Constraint::Length(map_dim.0),
             ].as_ref())
             .split(column[1]);
 
-        CharacterPanelListWidget::new(self.state)
+        PlayerPanelListWidget::new(self.state)
             .render(row[0], buffer);
 
         MapWidget::new(self.state)
@@ -109,7 +111,7 @@ impl Widget for ArenaInfoLabelWidget<'_> {
         let title = Spans::from(vec![
             Span::raw("Arena "),
             Span::styled(number.to_string(), Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(" - Points to win: "),
+            Span::raw(" · Points to win: "),
             Span::styled(points.to_string(), Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
@@ -120,21 +122,21 @@ impl Widget for ArenaInfoLabelWidget<'_> {
 }
 
 #[derive(derive_new::new)]
-struct CharacterPanelListWidget<'a> {state: &'a State}
+struct PlayerPanelListWidget<'a> {state: &'a State}
 
-impl CharacterPanelListWidget<'_> {
-    pub const WIDTH: u16 = CharacterPanelWidget::DIMENSION.0;
+impl PlayerPanelListWidget<'_> {
+    pub const WIDTH: u16 = PlayerPanelWidget::DIMENSION.0;
 }
 
-impl Widget for CharacterPanelListWidget<'_> {
+impl Widget for PlayerPanelListWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        let logged_players = &self.state.server.logged_players;
+        let players = &self.state.server.game.players;
 
         let mut constraints = vec![Constraint::Length(1)]; //Top margin
         constraints.extend(
-            logged_players
+            players
                 .iter()
-                .map(|_| Constraint::Length(CharacterPanelWidget::DIMENSION.1))
+                .map(|_| Constraint::Length(PlayerPanelWidget::DIMENSION.1))
         );
         constraints.push(Constraint::Min(0)); // Bottom margin
 
@@ -143,8 +145,13 @@ impl Widget for CharacterPanelListWidget<'_> {
             .constraints(constraints)
             .split(area);
 
-        for (index, player) in self.state.server.logged_players.iter().enumerate() {
-            CharacterPanelWidget::new(self.state, *player)
+        for (index, player) in self.state.server.game.players.iter().enumerate() {
+            let character = self.state.server.game.characters.get(&player.0).unwrap();
+            let entity = player.1
+                .map(|id| self.state.server.game.arena().entities.get(&id)
+                .unwrap());
+
+            PlayerPanelWidget::new(self.state, character, entity)
                 .render(row[index + 1], buffer)
         }
     }
@@ -152,16 +159,17 @@ impl Widget for CharacterPanelListWidget<'_> {
 
 
 #[derive(derive_new::new)]
-struct CharacterPanelWidget<'a> {
+struct PlayerPanelWidget<'a> {
     _state: &'a State,
-    player: char,
+    character: &'a Character,
+    entity: Option<&'a EntityData>,
 }
 
-impl<'a> CharacterPanelWidget<'a> {
+impl<'a> PlayerPanelWidget<'a> {
     pub const DIMENSION: (u16, u16) = (27, 5);
 }
 
-impl Widget for CharacterPanelWidget<'_> {
+impl Widget for PlayerPanelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let box_style = Style::default().fg(Color::White);
 
@@ -174,7 +182,8 @@ impl Widget for CharacterPanelWidget<'_> {
             .render(char_area, buffer);
 
         let player_style  = Style::default().add_modifier(Modifier::BOLD);
-        buffer.set_string(area.x + 2, area.y + 1, self.player.to_string(), player_style);
+        let symbol = self.character.symbol().to_string();
+        buffer.set_string(area.x + 2, area.y + 1, symbol, player_style);
 
         // Main panel
         let panel_area = Rect::new(char_area.right(), area.y, 22, 4).intersection(area);
@@ -268,12 +277,12 @@ impl Widget for MapWidget<'_> {
         let player_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
 
         for (_, entity) in &self.state.server.game.arena().entities {
-            let x = entity.position.x as u16;
+            let x = (entity.position.x as u16) * 2 + 1;
             let y = entity.position.y as u16;
             let character = self.state.server.game.characters.get(&entity.character_id).unwrap();
-            let style = match self.state.server.game.players.get(&entity.character_id) {
-                Some(_) => player_style,
-                None => entity_style,
+            let style = match character.id() {
+                CharacterId::Player(_) => player_style,
+                _ => entity_style,
             };
             buffer.set_string(inner.x + x, inner.y + y, &character.symbol().to_string(), style);
         }

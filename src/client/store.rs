@@ -187,10 +187,10 @@ impl Store {
                         .collect::<HashMap<_, _>>();
 
                     // If the entity no longer exists, remove it from players
-                    for (_, mut possible_entity_id) in &mut self.state.server.game.players {
-                        if let Some(id) = &mut possible_entity_id {
-                            if !entities_map.contains_key(&id) {
-                                *possible_entity_id = None;
+                    for player in &mut self.state.server.game.players {
+                        if let Some(entity_id) = &mut player.1 {
+                            if !entities_map.contains_key(&entity_id) {
+                                player.1 = None;
                             }
                         }
                     }

@@ -58,14 +58,26 @@ impl Arena {
     pub fn update(&mut self) {
         let current_time = Instant::now();
 
+        //Should it be processed randomly?
         for control in &mut self.entity_controls {
             let mut control = control.borrow_mut();
             let entity_id = control.entity_id().expect("Exists");
-            let entity = self.entities.get_mut(&entity_id).expect("Exists");
             for action in control.actions() {
                 match action {
                     EntityAction::Walk(direction) => {
-                        entity.walk(*direction, current_time);
+                        let entity = self.entities.get(&entity_id).expect("Exists");
+                        let next_position = entity.position() + direction.to_vec2();
+                        if self.map.contains(next_position) {
+                            let occupied_position = self.entities
+                                .values()
+                                .find(|player| player.position() == next_position)
+                                .is_some();
+
+                            if !occupied_position {
+                                let entity = self.entities.get_mut(&entity_id).expect("Exists");
+                                entity.walk(*direction, current_time);
+                            }
+                        }
                     }
                     EntityAction::Cast(_skill) => {
                         //TODO
