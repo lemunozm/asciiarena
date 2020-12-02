@@ -1,8 +1,10 @@
-use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena, ArenaStatus, Player};
+use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena, ArenaStatus,
+    Player, UserPlayer};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
-use crate::direction::{Direction};
 use crate::message::{ArenaChange};
+use crate::character::{CharacterId};
+use crate::direction::{Direction};
 use crate::version::{self};
 
 use std::net::{SocketAddr};
@@ -66,12 +68,12 @@ impl Store {
             }
 
             Action::Login(character) => {
-                self.state.user.character = Some(character);
+                self.state.user.character_symbol = Some(character);
                 self.server.call(ApiCall::Login(character));
             },
 
             Action::Logout => {
-                self.state.user.character = None;
+                self.state.user.character_symbol = None;
                 self.state.user.login_status = None;
                 self.server.call(ApiCall::Logout);
             }
@@ -86,6 +88,7 @@ impl Store {
             }
 
             Action::MovePlayer(direction) => {
+                self.state.server.game.arena_mut().user_player.direction = direction;
                 self.server.call(ApiCall::MovePlayer(direction));
             }
 
@@ -126,7 +129,7 @@ impl Store {
                     self.state.server.game_info = Some(game_info);
                     self.state.server.logged_players = info.logged_players;
 
-                    if let Some(character) = self.state.user.character {
+                    if let Some(character) = self.state.user.character_symbol {
                         self.server.call(ApiCall::Login(character));
                     }
                 },
@@ -164,7 +167,7 @@ impl Store {
                 ServerEvent::FinishGame => {
                     self.state.server.game.status = GameStatus::Finished;
                     self.state.server.udp_confirmed = None;
-                    self.state.user.character = None;
+                    self.state.user.character_symbol = None;
                     self.state.user.login_status = None;
                 },
 
@@ -186,6 +189,19 @@ impl Store {
                     self.state.server.game.arena = Some(Arena {
                         status: ArenaStatus::Playing,
                         entities: HashMap::new(),
+                        user_player: UserPlayer {
+                            player_id: self.state.server.game.players
+                                .iter()
+                                .enumerate()
+                                .find(|(_, player)| match player.character_id {
+                                    CharacterId::Player(symbol) =>
+                                        symbol == self.state.user.character_symbol.unwrap(),
+                                    _ => false
+                                })
+                                .map(|(index, _)| index)
+                                .unwrap(),
+                            direction: Direction::Down,
+                        }
                     });
                 },
 

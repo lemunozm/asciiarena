@@ -4,6 +4,7 @@ use super::configuration::{Config};
 use crate::version::{Compatibility};
 use crate::message::{LoginStatus, EntityData};
 use crate::character::{CharacterId, Character};
+use crate::direction::{Direction};
 
 use std::net::{SocketAddr};
 use std::time::{Instant};
@@ -12,7 +13,7 @@ use std::collections::{HashMap};
 pub type EntityId = usize;
 
 pub struct User {
-    pub character: Option<char>,
+    pub character_symbol: Option<char>,
     pub login_status: Option<LoginStatus>,
 }
 
@@ -42,9 +43,15 @@ pub enum ArenaStatus {
     Finished,
 }
 
+pub struct UserPlayer {
+    pub player_id: usize, // The position of server.arena.players Vec.
+    pub direction: Direction,
+}
+
 pub struct Arena {
     pub status: ArenaStatus,
     pub entities: HashMap<EntityId, EntityData>,
+    pub user_player: UserPlayer,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -125,7 +132,7 @@ impl State {
     pub fn new(config: &Config) -> State {
         State {
             user: User {
-                character: config.character,
+                character_symbol: config.character,
                 login_status: None,
             },
             server: Server {

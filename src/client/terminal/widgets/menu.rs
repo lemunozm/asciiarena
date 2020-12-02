@@ -24,7 +24,7 @@ use std::time::{Instant};
 
 pub struct Menu {
     server_addr_input: InputText,
-    character_input: InputCapitalLetter,
+    character_symbol_input: InputCapitalLetter,
     waiting_room: WaitingRoom,
 }
 
@@ -34,7 +34,7 @@ impl Menu {
             server_addr_input: InputText::new(
                 config.server_addr.map(|addr| addr.to_string())
             ),
-            character_input: InputCapitalLetter::new(config.character),
+            character_symbol_input: InputCapitalLetter::new(config.character),
             waiting_room: WaitingRoom::new(
                 WaitingRoomPanelWidget::WIDTH - 2,
                 ServerInfoPanelWidget::HEIGHT - 2
@@ -53,8 +53,8 @@ impl Menu {
                                 store.dispatch(Action::Connect(addr));
                             }
                         }
-                        else if self.character_input.has_focus() {
-                            if let Some(character) = self.character_input.content() {
+                        else if self.character_symbol_input.has_focus() {
+                            if let Some(character) = self.character_symbol_input.content() {
                                 store.dispatch(Action::Login(character));
                             }
                         }
@@ -75,7 +75,7 @@ impl Menu {
                     _ => (),
                 }
                 self.server_addr_input.key_pressed(key_event);
-                self.character_input.key_pressed(key_event);
+                self.character_symbol_input.key_pressed(key_event);
             },
             InputEvent::ResizeDisplay(_, _) => {},
         }
@@ -94,7 +94,7 @@ impl Menu {
             (false, false)
         };
 
-        self.character_input.focus(character_focus);
+        self.character_symbol_input.focus(character_focus);
         self.server_addr_input.focus(server_addr_focus);
         self.waiting_room.update(state);
     }
@@ -300,7 +300,7 @@ struct CharacterLabelWidget<'a> {state: &'a State, menu: &'a Menu}
 impl StatefulWidget for CharacterLabelWidget<'_> {
     type State = Cursor;
     fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Cursor) {
-        let character = match self.menu.character_input.content() {
+        let character = match self.menu.character_symbol_input.content() {
             Some(character) => character,
             None => ' ',
         };
@@ -336,7 +336,7 @@ impl StatefulWidget for CharacterLabelWidget<'_> {
             .alignment(Alignment::Right)
             .render(area, buffer);
 
-        if self.menu.character_input.has_focus() {
+        if self.menu.character_symbol_input.has_focus() {
             cursor.set(area.x + ClientInfoPanelWidget::INITIAL_CURSOR, area.y);
         }
     }
@@ -647,7 +647,7 @@ impl Widget for NotifyPanelWidget<'_> {
         }
         else if !self.state.user.is_logged() {
             vec![
-                if self.menu.character_input.content().is_none() {
+                if self.menu.character_symbol_input.content().is_none() {
                     Spans::from(vec![
                         Span::raw("Choose a character (an ascii uppercase letter)"),
                     ])
