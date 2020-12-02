@@ -1,11 +1,10 @@
 use crate::character::{Character};
 use crate::vec2::{Vec2};
 use crate::direction::{Direction};
+use crate::message::{EntityId};
 
 use std::time::{Instant, Duration};
 use std::rc::{Rc};
-
-pub type EntityId = usize;
 
 pub struct Entity {
     id: EntityId,

@@ -385,11 +385,7 @@ impl<'a> ServerManager<'a> {
             .players()
             .iter()
             .map(|(symbol, player)| {
-                let entity = player
-                    .control()
-                    .borrow()
-                    .entity_id()
-                    .map(|id| entities.get(&id).unwrap());
+                let entity = entities.get(&player.control().borrow().entity_id());
 
                 let position = match entity {
                     Some(entity) => entity.position().to_string(),
@@ -492,8 +488,10 @@ impl<'a> ServerManager<'a> {
         match self.game.as_mut() {
             Some(game) => match self.room.session_by_endpoint(endpoint) {
                 Some(session) => {
-                    let player = game.player_mut(*session.user()).expect("Exists");
-                    player.walk(direction);
+                    let player = game.player_mut(*session.user()).unwrap();
+                    if player.is_alive() {
+                        player.walk(direction);
+                    }
                 }
                 None => log::warn!("Unlogged client attempted to move a character. Maybe an attack?")
             },

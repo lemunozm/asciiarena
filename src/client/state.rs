@@ -2,15 +2,13 @@ use super::server_proxy::{ConnectionStatus};
 use super::configuration::{Config};
 
 use crate::version::{Compatibility};
-use crate::message::{LoginStatus, EntityData};
+use crate::message::{LoginStatus, EntityData, EntityId};
 use crate::character::{CharacterId, Character};
 use crate::direction::{Direction};
 
 use std::net::{SocketAddr};
 use std::time::{Instant};
 use std::collections::{HashMap};
-
-pub type EntityId = usize;
 
 pub struct User {
     pub character_symbol: Option<char>,
@@ -62,8 +60,9 @@ pub enum GameStatus {
 }
 
 pub struct Player {
+    pub id: usize, // The position of server.arena.players Vec.
     pub character_id: CharacterId,
-    pub entity_id: Option<EntityId>,
+    pub entity_id: EntityId,
     pub partial_points: usize,
     pub total_points: usize,
 }

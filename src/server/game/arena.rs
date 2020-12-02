@@ -16,7 +16,7 @@ pub struct Arena {
     map: Map,
     entities: HashMap<EntityId, Entity>,
     entity_controls: Vec<Rc<RefCell<EntityControl>>>,
-    next_entity_id: EntityId,
+    last_entity_id: EntityId,
 }
 
 impl Arena {
@@ -25,7 +25,7 @@ impl Arena {
             map: Map::new(map_size, players_number),
             entities: HashMap::new(),
             entity_controls: Vec::new(),
-            next_entity_id: 0,
+            last_entity_id: EntityId::NO_ENTITY,
         }
     }
 
@@ -43,29 +43,32 @@ impl Arena {
         position: Vec2
         ) -> &mut Entity
     {
-        let id = self.next_entity_id;
-        let entity = Entity::new(id, character, position);
-        self.next_entity_id += 1;
-        self.entities.insert(id, entity);
-        self.entities.get_mut(&id).unwrap()
+        self.last_entity_id = self.last_entity_id.next();
+        let entity = Entity::new(self.last_entity_id, character, position);
+        self.entities.insert(self.last_entity_id, entity);
+        self.entities.get_mut(&self.last_entity_id).unwrap()
     }
 
     pub fn attach_entity_control(&mut self, control: Rc<RefCell<EntityControl>>) {
-        assert!(self.entities.get_mut(&control.borrow().entity_id().unwrap()).is_some());
+        assert!(control.borrow().entity_id().is_valid());
+        assert!(self.entities.get(&control.borrow().entity_id()).is_some());
         self.entity_controls.push(control);
     }
 
     pub fn update(&mut self) {
         let current_time = Instant::now();
 
+        assert!(self.entities.iter().all(|(_, entity)| entity.is_alive()));
+        assert!(self.entity_controls.iter().all(|control| control.borrow().entity_id().is_valid()));
+
         //Should it be processed randomly?
         for control in &mut self.entity_controls {
             let mut control = control.borrow_mut();
-            let entity_id = control.entity_id().expect("Exists");
+            let entity_id = control.entity_id();
             for action in control.actions() {
                 match action {
                     EntityAction::Walk(direction) => {
-                        let entity = self.entities.get(&entity_id).expect("Exists");
+                        let entity = &self.entities[&entity_id];
                         let next_position = entity.position() + direction.to_vec2();
                         if self.map.contains(next_position) {
                             let occupied_position = self.entities
@@ -74,7 +77,7 @@ impl Arena {
                                 .is_some();
 
                             if !occupied_position {
-                                let entity = self.entities.get_mut(&entity_id).expect("Exists");
+                                let entity = self.entities.get_mut(&entity_id).unwrap();
                                 entity.walk(*direction, current_time);
                             }
                         }
@@ -89,13 +92,13 @@ impl Arena {
 
         for control in &mut self.entity_controls {
             let mut control = control.borrow_mut();
-            let entity_id = control.entity_id().expect("Exists");
-            let entity = self.entities.get_mut(&entity_id).expect("Exists");
+            let entity = &self.entities[&control.entity_id()];
             if !entity.is_alive() {
                 control.detach_entity();
             }
         }
 
         self.entities.retain(|_, entity| entity.is_alive());
+        self.entity_controls.retain(|control| control.borrow().entity_id().is_valid());
     }
 }

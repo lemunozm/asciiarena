@@ -1,5 +1,4 @@
-use super::entity::{EntityId};
-
+use crate::message::{EntityId};
 use crate::direction::{Direction};
 
 pub enum EntityAction {
@@ -9,26 +8,24 @@ pub enum EntityAction {
 
 #[derive(Default)]
 pub struct EntityControl {
-    entity_id: Option<EntityId>,
+    entity_id: EntityId,
     pending_actions: Vec<EntityAction>,
 }
 
 impl EntityControl {
     pub fn push_action(&mut self, action: EntityAction) {
-        if self.entity_id.is_some() {
-            self.pending_actions.push(action);
-        }
+        self.pending_actions.push(action);
     }
 
     pub fn attach_entity(&mut self, id: EntityId) {
-        self.entity_id = Some(id);
+        self.entity_id = id;
     }
 
     pub fn detach_entity(&mut self) {
-        self.entity_id = None;
+        self.entity_id = EntityId::NO_ENTITY;
     }
 
-    pub fn entity_id(&self) -> Option<EntityId> {
+    pub fn entity_id(&self) -> EntityId {
         self.entity_id
     }
 

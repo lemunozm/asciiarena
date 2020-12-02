@@ -2,7 +2,7 @@ use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena, ArenaS
     Player, UserPlayer};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
-use crate::message::{ArenaChange};
+use crate::message::{ArenaChange, EntityId};
 use crate::character::{CharacterId};
 use crate::direction::{Direction};
 use crate::version::{self};
@@ -155,9 +155,11 @@ impl Store {
 
                     self.state.server.game.players = game_info.players
                         .into_iter()
-                        .map(|(character_id, total_points)| Player {
+                        .enumerate()
+                        .map(|(index, (character_id, total_points))| Player {
+                            id: index,
                             character_id,
-                            entity_id: None,
+                            entity_id: EntityId::NO_ENTITY,
                             partial_points: 0,
                             total_points,
                         })
@@ -217,15 +219,6 @@ impl Store {
                         .into_iter()
                         .map(|entity| (entity.id, entity))
                         .collect::<HashMap<_, _>>();
-
-                    // If the entity no longer exists, remove it from players
-                    for player in &mut self.state.server.game.players {
-                        if let Some(entity_id) = player.entity_id {
-                            if !entity_map.contains_key(&entity_id) {
-                                player.entity_id = None;
-                            }
-                        }
-                    }
 
                     self.state.server.game.arena_mut().entities = entity_map;
                 },

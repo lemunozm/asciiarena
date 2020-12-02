@@ -103,13 +103,13 @@ impl Game {
         let mut arena = Arena::new(self.map_size, self.players.len());
 
         for (index, player) in self.players.values_mut().enumerate() {
+            player.reset_partial_points();
             let position = arena.map().initial_position(index);
             let character = player.character().clone();
             let entity = arena.create_entity(character, position);
             let control = player.control().clone();
             control.borrow_mut().attach_entity(entity.id());
             arena.attach_entity_control(control);
-            player.reset_partial_points();
         }
 
         self.arena = Some(arena);

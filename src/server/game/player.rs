@@ -44,7 +44,7 @@ impl Player {
     }
 
     pub fn is_alive(&self) -> bool {
-        self.control.borrow().entity_id().is_some()
+        self.control.borrow().entity_id().is_valid()
     }
 
     pub fn walk(&mut self, direction: Direction) {

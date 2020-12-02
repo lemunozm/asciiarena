@@ -65,7 +65,20 @@ pub enum ServerMessage {
 //     Composable message pieces
 // ===================================================
 pub type SessionToken = usize;
-pub type EntityId = usize;
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct EntityId(usize);
+
+impl EntityId {
+    pub const NO_ENTITY: EntityId = EntityId(0);
+    pub fn next(&self) -> EntityId {
+        EntityId(self.0 + 1)
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self != &Self::NO_ENTITY
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum LoggedKind {
@@ -108,7 +121,7 @@ pub struct GameInfo {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ArenaInfo {
     pub number: usize,
-    pub players: Vec<(Option<EntityId>, usize)>, //id, partial_points
+    pub players: Vec<(EntityId, usize)>, //id, partial_points
 }
 
 #[derive(Serialize, Deserialize, Debug)]
