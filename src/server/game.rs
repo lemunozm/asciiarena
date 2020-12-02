@@ -9,7 +9,7 @@ use arena::{Arena};
 
 use crate::character::{Character, CharacterId, CharacterBuilder};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, BTreeMap, BTreeSet};
 
 use std::rc::{Rc};
 
@@ -22,7 +22,7 @@ pub struct Game {
 
     characters: HashMap<CharacterId, Rc<Character>>,
 
-    players: HashMap<char, Player>,
+    players: BTreeMap<char, Player>,
 }
 
 impl Game {
@@ -84,7 +84,7 @@ impl Game {
         self.players.get_mut(&character_symbol)
     }
 
-    pub fn players(&self) -> &HashMap<char, Player> {
+    pub fn players(&self) -> &BTreeMap<char, Player> {
         &self.players
     }
 
@@ -132,7 +132,7 @@ impl Game {
         }
     }
 
-    pub fn living_players(&self) -> HashSet<char> {
+    pub fn living_players(&self) -> BTreeSet<char> {
         self.players
             .values()
             .filter(|player| player.is_alive())
