@@ -1,6 +1,8 @@
 use crate::message::{EntityId};
 use crate::direction::{Direction};
 
+use std::collections::{VecDeque};
+
 pub enum EntityAction {
     Walk(Direction),
     Cast(usize /*Skill*/),
@@ -9,12 +11,16 @@ pub enum EntityAction {
 #[derive(Default)]
 pub struct EntityControl {
     entity_id: EntityId,
-    pending_actions: Vec<EntityAction>,
+    pending_actions: VecDeque<EntityAction>,
 }
 
 impl EntityControl {
     pub fn push_action(&mut self, action: EntityAction) {
-        self.pending_actions.push(action);
+        self.pending_actions.push_back(action);
+    }
+
+    pub fn pop_action(&mut self) -> Option<EntityAction> {
+        self.pending_actions.pop_front()
     }
 
     pub fn attach_entity(&mut self, id: EntityId) {
@@ -27,13 +33,5 @@ impl EntityControl {
 
     pub fn entity_id(&self) -> EntityId {
         self.entity_id
-    }
-
-    pub fn actions(&mut self) -> &[EntityAction] {
-        self.pending_actions.as_slice()
-    }
-
-    pub fn reset_actions(&mut self) {
-        self.pending_actions.clear()
     }
 }

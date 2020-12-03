@@ -65,7 +65,7 @@ impl Arena {
         for control in &mut self.entity_controls {
             let mut control = control.borrow_mut();
             let entity_id = control.entity_id();
-            for action in control.actions() {
+            while let Some(action) = control.pop_action() {
                 match action {
                     EntityAction::Walk(direction) => {
                         let entity = &self.entities[&entity_id];
@@ -78,16 +78,23 @@ impl Arena {
 
                             if !occupied_position {
                                 let entity = self.entities.get_mut(&entity_id).unwrap();
-                                entity.walk(*direction, current_time);
+                                entity.walk(direction, current_time);
                             }
                         }
                     }
                     EntityAction::Cast(_skill) => {
+                        /*
+                        let spell_spec = SpellSpec {
+                            id: 1,
+                            damage: 5,
+                            behaviour_builder: FireballBehaviourBuilder,
+                        };
+                        let spell = Spell::new(spell_spec, );
                         //TODO
+                        */
                     }
                 }
             }
-            control.reset_actions();
         }
 
         for control in &mut self.entity_controls {

@@ -68,6 +68,7 @@ impl Entity {
     }
 
     pub fn walk(&mut self, direction: Direction, current: Instant) -> bool {
+        self.direction = direction;
         if current > self.next_walk_time {
             self.position += direction.to_vec2();
             self.next_walk_time = current + Duration::from_secs_f32(1.0 / self.speed);
