@@ -1,8 +1,5 @@
 mod player;
 mod arena;
-mod entity;
-mod map;
-mod control;
 
 use player::{Player};
 use arena::{Arena};

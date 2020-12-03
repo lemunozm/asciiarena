@@ -1,5 +1,9 @@
-use super::map::{Map};
-use super::entity::{Entity, EntityControl, EntityAction};
+pub mod entity;
+pub mod map;
+pub mod control;
+
+use map::{Map};
+use entity::{Entity, EntityControl, EntityAction};
 
 use crate::character::{Character};
 use crate::message::{EntityId};
