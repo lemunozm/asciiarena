@@ -41,18 +41,14 @@ impl Arena {
         &mut self,
         character: Rc<Character>,
         position: Vec2
-        ) -> &mut Entity
-    {
-        self.last_entity_id = self.last_entity_id.next();
-        let entity = Entity::new(self.last_entity_id, character, position);
-        self.entities.insert(self.last_entity_id, entity);
-        self.entities.get_mut(&self.last_entity_id).unwrap()
-    }
-
-    pub fn attach_entity_control(&mut self, control: Rc<RefCell<EntityControl>>) {
-        assert!(control.borrow().entity_id().is_valid());
-        assert!(self.entities.get(&control.borrow().entity_id()).is_some());
+    ) -> &Rc<RefCell<EntityControl>> {
+        let id = self.last_entity_id.next();
+        let entity = Entity::new(id, character, position);
+        let control = Rc::new(RefCell::new(EntityControl::new(id)));
+        self.last_entity_id = id;
+        self.entities.insert(id, entity);
         self.entity_controls.push(control);
+        self.entity_controls.last().unwrap()
     }
 
     pub fn update(&mut self) {

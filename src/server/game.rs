@@ -29,9 +29,8 @@ impl Game {
     pub fn new(
         map_size: usize,
         winner_points: usize,
-        player_characters: impl Iterator<Item = char>)
-        -> Game
-    {
+        player_characters: impl Iterator<Item = char>
+    ) -> Game {
         let characters = player_characters
             .map(|symbol| {
                 let character = CharacterBuilder::default()
@@ -103,13 +102,11 @@ impl Game {
         let mut arena = Arena::new(self.map_size, self.players.len());
 
         for (index, player) in self.players.values_mut().enumerate() {
-            player.reset_partial_points();
             let position = arena.map().initial_position(index);
             let character = player.character().clone();
-            let entity = arena.create_entity(character, position);
-            let control = player.control().clone();
-            control.borrow_mut().attach_entity(entity.id());
-            arena.attach_entity_control(control);
+            let control = arena.create_entity(character, position);
+            player.set_control(control.clone());
+            player.reset_partial_points();
         }
 
         self.arena = Some(arena);
@@ -128,6 +125,7 @@ impl Game {
         let player_number = self.players.len();
         for symbol in death_players {
             let player = self.players.get_mut(symbol).unwrap();
+            player.remove_control();
             player.update_points(player_number - living_players_before.len());
         }
     }

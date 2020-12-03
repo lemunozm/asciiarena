@@ -8,23 +8,25 @@ pub enum EntityAction {
     Cast(usize /*Skill*/),
 }
 
-#[derive(Default)]
 pub struct EntityControl {
     entity_id: EntityId,
     pending_actions: VecDeque<EntityAction>,
 }
 
 impl EntityControl {
+    pub fn new(entity_id: EntityId) -> EntityControl {
+        EntityControl {
+            entity_id,
+            pending_actions: VecDeque::new(),
+        }
+    }
+
     pub fn push_action(&mut self, action: EntityAction) {
         self.pending_actions.push_back(action);
     }
 
     pub fn pop_action(&mut self) -> Option<EntityAction> {
         self.pending_actions.pop_front()
-    }
-
-    pub fn attach_entity(&mut self, id: EntityId) {
-        self.entity_id = id;
     }
 
     pub fn detach_entity(&mut self) {

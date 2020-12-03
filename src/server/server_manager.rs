@@ -2,7 +2,7 @@ use super::session::{RoomSession, SessionStatus};
 use super::game::{Game};
 
 use crate::message::{ClientMessage, ServerMessage, ServerInfo, GameInfo, ArenaInfo,
-    LoginStatus, LoggedKind, SessionToken, EntityData, Frame, ArenaChange};
+    LoginStatus, LoggedKind, SessionToken, EntityData, Frame, ArenaChange, EntityId};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
 use crate::util::{self};
@@ -385,7 +385,7 @@ impl<'a> ServerManager<'a> {
             .players()
             .iter()
             .map(|(symbol, player)| {
-                let entity = entities.get(&player.control().borrow().entity_id());
+                let entity = entities.get(&player.control().unwrap().entity_id());
 
                 let position = match entity {
                     Some(entity) => entity.position().to_string(),
@@ -493,7 +493,8 @@ impl<'a> ServerManager<'a> {
                         player.walk(direction);
                     }
                 }
-                None => log::warn!("Unlogged client attempted to move a character. Maybe an attack?")
+                None =>
+                    log::warn!("Unlogged client attempted to move a character. Maybe an attack?")
             },
             None => log::warn!("Client attempted to move a character without a created game")
         };
@@ -544,7 +545,10 @@ impl<'a> ServerManager<'a> {
             players: game.players()
                 .iter()
                 .map(|(_, player)| (
-                    player.control().borrow().entity_id(),
+                    match player.control() {
+                        Some(control) => control.entity_id(),
+                        None => EntityId::NO_ENTITY,
+                    },
                     player.partial_points()
                 ))
                 .collect()
