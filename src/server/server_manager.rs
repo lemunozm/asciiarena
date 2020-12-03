@@ -385,7 +385,7 @@ impl<'a> ServerManager<'a> {
             .players()
             .iter()
             .map(|(symbol, player)| {
-                let entity = entities.get(&player.control().unwrap().entity_id());
+                let entity = entities.get(&player.control().unwrap().id());
 
                 let position = match entity {
                     Some(entity) => entity.position().to_string(),
@@ -546,7 +546,7 @@ impl<'a> ServerManager<'a> {
                 .iter()
                 .map(|(_, player)| (
                     match player.control() {
-                        Some(control) => control.entity_id(),
+                        Some(control) => control.id(),
                         None => EntityId::NO_ENTITY,
                     },
                     player.partial_points()

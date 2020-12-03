@@ -1,3 +1,5 @@
+use super::control::{Control};
+
 use crate::character::{Character};
 use crate::vec2::{Vec2};
 use crate::direction::{Direction};
@@ -5,10 +7,19 @@ use crate::message::{EntityId};
 
 use std::time::{Instant, Duration};
 use std::rc::{Rc};
+use std::cell::{RefCell};
+
+pub enum EntityAction {
+    Walk(Direction),
+    Cast(usize /*Skill*/),
+}
+
+pub type EntityControl = Control<EntityId, EntityAction>;
 
 pub struct Entity {
     id: EntityId,
     character: Rc<Character>,
+    control: Rc<RefCell<EntityControl>>,
     direction: Direction,
     position: Vec2,
     live: usize,
@@ -22,6 +33,7 @@ impl Entity {
         Entity {
             id,
             position,
+            control: Rc::new(RefCell::new(EntityControl::new(id))),
             direction: Direction::Down,
             live: character.max_live(),
             energy: character.max_energy(),
@@ -37,6 +49,10 @@ impl Entity {
 
     pub fn character(&self) -> &Character {
         &*self.character
+    }
+
+    pub fn control(&self) -> &Rc<RefCell<EntityControl>> {
+        &self.control
     }
 
     pub fn live(&self) -> usize {

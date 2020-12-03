@@ -1,4 +1,4 @@
-use super::control::{EntityControl, EntityAction};
+use super::entity::{EntityControl, EntityAction};
 
 use crate::character::{Character};
 use crate::direction::{Direction};
