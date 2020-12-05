@@ -2,6 +2,7 @@ use crate::version::{Compatibility};
 use crate::character::{CharacterId, Character};
 use crate::vec2::{Vec2};
 use crate::direction::{Direction};
+use crate::ids::{SessionToken, EntityId, SpellId, SpellSpecId};
 
 use serde::{Serialize, Deserialize};
 
@@ -64,22 +65,6 @@ pub enum ServerMessage {
 // ===================================================
 //     Composable message pieces
 // ===================================================
-pub type SessionToken = usize;
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct EntityId(usize);
-
-impl EntityId {
-    pub const NO_ENTITY: EntityId = EntityId(0);
-    pub fn next(&self) -> EntityId {
-        EntityId(self.0 + 1)
-    }
-
-    pub fn is_valid(&self) -> bool {
-        self != &Self::NO_ENTITY
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum LoggedKind {
     FirstTime,
@@ -104,15 +89,6 @@ pub struct ServerInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct EntityData {
-    pub id: EntityId,
-    pub character_id: CharacterId,
-    pub position: Vec2,
-    pub live: usize,
-    pub energy: usize,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct GameInfo {
     pub characters: Vec<Character>,
     pub players: Vec<(CharacterId, usize)>, //id, total_pointsd
@@ -131,6 +107,23 @@ pub enum ArenaChange {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct EntityData {
+    pub id: EntityId,
+    pub character_id: CharacterId,
+    pub position: Vec2,
+    pub live: usize,
+    pub energy: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SpellData {
+    pub id: SpellId,
+    pub spec_id: SpellSpecId,
+    pub position: Vec2,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Frame {
     pub entities: Vec<EntityData>,
+    pub spells: Vec<SpellData>,
 }

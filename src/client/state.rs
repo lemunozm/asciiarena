@@ -2,9 +2,10 @@ use super::server_proxy::{ConnectionStatus};
 use super::configuration::{Config};
 
 use crate::version::{Compatibility};
-use crate::message::{LoginStatus, EntityData, EntityId};
+use crate::message::{LoginStatus, EntityData, SpellData};
 use crate::character::{CharacterId, Character};
 use crate::direction::{Direction};
+use crate::ids::{EntityId, SpellId};
 
 use std::net::{SocketAddr};
 use std::time::{Instant};
@@ -48,8 +49,9 @@ pub struct UserPlayer {
 
 pub struct Arena {
     pub status: ArenaStatus,
-    pub entities: HashMap<EntityId, EntityData>,
     pub user_player: UserPlayer,
+    pub entities: HashMap<EntityId, EntityData>,
+    pub spells: HashMap<SpellId, SpellData>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

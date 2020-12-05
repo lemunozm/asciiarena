@@ -2,9 +2,10 @@ use super::session::{RoomSession, SessionStatus};
 use super::game::{Game};
 
 use crate::message::{ClientMessage, ServerMessage, ServerInfo, GameInfo, ArenaInfo,
-    LoginStatus, LoggedKind, SessionToken, EntityData, Frame, ArenaChange, EntityId};
+    LoginStatus, LoggedKind, EntityData, Frame, ArenaChange, SpellData};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
+use crate::ids::{SessionToken, EntityId};
 use crate::util::{self};
 
 use message_io::events::{EventQueue};
@@ -474,7 +475,15 @@ impl<'a> ServerManager<'a> {
                 }
             }).collect();
 
-            let message = ServerMessage::Step(Frame { entities });
+            let spells = arena.spells().values().map(|spell| {
+                SpellData {
+                    id: spell.id(),
+                    spec_id: spell.spec_id(),
+                    position: spell.position(),
+                }
+            }).collect();
+
+            let message = ServerMessage::Step(Frame { entities, spells });
             self.network.send_all(self.room.faster_endpoints(), message);
 
             self.event_queue.sender().send_with_timer(Event::GameStep, *GAME_STEP_DURATION);
@@ -547,7 +556,7 @@ impl<'a> ServerManager<'a> {
                 .map(|(_, player)| (
                     match player.control() {
                         Some(control) => control.id(),
-                        None => EntityId::NO_ENTITY,
+                        None => EntityId::NONE,
                     },
                     player.partial_points()
                 ))

@@ -1,4 +1,4 @@
-use crate::message::{SessionToken};
+use crate::ids::{SessionToken};
 
 use rand::prelude::*;
 

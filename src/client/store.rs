@@ -2,9 +2,10 @@ use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena, ArenaS
     Player, UserPlayer};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
-use crate::message::{ArenaChange, EntityId};
+use crate::message::{ArenaChange};
 use crate::character::{CharacterId};
 use crate::direction::{Direction};
+use crate::ids::{EntityId};
 use crate::version::{self};
 
 use std::net::{SocketAddr};
@@ -159,7 +160,7 @@ impl Store {
                         .map(|(index, (character_id, total_points))| Player {
                             id: index,
                             character_id,
-                            entity_id: EntityId::NO_ENTITY,
+                            entity_id: EntityId::NONE,
                             partial_points: 0,
                             total_points,
                         })
@@ -191,6 +192,7 @@ impl Store {
                     self.state.server.game.arena = Some(Arena {
                         status: ArenaStatus::Playing,
                         entities: HashMap::new(),
+                        spells: HashMap::new(),
                         user_player: UserPlayer {
                             player_id: self.state.server.game.players
                                 .iter()
@@ -215,12 +217,15 @@ impl Store {
                 }
 
                 ServerEvent::ArenaStep(frame) => {
-                    let entity_map = frame.entities
+                    self.state.server.game.arena_mut().entities = frame.entities
                         .into_iter()
                         .map(|entity| (entity.id, entity))
                         .collect::<HashMap<_, _>>();
 
-                    self.state.server.game.arena_mut().entities = entity_map;
+                    self.state.server.game.arena_mut().spells = frame.spells
+                        .into_iter()
+                        .map(|spell| (spell.id, spell))
+                        .collect::<HashMap<_, _>>();
                 },
 
                 ServerEvent::FinishArena => {
