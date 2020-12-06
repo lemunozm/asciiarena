@@ -7,7 +7,7 @@ use crate::direction::{Direction};
 use crate::ids::{EntityId, SpellId, SpellSpecId};
 
 use std::time::{Instant, Duration};
-
+use std::collections::{HashMap};
 use std::rc::{Rc};
 use std::cell::{RefCell};
 
@@ -26,7 +26,7 @@ pub trait SpellSpec {
 pub trait SpellBehaviour {
     fn on_entity_collision(&mut self, entity: &Entity);
     fn on_wall_collision(&mut self, position: Vec2);
-    fn on_update(&mut self, time: Instant, map: &Map, entities: &Vec<Entity>);
+    fn on_update(&mut self, time: Instant, map: &Map, entities: &HashMap<EntityId, Entity>);
 }
 
 pub enum SpellAction {
@@ -46,6 +46,7 @@ pub struct Spell {
     behaviour: Box<dyn SpellBehaviour>,
     damage: i32,
     position: Vec2,
+    destroyed: bool,
 }
 
 impl Spell {
@@ -58,7 +59,8 @@ impl Spell {
             behaviour: spec.create_behaviour(control.clone(), entity),
             control,
             damage: spec.base_damage(), /* Mul to entity effects */
-            position: entity.position() + entity.direction().to_vec2()
+            position: entity.position() + entity.direction().to_vec2(),
+            destroyed: false,
         }
     }
 
@@ -76,6 +78,10 @@ impl Spell {
 
     pub fn damage(&self) -> i32 {
         self.damage
+    }
+
+    pub fn has_destroyed(&self) -> bool {
+        self.destroyed
     }
 
     pub fn control(&self) -> &Rc<RefCell<SpellControl>> {
@@ -96,6 +102,10 @@ impl Spell {
 
     pub fn displace(&mut self, displacement: Vec2) {
         self.position += displacement;
+    }
+
+    pub fn destroy(&mut self) {
+        self.destroyed = true;
     }
 }
 
@@ -144,15 +154,15 @@ impl Behaviour {
 }
 
 impl SpellBehaviour for Behaviour {
-    fn on_entity_collision(&mut self, entity: &Entity) {
-        //TODO
+    fn on_entity_collision(&mut self, _entity: &Entity) {
+        self.control.borrow_mut().push_action(SpellAction::Destroy);
     }
 
-    fn on_wall_collision(&mut self, position: Vec2) {
-        //TODO
+    fn on_wall_collision(&mut self, _position: Vec2) {
+        self.control.borrow_mut().push_action(SpellAction::Destroy);
     }
 
-    fn on_update(&mut self, time: Instant, map: &Map, entities: &Vec<Entity>) {
+    fn on_update(&mut self, time: Instant, _map: &Map, _entities: &HashMap<EntityId, Entity>) {
         if time > self.next_move_time {
             self.control.borrow_mut().push_action(SpellAction::Move(self.direction));
             self.next_move_time = time + Duration::from_secs_f32(1.0 / Self::BALL_SPEED);

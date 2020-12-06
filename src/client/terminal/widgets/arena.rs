@@ -7,6 +7,7 @@ use crate::client::terminal::input::{InputEvent};
 use crate::direction::{Direction};
 use crate::character::{CharacterId, Character};
 use crate::message::{EntityData};
+use crate::ids::{SkillId};
 
 use tui::buffer::{Buffer};
 use tui::widgets::{Paragraph, Block, Borders, BorderType, Widget};
@@ -28,12 +29,17 @@ impl Arena {
                     }
                 }
                 KeyCode::Char(c) => {
-                    //TODO: check arena running and entity live
+                    //TODO: check arena running and entity alive
                     match c {
                         'w' => store.dispatch(Action::MovePlayer(Direction::Up)),
                         'a' => store.dispatch(Action::MovePlayer(Direction::Left)),
                         's' => store.dispatch(Action::MovePlayer(Direction::Down)),
                         'd' => store.dispatch(Action::MovePlayer(Direction::Right)),
+                        ' ' => {
+                            //TODO: skill available
+                            let id = SkillId::next(SkillId::NONE);
+                            store.dispatch(Action::CastSkill(id));
+                        }
                         _ => (),
                     }
                 }
@@ -215,8 +221,8 @@ impl Widget for PlayerPanelWidget<'_> {
         let content = panel_area.inner(&Margin {vertical: 1, horizontal: 1});
 
         let bar_area = Rect::new(content.x, content.y, content.width, 1).intersection(area);
-        let live = self.entity.map(|e| e.live).unwrap_or(0);
-        BarWidget::new(live, self.character.max_live(), Color::Green)
+        let health = self.entity.map(|e| e.health).unwrap_or(0);
+        BarWidget::new(health, self.character.max_health(), Color::Green)
             .render(bar_area, buffer);
 
         let bar_area = Rect::new(content.x, content.y + 1, content.width, 1).intersection(area);
@@ -310,6 +316,13 @@ impl Widget for MapWidget<'_> {
         let inner = area.inner(&Margin {vertical: 1, horizontal: 1});
         let entity_style = Style::default().fg(Color::White);
         let player_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
+
+        for (_, spell) in &self.state.server.game.arena().spells {
+            let x = spell.position.x as u16 * 2 + 1;
+            let y = spell.position.y as u16;
+            let style = Style::default().fg(Color::Indexed(208)).remove_modifier(Modifier::BOLD);
+            buffer.set_string(inner.x + x, inner.y + y, "o", style);
+        }
 
         for (_, entity) in &self.state.server.game.arena().entities {
             let x = entity.position.x as u16 * 2 + 1;

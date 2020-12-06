@@ -33,7 +33,7 @@ impl Game {
                 let character = CharacterBuilder::default()
                     .id(CharacterId::Player(symbol))
                     .symbol(symbol)
-                    .max_live(Player::MAX_LIFE)
+                    .max_health(Player::MAX_LIFE)
                     .max_energy(Player::MAX_ENERGY)
                     .speed_base(Player::SPEED_BASE)
                     .build()
@@ -64,16 +64,8 @@ impl Game {
         self.arena.as_ref()
     }
 
-    pub fn arena_mut(&mut self) -> Option<&mut Arena> {
-        self.arena.as_mut()
-    }
-
     pub fn characters(&self) -> &HashMap<CharacterId, Rc<Character>> {
         &self.characters
-    }
-
-    pub fn player(&self, character_symbol: char) -> Option<&Player> {
-        self.players.get(&character_symbol)
     }
 
     pub fn player_mut(&mut self, character_symbol: char) -> Option<&mut Player> {

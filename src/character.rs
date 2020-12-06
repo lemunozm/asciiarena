@@ -10,7 +10,7 @@ pub enum CharacterId {
 pub struct Character {
     id: CharacterId,
     symbol: char,
-    max_live: usize,
+    max_health: usize,
     max_energy: usize,
     speed_base: f32,
 }
@@ -24,8 +24,8 @@ impl Character {
         self.symbol
     }
 
-    pub fn max_live(&self) -> usize {
-        self.max_live
+    pub fn max_health(&self) -> usize {
+        self.max_health
     }
 
     pub fn max_energy(&self) -> usize {

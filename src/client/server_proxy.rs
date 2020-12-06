@@ -2,6 +2,7 @@ use crate::message::{LoginStatus, ServerInfo, ClientMessage, ServerMessage,
     LoggedKind, GameInfo, ArenaInfo, Frame, ArenaChange};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
+use crate::ids::{SkillId};
 
 use message_io::events::{EventQueue, EventSender};
 use message_io::network::{Network, NetEvent, Endpoint};
@@ -27,7 +28,7 @@ pub enum ApiCall {
     Login(char),
     Logout,
     MovePlayer(Direction),
-    //CastSkill, //TODO
+    CastSkill(SkillId),
 }
 
 /// API Events from server
@@ -241,12 +242,10 @@ where C: Fn(ServerEvent) {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::MovePlayer(direction));
                     },
-                    /*
-                    ApiCall::CastSkill => {
+                    ApiCall::CastSkill(id) => {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::Skill);
+                        self.network.send(tcp, ClientMessage::CastSkill(id));
                     },
-                    */
                 }
             },
             Event::Network(net_event) => match net_event {

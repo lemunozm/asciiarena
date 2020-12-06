@@ -2,6 +2,7 @@ use super::arena::entity::{EntityControl, EntityAction};
 
 use crate::character::{Character};
 use crate::direction::{Direction};
+use crate::ids::{SkillId};
 
 use std::rc::{Rc};
 use std::cell::{RefCell, Ref};
@@ -59,6 +60,13 @@ impl Player {
         match &self.control {
             Some(control) => control.borrow_mut().push_action(EntityAction::Walk(direction)),
             None => panic!("The player must have an entity to move it"),
+        }
+    }
+
+    pub fn cast(&mut self, id: SkillId) {
+        match &self.control {
+            Some(control) => control.borrow_mut().push_action(EntityAction::Cast(id)),
+            None => panic!("The player must have an entity to cast a skill"),
         }
     }
 

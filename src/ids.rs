@@ -19,3 +19,4 @@ pub type SessionToken = usize;
 define_optional_id!(EntityId);
 define_optional_id!(SpellId);
 define_optional_id!(SpellSpecId);
+define_optional_id!(SkillId);

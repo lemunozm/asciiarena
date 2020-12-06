@@ -5,7 +5,7 @@ use crate::message::{ClientMessage, ServerMessage, ServerInfo, GameInfo, ArenaIn
     LoginStatus, LoggedKind, EntityData, Frame, ArenaChange, SpellData};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
-use crate::ids::{SessionToken, EntityId};
+use crate::ids::{SessionToken, EntityId, SkillId};
 use crate::util::{self};
 
 use message_io::events::{EventQueue};
@@ -143,8 +143,8 @@ impl<'a> ServerManager<'a> {
                             ClientMessage::MovePlayer(direction) => {
                                 self.process_move_player(endpoint, direction);
                             },
-                            ClientMessage::CastSkill => {
-                                //TODO
+                            ClientMessage::CastSkill(id) => {
+                                self.process_cast_skill(endpoint, id);
                             },
                         }
                     },
@@ -460,7 +460,7 @@ impl<'a> ServerManager<'a> {
 
             let change = ArenaChange::PlayerPartialPoints(points);
             let message = ServerMessage::ArenaChange(change);
-            self.network.send_all(self.room.faster_endpoints(), message);
+            self.network.send_all(self.room.safe_endpoints(), message);
         }
 
         if current_players > 1 {
@@ -470,8 +470,8 @@ impl<'a> ServerManager<'a> {
                     id: entity.id(),
                     character_id: entity.character().id(),
                     position: entity.position(),
-                    live: entity.live(),
-                    energy: entity.live(),
+                    health: entity.health(),
+                    energy: entity.health(),
                 }
             }).collect();
 
@@ -494,18 +494,32 @@ impl<'a> ServerManager<'a> {
     }
 
     fn process_move_player(&mut self, endpoint: Endpoint, direction: Direction) {
-        match self.game.as_mut() {
-            Some(game) => match self.room.session_by_endpoint(endpoint) {
-                Some(session) => {
+        match self.room.session_by_endpoint(endpoint) {
+            Some(session) => match self.game.as_mut() {
+                Some(game) => {
                     let player = game.player_mut(*session.user()).unwrap();
                     if player.is_alive() {
                         player.walk(direction);
                     }
                 }
-                None =>
-                    log::warn!("Unlogged client attempted to move a character. Maybe an attack?")
-            },
-            None => log::warn!("Client attempted to move a character without a created game")
+                None => log::warn!("Client attempted to move a player without a created game")
+            }
+            None => log::warn!("Unlogged client attempted to move a player. Maybe an attack?")
+        };
+    }
+
+    fn process_cast_skill(&mut self, endpoint: Endpoint, id: SkillId) {
+        match self.room.session_by_endpoint(endpoint) {
+            Some(session) => match self.game.as_mut() {
+                Some(game) => {
+                    let player = game.player_mut(*session.user()).unwrap();
+                    if player.is_alive() {
+                        player.cast(id);
+                    }
+                }
+                None => log::warn!("Client attempted to cast a skill without a created game")
+            }
+            None => log::warn!("Unlogged client attempted to cast a skill. Maybe an attack?")
         };
     }
 

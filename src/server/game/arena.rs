@@ -5,7 +5,7 @@ pub mod spell;
 
 use map::{Map};
 use entity::{Entity, EntityControl, EntityAction};
-use spell::{Spell, Fireball, SpellSpec, SpellAction, SpellControl};
+use spell::{Spell, Fireball, SpellSpec, SpellAction};
 
 use crate::character::{Character};
 use crate::ids::{SpellId, EntityId};
@@ -105,6 +105,47 @@ impl Arena {
                     EntityAction::Cast(_skill) => {
                         self.create_spell(&Fireball, entity_id);
                     }
+                }
+            }
+        }
+
+        let spell_controls = self.spells
+            .iter()
+            .filter_map(|(_, spell)| {
+                match spell.control().borrow().has_actions() {
+                    true => Some(spell.control().clone()),
+                    false => None,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        for control in spell_controls {
+            let spell_id = control.borrow().id();
+            let spell = self.spells.get_mut(&spell_id).unwrap();
+            spell.behaviour_mut().on_update(current_time, &self.map, &self.entities);
+            while let Some(action) = control.borrow_mut().pop_action() {
+                match action {
+                    SpellAction::Move(direction) => {
+                        let next_position = spell.position() + direction.to_vec2();
+                        if self.map.contains(next_position) {
+                            let entity_position = self.entities
+                                .values_mut()
+                                .find(|entity| entity.position() == next_position);
+
+                            if let Some(entity) = entity_position {
+                                spell.behaviour_mut().on_entity_collision(entity);
+                                entity.add_health(-spell.damage())
+                            }
+                            spell.set_position(next_position)
+                        }
+                        else {
+                            spell.behaviour_mut().on_wall_collision(next_position);
+                        }
+                    }
+                    SpellAction::Cast(_skill) => {
+                        //TODO
+                    }
+                    SpellAction::Destroy => spell.destroy()
                 }
             }
         }

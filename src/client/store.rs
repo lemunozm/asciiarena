@@ -5,7 +5,7 @@ use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 use crate::message::{ArenaChange};
 use crate::character::{CharacterId};
 use crate::direction::{Direction};
-use crate::ids::{EntityId};
+use crate::ids::{EntityId, SkillId};
 use crate::version::{self};
 
 use std::net::{SocketAddr};
@@ -23,6 +23,7 @@ pub enum Action {
     CloseGame,
     CloseApp,
     MovePlayer(Direction),
+    CastSkill(SkillId),
     ServerEvent(ServerEvent),
 }
 
@@ -91,6 +92,10 @@ impl Store {
             Action::MovePlayer(direction) => {
                 self.state.server.game.arena_mut().user_player.direction = direction;
                 self.server.call(ApiCall::MovePlayer(direction));
+            }
+
+            Action::CastSkill(id) => {
+                self.server.call(ApiCall::CastSkill(id));
             }
 
             Action::ServerEvent(server_event) => match server_event {

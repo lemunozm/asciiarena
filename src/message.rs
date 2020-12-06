@@ -2,7 +2,7 @@ use crate::version::{Compatibility};
 use crate::character::{CharacterId, Character};
 use crate::vec2::{Vec2};
 use crate::direction::{Direction};
-use crate::ids::{SessionToken, EntityId, SpellId, SpellSpecId};
+use crate::ids::{SessionToken, EntityId, SpellId, SpellSpecId, SkillId};
 
 use serde::{Serialize, Deserialize};
 
@@ -31,7 +31,7 @@ pub enum ClientMessage {
 
     // Arena real time messages
     MovePlayer(Direction), //direction
-    CastSkill, //id
+    CastSkill(SkillId), //id
 }
 
 /// Messages that Server sends to Client
@@ -111,7 +111,7 @@ pub struct EntityData {
     pub id: EntityId,
     pub character_id: CharacterId,
     pub position: Vec2,
-    pub live: usize,
+    pub health: usize,
     pub energy: usize,
 }
 
