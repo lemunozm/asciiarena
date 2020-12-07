@@ -15,6 +15,7 @@ mod direction;
 mod vec2;
 mod character;
 mod ids;
+mod specification;
 
 use clap::{self, App, AppSettings};
 

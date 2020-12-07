@@ -75,6 +75,10 @@ impl Entity {
         self.health > 0
     }
 
+    pub fn set_direction(&mut self, direction: Direction) {
+        self.direction = direction;
+    }
+
     pub fn set_position(&mut self, position: Vec2) {
         self.position = position;
     }
@@ -109,17 +113,12 @@ impl Entity {
         }
     }
 
-    pub fn walk(&mut self, direction: Direction, current: Instant) -> bool {
-        self.direction = direction;
+    pub fn walk(&mut self, current: Instant) -> bool {
         if current > self.next_walk_time {
-            self.position += direction.to_vec2();
+            self.position += self.direction.to_vec2();
             self.next_walk_time = current + Duration::from_secs_f32(1.0 / self.speed);
             return true
         }
         false
-    }
-
-    pub fn set_direction(&mut self, direction: Direction) {
-        self.direction = direction;
     }
 }

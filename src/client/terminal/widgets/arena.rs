@@ -288,7 +288,7 @@ struct MapWidget<'a> {state: &'a State}
 
 impl MapWidget<'_> {
     pub fn dimension(map_size: u16) -> (u16, u16) {
-        (2 + map_size * 2 + 1, 2 + map_size)
+        (map_size * 2 - 1, map_size)
     }
 }
 
@@ -299,10 +299,18 @@ impl Widget for MapWidget<'_> {
         let player = &self.state.server.game.players[user_player.player_id];
         if let Some(entity) = &self.state.server.game.arena().entities.get(&player.entity_id) {
             let pos = entity.position + user_player.direction.to_vec2();
-            let x = (2 + pos.x * 2) as u16;
-            let y = (1 + pos.y) as u16;
+            let x = pos.x as u16 * 2;
+            let y = pos.y as u16;
             let style = Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD);
             buffer.set_string(area.x + x, area.y + y, &"·", style);
+        }
+
+        // Spells
+        for (_, spell) in &self.state.server.game.arena().spells {
+            let x = spell.position.x as u16 * 2;
+            let y = spell.position.y as u16;
+            let style = Style::default().fg(Color::Indexed(208)).remove_modifier(Modifier::BOLD);
+            buffer.set_string(area.x + x, area.y + y, "o", style);
         }
 
         // Border
@@ -313,30 +321,22 @@ impl Widget for MapWidget<'_> {
             .render(area, buffer);
 
         // Entities
-        let inner = area.inner(&Margin {vertical: 1, horizontal: 1});
         let entity_style = Style::default().fg(Color::White);
         let player_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
 
-        for (_, spell) in &self.state.server.game.arena().spells {
-            let x = spell.position.x as u16 * 2 + 1;
-            let y = spell.position.y as u16;
-            let style = Style::default().fg(Color::Indexed(208)).remove_modifier(Modifier::BOLD);
-            buffer.set_string(inner.x + x, inner.y + y, "o", style);
-        }
-
         for (_, entity) in &self.state.server.game.arena().entities {
-            let x = entity.position.x as u16 * 2 + 1;
+            let x = entity.position.x as u16 * 2;
             let y = entity.position.y as u16;
             let character = self.state.server.game.characters.get(&entity.character_id).unwrap();
             let style = match character.id() {
                 CharacterId::Player(_) => player_style,
                 _ => entity_style,
             };
-            buffer.set_string(inner.x + x, inner.y + y, &character.symbol().to_string(), style);
+            buffer.set_string(area.x + x, area.y + y, &character.symbol().to_string(), style);
         }
 
         FinishGameMessageWidget::new(self.state)
-            .render(inner, buffer);
+            .render(area, buffer);
     }
 }
 

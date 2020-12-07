@@ -3,7 +3,7 @@ use serde::{Serialize, Deserialize};
 macro_rules! define_optional_id {
     ($name:ident) => {
         #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-        pub struct $name(usize);
+        pub struct $name(pub usize);
         impl $name {
             pub const NONE: $name = $name(0);
 

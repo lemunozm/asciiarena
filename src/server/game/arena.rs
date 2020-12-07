@@ -5,13 +5,13 @@ pub mod spell;
 
 use map::{Map};
 use entity::{Entity, EntityControl, EntityAction};
-use spell::{Spell, Fireball, SpellSpec, SpellAction};
+use spell::{Spell, SpellAction};
 
 use crate::character::{Character};
-use crate::ids::{SpellId, EntityId};
+use crate::ids::{SpellId, EntityId, SpellSpecId};
 use crate::vec2::Vec2;
 
-use std::collections::{HashMap};
+use std::collections::{HashMap, VecDeque};
 
 use std::time::{Instant};
 use std::rc::{Rc};
@@ -60,10 +60,10 @@ impl Arena {
         self.entities[&id].control()
     }
 
-    pub fn create_spell(&mut self, spell_spec: &dyn SpellSpec, entity_id: EntityId) {
+    pub fn create_spell(&mut self, spec_id: SpellSpecId, entity_id: EntityId) {
         let id = SpellId::next(self.last_spell_id);
         let entity = &self.entities[&entity_id];
-        let spell = Spell::new(id, spell_spec, &entity);
+        let spell = Spell::new(id, spec_id, &entity);
         self.last_spell_id = id;
         self.spells.insert(id, spell);
     }
@@ -71,7 +71,12 @@ impl Arena {
     pub fn update(&mut self) {
         assert!(self.entities.iter().all(|(_, entity)| entity.is_alive()));
 
+        self.spells.retain(|_, spell| !spell.is_destroyed());
+
         let current_time = Instant::now();
+
+        //for each entity: on_update()
+
         let entity_controls = self.entities
             .iter()
             .filter_map(|(_, entity)| {
@@ -98,54 +103,62 @@ impl Arena {
 
                             if !occupied_position {
                                 let entity = self.entities.get_mut(&entity_id).unwrap();
-                                entity.walk(direction, current_time);
+                                entity.set_direction(direction);
+                                entity.walk(current_time);
                             }
+                            else {
+                                //on_entity_collision()
+                            }
+                        }
+                        else {
+                            //on_wall_collision()
                         }
                     }
                     EntityAction::Cast(_skill) => {
-                        self.create_spell(&Fireball, entity_id);
+                        self.create_spell(SpellSpecId(1), entity_id);
                     }
                 }
             }
         }
 
-        let spell_controls = self.spells
-            .iter()
-            .filter_map(|(_, spell)| {
-                match spell.control().borrow().has_actions() {
-                    true => Some(spell.control().clone()),
-                    false => None,
-                }
-            })
-            .collect::<Vec<_>>();
+        for (_, spell) in &mut self.spells {
+            let actions = spell
+                .behaviour()
+                .on_update(current_time, &spell, &self.map, &self.entities);
 
-        for control in spell_controls {
-            let spell_id = control.borrow().id();
-            let spell = self.spells.get_mut(&spell_id).unwrap();
-            spell.behaviour_mut().on_update(current_time, &self.map, &self.entities);
-            while let Some(action) = control.borrow_mut().pop_action() {
+            let mut spell_actions = VecDeque::from(actions);
+            while let Some(action) = spell_actions.pop_front() {
                 match action {
-                    SpellAction::Move(direction) => {
-                        let next_position = spell.position() + direction.to_vec2();
-                        if self.map.contains(next_position) {
+                    SpellAction::Move => {
+                        spell.move_step(current_time);
+                        if self.map.contains(spell.position()) {
                             let entity_position = self.entities
                                 .values_mut()
-                                .find(|entity| entity.position() == next_position);
+                                .find(|entity| entity.position() == spell.position());
 
                             if let Some(entity) = entity_position {
-                                spell.behaviour_mut().on_entity_collision(entity);
-                                entity.add_health(-spell.damage())
+                                let (actions, affect) = spell
+                                    .behaviour()
+                                    .on_entity_collision(&entity);
+
+                                if affect {
+                                    entity.add_health(-spell.damage());
+                                }
+
+                                spell_actions.extend(actions);
                             }
-                            spell.set_position(next_position)
                         }
                         else {
-                            spell.behaviour_mut().on_wall_collision(next_position);
+                            spell.destroy();
+                            let actions = spell.behaviour().on_destroy_by_wall_collision(&spell);
+                            spell_actions.extend(actions);
                         }
                     }
-                    SpellAction::Cast(_skill) => {
-                        //TODO
-                    }
-                    SpellAction::Destroy => spell.destroy()
+                    SpellAction::SetSpeed(speed) => spell.set_speed(speed),
+                    SpellAction::SetDirection(direction) => spell.set_direction(direction),
+                    SpellAction::Cast(_spells) => todo!(),
+                    SpellAction::Create(_entities) => todo!(),
+                    SpellAction::Destroy => spell.destroy(),
                 }
             }
         }

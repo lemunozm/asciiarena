@@ -1,65 +1,63 @@
-use super::control::{Control};
 use super::entity::{Entity};
 use super::map::{Map};
 
 use crate::vec2::{Vec2};
 use crate::direction::{Direction};
 use crate::ids::{EntityId, SpellId, SpellSpecId};
+use crate::specification::spells::{SPELL_SPECIFICATIONS};
 
 use std::time::{Instant, Duration};
 use std::collections::{HashMap};
-use std::rc::{Rc};
-use std::cell::{RefCell};
+use std::cell::{RefCell, RefMut};
 
-pub trait SpellSpec {
-    fn id(&self) -> SpellSpecId;
-    fn name(&self) -> &'static str;
-    fn description(&self) -> &'static str;
-    fn base_damage(&self) -> i32;
-    fn create_behaviour(
-        &self,
-        control: Rc<RefCell<SpellControl>>,
-        entity: &Entity
-    ) -> Box<dyn SpellBehaviour>;
-}
-
-pub trait SpellBehaviour {
-    fn on_entity_collision(&mut self, entity: &Entity);
-    fn on_wall_collision(&mut self, position: Vec2);
-    fn on_update(&mut self, time: Instant, map: &Map, entities: &HashMap<EntityId, Entity>);
+pub trait SpellBehaviour: Send + Sync {
+    fn on_entity_collision(&mut self, entity: &Entity) -> (Vec<SpellAction>, bool);
+    fn on_destroy_by_wall_collision(&mut self, spell: &Spell) -> Vec<SpellAction>;
+    fn on_update(
+        &mut self,
+        time: Instant,
+        spell: &Spell,
+        map: &Map,
+        entities: &HashMap<EntityId, Entity>
+    ) -> Vec<SpellAction>;
 }
 
 pub enum SpellAction {
-    Move(Direction),
+    SetSpeed(f32),
+    SetDirection(Direction),
+    Move,
     Cast(Vec<Spell>),
+    Create(Vec<Entity>),
     Destroy,
-    //Effect(Vec<Effect>)
 }
-
-pub type SpellControl = Control<SpellId, SpellAction>;
 
 pub struct Spell {
     id: SpellId,
     spec_id: SpellSpecId,
     entity_id: EntityId,
-    control: Rc<RefCell<SpellControl>>,
-    behaviour: Box<dyn SpellBehaviour>,
+    behaviour: RefCell<Box<dyn SpellBehaviour>>,
     damage: i32,
+    //effects
     position: Vec2,
+    direction: Direction,
+    speed: f32,
+    next_move_time: Instant,
     destroyed: bool,
 }
 
 impl Spell {
-    pub fn new(id: SpellId, spec: &dyn SpellSpec, entity: &Entity) -> Spell {
-        let control = Rc::new(RefCell::new(SpellControl::new(id)));
+    pub fn new(id: SpellId, spec_id: SpellSpecId, entity: &Entity) -> Spell {
+        let spec = SPELL_SPECIFICATIONS.get(&spec_id).unwrap();
         Spell {
             id,
-            spec_id: spec.id(),
+            spec_id: spec_id,
             entity_id: entity.id(),
-            behaviour: spec.create_behaviour(control.clone(), entity),
-            control,
-            damage: spec.base_damage(), /* Mul to entity effects */
+            behaviour: RefCell::new(get_behaviour(spec.behaviour_name)),
+            damage: spec.damage, /* Mul to entity effects */
             position: entity.position() + entity.direction().to_vec2(),
+            direction: entity.direction(),
+            speed: spec.speed,
+            next_move_time: Instant::now(),
             destroyed: false,
         }
     }
@@ -80,20 +78,24 @@ impl Spell {
         self.damage
     }
 
-    pub fn has_destroyed(&self) -> bool {
+    pub fn is_destroyed(&self) -> bool {
         self.destroyed
     }
 
-    pub fn control(&self) -> &Rc<RefCell<SpellControl>> {
-        &self.control
-    }
-
-    pub fn behaviour_mut(&mut self) -> &mut dyn SpellBehaviour {
-        &mut *self.behaviour
+    pub fn behaviour(&self) -> RefMut<'_, Box<dyn SpellBehaviour>> {
+        self.behaviour.borrow_mut()
     }
 
     pub fn position(&self) -> Vec2 {
         self.position
+    }
+
+    pub fn direction(&self) -> Direction {
+        self.direction
+    }
+
+    pub fn speed(&self) -> f32 {
+        self.speed
     }
 
     pub fn set_position(&mut self, position: Vec2) {
@@ -104,68 +106,87 @@ impl Spell {
         self.position += displacement;
     }
 
+    pub fn set_direction(&mut self, direction: Direction) {
+        self.direction = direction;
+    }
+
+    pub fn set_speed(&mut self, speed: f32) {
+        self.speed = speed
+
+    }
+
+    pub fn move_step(&mut self, current: Instant) -> bool {
+        if current > self.next_move_time {
+            self.position += self.direction.to_vec2();
+            self.next_move_time = current + Duration::from_secs_f32(1.0 / self.speed);
+            return true
+        }
+        false
+    }
+
     pub fn destroy(&mut self) {
         self.destroyed = true;
     }
 }
 
-//================================================================
-//================================================================
-
-pub struct Fireball;
-impl SpellSpec for Fireball {
-    fn id(&self) -> SpellSpecId {
-        SpellSpecId::next(SpellSpecId::NONE)
-    }
-
-    fn name(&self) -> &'static str {
-        "Fireball"
-    }
-
-    fn description(&self) -> &'static str {
-        "Fire attack spell"
-    }
-
-    fn base_damage(&self) -> i32 {
-        5
-    }
-
-    fn create_behaviour(
-        &self,
-        control: Rc<RefCell<SpellControl>>,
-        entity: &Entity
-    ) -> Box<dyn SpellBehaviour> {
-        Box::new(Behaviour{
-            control,
-            direction: entity.direction(),
-            next_move_time: Instant::now(),
-        })
+fn get_behaviour(name: &'static str) -> Box<dyn SpellBehaviour> {
+    match name {
+        "Explotable ball" => Box::new(behaviour::ExplotableBall),
+        "" => Box::new(behaviour::None),
+        _ => panic!("Spell behaviour called {} not found", name),
     }
 }
 
-struct Behaviour {
-    control: Rc<RefCell<SpellControl>>,
-    direction: Direction,
-    next_move_time: Instant,
-}
+mod behaviour {
+    use super::super::entity::{Entity};
+    use super::super::map::{Map};
 
-impl Behaviour {
-    const BALL_SPEED: f32 = 15.0;
-}
+    use super::{SpellBehaviour, SpellAction, Spell};
 
-impl SpellBehaviour for Behaviour {
-    fn on_entity_collision(&mut self, _entity: &Entity) {
-        self.control.borrow_mut().push_action(SpellAction::Destroy);
+    use crate::ids::{EntityId};
+
+    use std::time::{Instant};
+    use std::collections::{HashMap};
+
+    pub struct None;
+    impl SpellBehaviour for None {
+        fn on_entity_collision(&mut self, _entity: &Entity) -> (Vec<SpellAction>, bool) {
+            (vec![], false)
+        }
+
+        fn on_destroy_by_wall_collision(&mut self, _spell: &Spell) -> Vec<SpellAction> {
+            vec![]
+        }
+
+        fn on_update(
+            &mut self,
+            _time: Instant,
+            _spell: &Spell,
+            _map: &Map,
+            _entities: &HashMap<EntityId, Entity>
+        ) -> Vec<SpellAction> {
+            vec![]
+        }
     }
 
-    fn on_wall_collision(&mut self, _position: Vec2) {
-        self.control.borrow_mut().push_action(SpellAction::Destroy);
-    }
+    pub struct ExplotableBall;
+    impl SpellBehaviour for ExplotableBall {
+        fn on_entity_collision(&mut self, _entity: &Entity) -> (Vec<SpellAction>, bool) {
+            (vec![SpellAction::Destroy], true)
+        }
 
-    fn on_update(&mut self, time: Instant, _map: &Map, _entities: &HashMap<EntityId, Entity>) {
-        if time > self.next_move_time {
-            self.control.borrow_mut().push_action(SpellAction::Move(self.direction));
-            self.next_move_time = time + Duration::from_secs_f32(1.0 / Self::BALL_SPEED);
+        fn on_destroy_by_wall_collision(&mut self, _spell: &Spell) -> Vec<SpellAction> {
+            vec![]
+        }
+
+        fn on_update(
+            &mut self,
+            _time: Instant,
+            _spell: &Spell,
+            _map: &Map,
+            _entities: &HashMap<EntityId, Entity>
+        ) -> Vec<SpellAction> {
+            vec![SpellAction::Move]
         }
     }
 }

@@ -50,7 +50,7 @@ pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
             .long("map-size")
             .short("s")
             .value_name("SIZE")
-            .default_value("20")
+            .default_value("22")
             .validator(|port| match port.parse::<usize>() {
                 Ok(_) => Ok(()),
                 Err(_) => Err("The value must be a positive number".into())
