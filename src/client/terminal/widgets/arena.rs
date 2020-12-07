@@ -178,8 +178,11 @@ impl Widget for PlayerPanelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let is_user = self.player.id == self.state.server.game.arena().user_player.player_id;
         let box_border_style = match is_user {
-             true => Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
-             false => Style::default().fg(Color::Gray)
+             true => Style::default()
+                 .fg(if self.entity.is_some() {Color::White} else {Color::DarkGray})
+                 .add_modifier(Modifier::BOLD),
+             false => Style::default()
+                 .fg(if self.entity.is_some() {Color::Gray} else {Color::DarkGray})
         };
 
         // Symbol panel

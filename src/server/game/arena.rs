@@ -137,15 +137,18 @@ impl Arena {
                                 .find(|entity| entity.position() == spell.position());
 
                             if let Some(entity) = entity_position {
-                                let (actions, affect) = spell
-                                    .behaviour()
-                                    .on_entity_collision(&entity);
+                                if !spell.is_affected_entity(entity.id()) {
+                                    let (actions, affect) = spell
+                                        .behaviour()
+                                        .on_entity_collision(&entity);
 
-                                if affect {
-                                    entity.add_health(-spell.damage());
+                                    if affect {
+                                        entity.add_health(-spell.damage());
+                                        spell.add_affected_entity(entity.id());
+                                    }
+
+                                    spell_actions.extend(actions);
                                 }
-
-                                spell_actions.extend(actions);
                             }
                         }
                         else {

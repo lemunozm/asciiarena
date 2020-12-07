@@ -89,7 +89,7 @@ impl Entity {
 
     pub fn add_health(&mut self, health: i32) {
         let new_health = self.health as i32 + health;
-        if new_health > 0 {
+        if new_health < 0 {
             self.health = 0;
         }
         else if new_health as usize > self.character().max_health() {
@@ -102,7 +102,7 @@ impl Entity {
 
     pub fn add_energy(&mut self, energy: i32) {
         let new_energy = self.energy as i32 + energy;
-        if new_energy > 0 {
+        if new_energy < 0 {
             self.energy = 0;
         }
         else if new_energy as usize > self.character().max_energy() {

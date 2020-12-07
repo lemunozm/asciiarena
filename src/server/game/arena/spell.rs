@@ -7,7 +7,7 @@ use crate::ids::{EntityId, SpellId, SpellSpecId};
 use crate::specification::spells::{SPELL_SPECIFICATIONS};
 
 use std::time::{Instant, Duration};
-use std::collections::{HashMap};
+use std::collections::{HashMap, HashSet};
 use std::cell::{RefCell, RefMut};
 
 pub trait SpellBehaviour: Send + Sync {
@@ -34,7 +34,7 @@ pub enum SpellAction {
 pub struct Spell {
     id: SpellId,
     spec_id: SpellSpecId,
-    entity_id: EntityId,
+    entity_origin_id: EntityId,
     behaviour: RefCell<Box<dyn SpellBehaviour>>,
     damage: i32,
     //effects
@@ -42,6 +42,7 @@ pub struct Spell {
     direction: Direction,
     speed: f32,
     next_move_time: Instant,
+    affected_entities: HashSet<EntityId>,
     destroyed: bool,
 }
 
@@ -51,13 +52,14 @@ impl Spell {
         Spell {
             id,
             spec_id: spec_id,
-            entity_id: entity.id(),
+            entity_origin_id: entity.id(),
             behaviour: RefCell::new(get_behaviour(spec.behaviour_name)),
             damage: spec.damage, /* Mul to entity effects */
             position: entity.position() + entity.direction().to_vec2(),
             direction: entity.direction(),
             speed: spec.speed,
             next_move_time: Instant::now(),
+            affected_entities: HashSet::new(),
             destroyed: false,
         }
     }
@@ -70,8 +72,8 @@ impl Spell {
         self.spec_id
     }
 
-    pub fn entity_id(&self) -> EntityId {
-        self.entity_id
+    pub fn entity_origin_id(&self) -> EntityId {
+        self.entity_origin_id
     }
 
     pub fn damage(&self) -> i32 {
@@ -122,6 +124,14 @@ impl Spell {
             return true
         }
         false
+    }
+
+    pub fn add_affected_entity(&mut self, entity_id: EntityId) {
+        self.affected_entities.insert(entity_id);
+    }
+
+    pub fn is_affected_entity(&self, entity_id: EntityId) -> bool {
+        self.affected_entities.contains(&entity_id)
     }
 
     pub fn destroy(&mut self) {

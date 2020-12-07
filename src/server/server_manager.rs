@@ -471,7 +471,7 @@ impl<'a> ServerManager<'a> {
                     character_id: entity.character().id(),
                     position: entity.position(),
                     health: entity.health(),
-                    energy: entity.health(),
+                    energy: entity.energy(),
                 }
             }).collect();
 
