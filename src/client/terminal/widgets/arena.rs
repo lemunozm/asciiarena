@@ -263,7 +263,16 @@ impl Widget for BarWidget {
         let current_len = ((self.current + 9) as f32 / bar_len as f32) as usize;
         let bar = (0..bar_len as usize)
             .map(|index| {
-                if index < current_len {
+                if index + 1 == current_len {
+                    let partial = self.current as u16 % bar_len;
+                    if  partial > bar_len / 2 || partial == 0 {
+                        Span::styled("=", bar_style.add_modifier(Modifier::BOLD))
+                    }
+                    else {
+                        Span::styled("-", bar_style.add_modifier(Modifier::BOLD))
+                    }
+                }
+                else if index < current_len {
                     Span::styled("=", bar_style.add_modifier(Modifier::BOLD))
                 }
                 else {
