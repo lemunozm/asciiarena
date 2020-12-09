@@ -93,8 +93,8 @@ impl Game {
         for (index, player) in self.players.values_mut().enumerate() {
             let position = arena.map().initial_position(index);
             let character = player.character().clone();
-            let control = arena.create_entity(character, position);
-            player.set_control(control.clone());
+            let entity = arena.create_entity(character, position);
+            entity.set_controller(player.create_entity_controller(entity.id()));
             player.reset_partial_points();
         }
 
@@ -114,7 +114,6 @@ impl Game {
         let player_number = self.players.len();
         for symbol in death_players {
             let player = self.players.get_mut(symbol).unwrap();
-            player.remove_control();
             player.update_points(player_number - living_players_before.len());
         }
     }

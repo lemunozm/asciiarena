@@ -1,10 +1,9 @@
 pub mod entity;
 pub mod map;
-pub mod control;
 pub mod spell;
 
 use map::{Map};
-use entity::{Entity, EntityControl, EntityAction};
+use entity::{Entity, EntityAction};
 use spell::{Spell, SpellAction};
 
 use crate::character::{Character};
@@ -15,7 +14,6 @@ use std::collections::{HashMap, VecDeque};
 
 use std::time::{Instant};
 use std::rc::{Rc};
-use std::cell::{RefCell};
 
 pub struct Arena {
     map: Map,
@@ -52,12 +50,12 @@ impl Arena {
         &mut self,
         character: Rc<Character>,
         position: Vec2
-    ) -> &Rc<RefCell<EntityControl>> {
+    ) -> &mut Entity {
         let id = EntityId::next(self.last_entity_id);
         let entity = Entity::new(id, character, position);
         self.last_entity_id = id;
         self.entities.insert(id, entity);
-        self.entities[&id].control()
+        self.entities.get_mut(&id).unwrap()
     }
 
     pub fn create_spell(&mut self, spec_id: SpellSpecId, entity_id: EntityId) {
@@ -75,22 +73,13 @@ impl Arena {
 
         let current_time = Instant::now();
 
-        //for each entity: on_update()
-
-        let entity_controls = self.entities
-            .iter()
-            .filter_map(|(_, entity)| {
-                match entity.control().borrow().has_actions() {
-                    true => Some(entity.control().clone()),
-                    false => None,
-                }
-            })
-            .collect::<Vec<_>>();
-
-        //Should it be processed randomly?
-        for control in entity_controls {
-            let entity_id = control.borrow().id();
-            while let Some(action) = control.borrow_mut().pop_action() {
+        for entity_id in self.entities.keys().map(|id| *id).collect::<Vec<_>>() {
+            let entity = &self.entities[&entity_id];
+            let actions = entity
+                .controller()
+                .update(current_time, &entity, &self.map, &self.entities);
+            let mut entity_actions = VecDeque::from(actions);
+            while let Some(action) = entity_actions.pop_front() {
                 match action {
                     EntityAction::Walk(direction) => {
                         let entity = &self.entities[&entity_id];
@@ -106,16 +95,19 @@ impl Arena {
                                 entity.set_direction(direction);
                                 entity.walk(current_time);
                             }
-                            else {
-                                //on_entity_collision()
-                            }
                         }
-                        else {
-                            //on_wall_collision()
-                        }
+                    }
+                    EntityAction::SetDirection(direction) => {
+                        let entity = self.entities.get_mut(&entity_id).unwrap();
+                        entity.set_direction(direction);
                     }
                     EntityAction::Cast(_skill) => {
                         self.create_spell(SpellSpecId(1), entity_id);
+                    }
+                    EntityAction::Destroy => {
+                        let entity = self.entities.get_mut(&entity_id).unwrap();
+                        entity.set_health(0);
+                        entity_actions.extend(entity.controller().destroy());
                     }
                 }
             }

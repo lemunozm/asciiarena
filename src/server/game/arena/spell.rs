@@ -139,11 +139,12 @@ impl Spell {
     }
 }
 
+//TODO: use std::any::type_name for build the string
 fn get_behaviour(name: &'static str) -> Box<dyn SpellBehaviour> {
     match name {
         "Explotable ball" => Box::new(behaviour::ExplotableBall),
         "" => Box::new(behaviour::None),
-        _ => panic!("Spell behaviour called {} not found", name),
+        _ => panic!("Spell behaviour '{}' not found", name),
     }
 }
 

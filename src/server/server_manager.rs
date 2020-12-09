@@ -5,7 +5,7 @@ use crate::message::{ClientMessage, ServerMessage, ServerInfo, GameInfo, ArenaIn
     LoginStatus, LoggedKind, EntityData, Frame, ArenaChange, SpellData};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
-use crate::ids::{SessionToken, EntityId, SkillId};
+use crate::ids::{SessionToken, SkillId};
 use crate::util::{self};
 
 use message_io::events::{EventQueue};
@@ -386,7 +386,7 @@ impl<'a> ServerManager<'a> {
             .players()
             .iter()
             .map(|(symbol, player)| {
-                let entity = entities.get(&player.control().unwrap().id());
+                let entity = entities.get(&player.entity_id());
 
                 let position = match entity {
                     Some(entity) => entity.position().to_string(),
@@ -458,6 +458,7 @@ impl<'a> ServerManager<'a> {
                 .map(|player| player.partial_points())
                 .collect();
 
+            println!("asdasd");
             let change = ArenaChange::PlayerPartialPoints(points);
             let message = ServerMessage::ArenaChange(change);
             self.network.send_all(self.room.safe_endpoints(), message);
@@ -568,10 +569,7 @@ impl<'a> ServerManager<'a> {
             players: game.players()
                 .iter()
                 .map(|(_, player)| (
-                    match player.control() {
-                        Some(control) => control.id(),
-                        None => EntityId::NONE,
-                    },
+                    player.entity_id(),
                     player.partial_points()
                 ))
                 .collect()

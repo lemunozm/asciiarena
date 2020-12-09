@@ -1,15 +1,18 @@
-use super::arena::entity::{EntityControl, EntityAction};
+use super::arena::entity::{EntityAction, EntityController, Entity};
+use super::arena::map::{Map};
 
 use crate::character::{Character};
 use crate::direction::{Direction};
-use crate::ids::{SkillId};
+use crate::ids::{SkillId, EntityId};
 
 use std::rc::{Rc};
-use std::cell::{RefCell, Ref};
+use std::time::{Instant};
+use std::cell::{RefCell};
+use std::collections::{HashMap};
 
 pub struct Player {
     character: Rc<Character>,
-    control: Option<Rc<RefCell<EntityControl>>>,
+    entity_handler: Rc<RefCell<EntityHandler>>,
     total_points: usize,
     partial_points: usize,
 }
@@ -22,7 +25,7 @@ impl Player {
     pub fn new(character: Rc<Character>) -> Player {
         Player {
             character,
-            control: None,
+            entity_handler: Rc::new(RefCell::new(EntityHandler::default())),
             total_points: 0,
             partial_points: 0,
         }
@@ -32,8 +35,8 @@ impl Player {
         &self.character
     }
 
-    pub fn control(&self) -> Option<Ref<'_, EntityControl>> {
-        self.control.as_ref().map(|control| control.borrow())
+    pub fn entity_id(&self) -> EntityId {
+        self.entity_handler.borrow().entity_id
     }
 
     pub fn total_points(&self) -> usize {
@@ -45,29 +48,15 @@ impl Player {
     }
 
     pub fn is_alive(&self) -> bool {
-        self.control.is_some()
-    }
-
-    pub fn set_control(&mut self, control: Rc<RefCell<EntityControl>>) {
-        self.control = Some(control);
-    }
-
-    pub fn remove_control(&mut self) {
-        self.control = None;
+        self.entity_handler.borrow().entity_id != EntityId::NONE
     }
 
     pub fn walk(&mut self, direction: Direction) {
-        match &self.control {
-            Some(control) => control.borrow_mut().push_action(EntityAction::Walk(direction)),
-            None => panic!("The player must have an entity to move it"),
-        }
+        self.entity_handler.borrow_mut().actions.push(EntityAction::Walk(direction))
     }
 
     pub fn cast(&mut self, id: SkillId) {
-        match &self.control {
-            Some(control) => control.borrow_mut().push_action(EntityAction::Cast(id)),
-            None => panic!("The player must have an entity to cast a skill"),
-        }
+        self.entity_handler.borrow_mut().actions.push(EntityAction::Cast(id))
     }
 
     pub fn update_points(&mut self, points: usize) {
@@ -79,4 +68,38 @@ impl Player {
         self.partial_points = 0;
     }
 
+    pub fn create_entity_controller(&mut self, entity_id: EntityId) -> Box<PlayerController> {
+        self.entity_handler.borrow_mut().entity_id = entity_id;
+        Box::new(PlayerController {entity_handler: self.entity_handler.clone()})
+    }
+}
+
+#[derive(Default)]
+pub struct EntityHandler {
+    entity_id: EntityId,
+    actions: Vec<EntityAction>,
+}
+
+pub struct PlayerController {
+    entity_handler: Rc<RefCell<EntityHandler>>
+}
+
+impl EntityController for PlayerController {
+    fn destroy(&mut self) -> Vec<EntityAction> {
+        self.entity_handler.borrow_mut().entity_id = EntityId::NONE;
+        vec![]
+    }
+
+    fn update(
+        &mut self,
+        _time: Instant,
+        _entity: &Entity,
+        _map: &Map,
+        _entities: &HashMap<EntityId, Entity>
+    ) -> Vec<EntityAction> {
+        let actions = &mut self.entity_handler.borrow_mut().actions;
+        let returned = actions.clone();
+        actions.clear();
+        returned
+    }
 }

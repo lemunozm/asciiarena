@@ -1,4 +1,4 @@
-use super::control::{Control};
+use super::map::{Map};
 
 use crate::character::{Character};
 use crate::vec2::{Vec2};
@@ -6,20 +6,33 @@ use crate::direction::{Direction};
 use crate::ids::{EntityId, SkillId};
 
 use std::time::{Instant, Duration};
+use std::collections::{HashMap};
 use std::rc::{Rc};
-use std::cell::{RefCell};
+use std::cell::{RefCell, RefMut};
 
+#[derive(Clone, Debug)]
 pub enum EntityAction {
     Walk(Direction),
+    SetDirection(Direction),
     Cast(SkillId),
+    Destroy,
 }
 
-pub type EntityControl = Control<EntityId, EntityAction>;
+pub trait EntityController {
+    fn destroy(&mut self) -> Vec<EntityAction>;
+    fn update(
+        &mut self,
+        time: Instant,
+        entity: &Entity,
+        map: &Map,
+        entities: &HashMap<EntityId, Entity>
+    ) -> Vec<EntityAction>;
+}
 
 pub struct Entity {
     id: EntityId,
     character: Rc<Character>,
-    control: Rc<RefCell<EntityControl>>,
+    controller: RefCell<Box<dyn EntityController>>,
     direction: Direction,
     position: Vec2,
     health: usize,
@@ -33,7 +46,7 @@ impl Entity {
         Entity {
             id,
             position,
-            control: Rc::new(RefCell::new(EntityControl::new(id))),
+            controller: RefCell::new(get_controller(character.id().controller_name())),
             direction: Direction::Down,
             health: character.max_health(),
             energy: character.max_energy(),
@@ -51,8 +64,12 @@ impl Entity {
         &*self.character
     }
 
-    pub fn control(&self) -> &Rc<RefCell<EntityControl>> {
-        &self.control
+    pub fn controller(&self) -> RefMut<'_, Box<dyn EntityController>> {
+        self.controller.borrow_mut()
+    }
+
+    pub fn set_controller(&mut self, controller: Box<dyn EntityController>) {
+        self.controller = RefCell::new(controller);
     }
 
     pub fn health(&self) -> usize {
@@ -85,6 +102,24 @@ impl Entity {
 
     pub fn displace(&mut self, displacement: Vec2) {
         self.position += displacement;
+    }
+
+    pub fn set_health(&mut self, health: usize) {
+        if health > self.character().max_health() {
+            self.health = self.character().max_health();
+        }
+        else {
+            self.health = health;
+        }
+    }
+
+    pub fn set_energy(&mut self, energy: usize) {
+        if energy > self.character().max_energy() {
+            self.energy = self.character().max_energy();
+        }
+        else {
+            self.energy = energy;
+        }
     }
 
     pub fn add_health(&mut self, health: i32) {
@@ -120,5 +155,38 @@ impl Entity {
             return true
         }
         false
+    }
+}
+
+fn get_controller(name: &'static str) -> Box<dyn EntityController> {
+    match name {
+        "" => Box::new(controller::None),
+        _ => panic!("Entity controller '{}' not found", name),
+    }
+}
+
+pub mod controller {
+    use super::super::map::{Map};
+
+    use super::{EntityController, EntityAction, Entity};
+
+    use crate::ids::{EntityId};
+
+    use std::time::{Instant};
+    use std::collections::{HashMap};
+
+    pub struct None;
+    impl EntityController for None {
+        fn destroy(&mut self) -> Vec<EntityAction> { vec![] }
+
+        fn update(
+            &mut self,
+            _time: Instant,
+            _entity: &Entity,
+            _map: &Map,
+            _entities: &HashMap<EntityId, Entity>
+        ) -> Vec<EntityAction> {
+            vec![]
+        }
     }
 }

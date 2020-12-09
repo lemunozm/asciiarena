@@ -6,6 +6,15 @@ pub enum CharacterId {
     Mob(char),
 }
 
+impl CharacterId {
+    pub fn controller_name(&self) -> &'static str {
+        match self {
+            CharacterId::Player(_) => "",
+            _ => "", //TODO
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Builder)]
 pub struct Character {
     id: CharacterId,
