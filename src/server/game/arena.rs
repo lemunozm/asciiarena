@@ -73,52 +73,11 @@ impl Arena {
 
         let current_time = Instant::now();
 
-        for entity_id in self.entities.keys().map(|id| *id).collect::<Vec<_>>() {
-            let entity = &self.entities[&entity_id];
-            let actions = entity
-                .controller()
-                .update(current_time, &entity, &self.map, &self.entities);
-            let mut entity_actions = VecDeque::from(actions);
-            while let Some(action) = entity_actions.pop_front() {
-                match action {
-                    EntityAction::Walk(direction) => {
-                        let entity = &self.entities[&entity_id];
-                        let next_position = entity.position() + direction.to_vec2();
-                        if self.map.contains(next_position) {
-                            let occupied_position = self.entities
-                                .values()
-                                .find(|entity| entity.position() == next_position)
-                                .is_some();
-
-                            if !occupied_position {
-                                let entity = self.entities.get_mut(&entity_id).unwrap();
-                                entity.set_direction(direction);
-                                entity.walk(current_time);
-                            }
-                        }
-                    }
-                    EntityAction::SetDirection(direction) => {
-                        let entity = self.entities.get_mut(&entity_id).unwrap();
-                        entity.set_direction(direction);
-                    }
-                    EntityAction::Cast(_skill) => {
-                        self.create_spell(SpellSpecId(1), entity_id);
-                    }
-                    EntityAction::Destroy => {
-                        let entity = self.entities.get_mut(&entity_id).unwrap();
-                        entity.set_health(0);
-                        entity_actions.extend(entity.controller().destroy());
-                    }
-                }
-            }
-        }
-
         for (_, spell) in &mut self.spells {
-            let actions = spell
-                .behaviour()
-                .update(current_time, &spell, &self.map, &self.entities);
+            let mut spell_actions = VecDeque::from(
+                spell.behaviour().update(current_time, &spell, &self.map, &self.entities)
+            );
 
-            let mut spell_actions = VecDeque::from(actions);
             while let Some(action) = spell_actions.pop_front() {
                 match action {
                     SpellAction::Move => {
@@ -153,8 +112,52 @@ impl Arena {
                     SpellAction::Create(_entities) => todo!(),
                     SpellAction::Destroy => {
                         spell.destroy();
-                        let actions = spell.behaviour().destroy(&spell);
+                        let actions = spell.behaviour().destroyed(&spell);
                         spell_actions.extend(actions);
+                    }
+                }
+            }
+        }
+
+        for entity_id in self.entities.keys().map(|id| *id).collect::<Vec<_>>() {
+            let entity = &self.entities[&entity_id];
+            let mut entity_actions = VecDeque::from(
+                entity.controller().update(current_time, &entity, &self.map, &self.entities)
+            );
+
+            if !entity.is_alive() {
+                entity_actions.push_back(EntityAction::Destroy);
+            }
+
+            while let Some(action) = entity_actions.pop_front() {
+                match action {
+                    EntityAction::Walk(direction) => {
+                        let entity = self.entities.get_mut(&entity_id).unwrap();
+                        entity.set_direction(direction);
+                        let next_position = entity.position() + direction.to_vec2();
+                        if self.map.contains(next_position) {
+                            let occupied_position = self.entities
+                                .values()
+                                .find(|entity| entity.position() == next_position)
+                                .is_some();
+
+                            if !occupied_position {
+                                let entity = self.entities.get_mut(&entity_id).unwrap();
+                                entity.walk(current_time);
+                            }
+                        }
+                    }
+                    EntityAction::SetDirection(direction) => {
+                        let entity = self.entities.get_mut(&entity_id).unwrap();
+                        entity.set_direction(direction);
+                    }
+                    EntityAction::Cast(_skill) => {
+                        self.create_spell(SpellSpecId(1), entity_id);
+                    }
+                    EntityAction::Destroy => {
+                        let entity = self.entities.get_mut(&entity_id).unwrap();
+                        entity.set_health(0);
+                        entity.controller().destroyed();
                     }
                 }
             }

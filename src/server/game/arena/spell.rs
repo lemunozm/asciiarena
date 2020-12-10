@@ -12,7 +12,7 @@ use std::cell::{RefCell, RefMut};
 
 pub trait SpellBehaviour: Send + Sync {
     fn entity_collision(&mut self, entity: &Entity) -> (Vec<SpellAction>, bool);
-    fn destroy(&mut self, spell: &Spell) -> Vec<SpellAction>;
+    fn destroyed(&mut self, spell: &Spell) -> Vec<SpellAction>;
     fn update(
         &mut self,
         time: Instant,
@@ -165,7 +165,7 @@ mod behaviour {
             (vec![], false)
         }
 
-        fn destroy(&mut self, _spell: &Spell) -> Vec<SpellAction> {
+        fn destroyed(&mut self, _spell: &Spell) -> Vec<SpellAction> {
             vec![]
         }
 
@@ -186,7 +186,7 @@ mod behaviour {
             (vec![SpellAction::Destroy], true)
         }
 
-        fn destroy(&mut self, _spell: &Spell) -> Vec<SpellAction> {
+        fn destroyed(&mut self, _spell: &Spell) -> Vec<SpellAction> {
             vec![]
         }
 

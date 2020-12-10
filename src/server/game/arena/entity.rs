@@ -19,7 +19,7 @@ pub enum EntityAction {
 }
 
 pub trait EntityController {
-    fn destroy(&mut self) -> Vec<EntityAction>;
+    fn destroyed(&mut self) -> Vec<EntityAction>;
     fn update(
         &mut self,
         time: Instant,
@@ -177,7 +177,7 @@ pub mod controller {
 
     pub struct None;
     impl EntityController for None {
-        fn destroy(&mut self) -> Vec<EntityAction> { vec![] }
+        fn destroyed(&mut self) -> Vec<EntityAction> { vec![] }
 
         fn update(
             &mut self,

@@ -85,7 +85,7 @@ pub struct PlayerController {
 }
 
 impl EntityController for PlayerController {
-    fn destroy(&mut self) -> Vec<EntityAction> {
+    fn destroyed(&mut self) -> Vec<EntityAction> {
         self.entity_handler.borrow_mut().entity_id = EntityId::NONE;
         vec![]
     }
