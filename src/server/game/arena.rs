@@ -81,8 +81,8 @@ impl Arena {
             while let Some(action) = spell_actions.pop_front() {
                 match action {
                     SpellAction::Move => {
-                        spell.move_step(current_time);
                         if self.map.contains(spell.position()) {
+                            spell.move_step(current_time);
                             let entity_position = self.entities
                                 .values_mut()
                                 .find(|entity| entity.position() == spell.position());

@@ -58,7 +58,7 @@ impl Spell {
             position: entity.position() + entity.direction().to_vec2(),
             direction: entity.direction(),
             speed: spec.speed,
-            next_move_time: Instant::now(),
+            next_move_time: Instant::now() + Duration::from_secs_f32(1.0 / spec.speed),
             affected_entities: HashSet::new(),
             destroyed: false,
         }

@@ -458,7 +458,6 @@ impl<'a> ServerManager<'a> {
                 .map(|player| player.partial_points())
                 .collect();
 
-            println!("asdasd");
             let change = ArenaChange::PlayerPartialPoints(points);
             let message = ServerMessage::ArenaChange(change);
             self.network.send_all(self.room.safe_endpoints(), message);
