@@ -143,8 +143,8 @@ impl<'a> ServerManager<'a> {
                             ClientMessage::MovePlayer(direction) => {
                                 self.process_move_player(endpoint, direction);
                             },
-                            ClientMessage::CastSkill(id) => {
-                                self.process_cast_skill(endpoint, id);
+                            ClientMessage::CastSkill(direction, id) => {
+                                self.process_cast_skill(endpoint, direction, id);
                             },
                         }
                     },
@@ -463,33 +463,33 @@ impl<'a> ServerManager<'a> {
             self.network.send_all(self.room.safe_endpoints(), message);
         }
 
-        if current_players > 1 {
-            let arena = game.arena().unwrap();
-            let entities = arena.entities().values().map(|entity| {
-                EntityData {
-                    id: entity.id(),
-                    character_id: entity.character().id(),
-                    position: entity.position(),
-                    health: entity.health(),
-                    energy: entity.energy(),
-                }
-            }).collect();
+        let arena = game.arena().unwrap();
+        let entities = arena.entities().values().map(|entity| {
+            EntityData {
+                id: entity.id(),
+                character_id: entity.character().id(),
+                position: entity.position(),
+                health: entity.health(),
+                energy: entity.energy(),
+            }
+        }).collect();
 
-            let spells = arena.spells().values().map(|spell| {
-                SpellData {
-                    id: spell.id(),
-                    spec_id: spell.spec_id(),
-                    position: spell.position(),
-                }
-            }).collect();
+        let spells = arena.spells().values().map(|spell| {
+            SpellData {
+                id: spell.id(),
+                spec_id: spell.spec_id(),
+                position: spell.position(),
+            }
+        }).collect();
 
-            let message = ServerMessage::Step(Frame { entities, spells });
-            self.network.send_all(self.room.faster_endpoints(), message);
+        let message = ServerMessage::Step(Frame { entities, spells });
+        self.network.send_all(self.room.faster_endpoints(), message);
 
-            self.event_queue.sender().send_with_timer(Event::GameStep, *GAME_STEP_DURATION);
+        if current_players <= 1 {
+            self.process_finish_arena();
         }
         else {
-            self.process_finish_arena();
+            self.event_queue.sender().send_with_timer(Event::GameStep, *GAME_STEP_DURATION);
         }
     }
 
@@ -508,13 +508,13 @@ impl<'a> ServerManager<'a> {
         };
     }
 
-    fn process_cast_skill(&mut self, endpoint: Endpoint, id: SkillId) {
+    fn process_cast_skill(&mut self, endpoint: Endpoint, direction: Direction, id: SkillId) {
         match self.room.session_by_endpoint(endpoint) {
             Some(session) => match self.game.as_mut() {
                 Some(game) => {
                     let player = game.player_mut(*session.user()).unwrap();
                     if player.is_alive() {
-                        player.cast(id);
+                        player.cast(direction, id);
                     }
                 }
                 None => log::warn!("Client attempted to cast a skill without a created game")

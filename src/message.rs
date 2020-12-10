@@ -30,8 +30,8 @@ pub enum ClientMessage {
     TrustUdp,
 
     // Arena real time messages
-    MovePlayer(Direction), //direction
-    CastSkill(SkillId), //id
+    MovePlayer(Direction),
+    CastSkill(Direction, SkillId),
 }
 
 /// Messages that Server sends to Client
@@ -58,7 +58,7 @@ pub enum ServerMessage {
     WaitArena(Duration),
     StartArena(ArenaInfo),
     ArenaChange(ArenaChange),
-    Step(Frame), //arena state
+    Step(Frame),
     FinishArena, // winners
 }
 

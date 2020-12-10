@@ -147,11 +147,9 @@ impl Arena {
                             }
                         }
                     }
-                    EntityAction::SetDirection(direction) => {
+                    EntityAction::Cast(direction, _skill) => {
                         let entity = self.entities.get_mut(&entity_id).unwrap();
                         entity.set_direction(direction);
-                    }
-                    EntityAction::Cast(_skill) => {
                         self.create_spell(SpellSpecId(1), entity_id);
                     }
                     EntityAction::Destroy => {

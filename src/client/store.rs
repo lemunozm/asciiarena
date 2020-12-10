@@ -95,7 +95,8 @@ impl Store {
             }
 
             Action::CastSkill(id) => {
-                self.server.call(ApiCall::CastSkill(id));
+                let direction = self.state.server.game.arena_mut().user_player.direction;
+                self.server.call(ApiCall::CastSkill(direction, id));
             }
 
             Action::ServerEvent(server_event) => match server_event {

@@ -55,8 +55,8 @@ impl Player {
         self.entity_handler.borrow_mut().actions.push(EntityAction::Walk(direction))
     }
 
-    pub fn cast(&mut self, id: SkillId) {
-        self.entity_handler.borrow_mut().actions.push(EntityAction::Cast(id))
+    pub fn cast(&mut self, direction: Direction, id: SkillId) {
+        self.entity_handler.borrow_mut().actions.push(EntityAction::Cast(direction, id))
     }
 
     pub fn update_points(&mut self, points: usize) {

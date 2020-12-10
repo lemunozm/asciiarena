@@ -13,8 +13,7 @@ use std::cell::{RefCell, RefMut};
 #[derive(Clone, Debug)]
 pub enum EntityAction {
     Walk(Direction),
-    SetDirection(Direction),
-    Cast(SkillId),
+    Cast(Direction, SkillId),
     Destroy,
 }
 

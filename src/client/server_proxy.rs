@@ -28,7 +28,7 @@ pub enum ApiCall {
     Login(char),
     Logout,
     MovePlayer(Direction),
-    CastSkill(SkillId),
+    CastSkill(Direction, SkillId),
 }
 
 /// API Events from server
@@ -242,9 +242,9 @@ where C: Fn(ServerEvent) {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.network.send(tcp, ClientMessage::MovePlayer(direction));
                     },
-                    ApiCall::CastSkill(id) => {
+                    ApiCall::CastSkill(direction, id) => {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::CastSkill(id));
+                        self.network.send(tcp, ClientMessage::CastSkill(direction, id));
                     },
                 }
             },
