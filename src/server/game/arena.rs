@@ -116,7 +116,7 @@ impl Arena {
         for (_, spell) in &mut self.spells {
             let actions = spell
                 .behaviour()
-                .on_update(current_time, &spell, &self.map, &self.entities);
+                .update(current_time, &spell, &self.map, &self.entities);
 
             let mut spell_actions = VecDeque::from(actions);
             while let Some(action) = spell_actions.pop_front() {
@@ -132,7 +132,7 @@ impl Arena {
                                 if !spell.is_affected_entity(entity.id()) {
                                     let (actions, affect) = spell
                                         .behaviour()
-                                        .on_entity_collision(&entity);
+                                        .entity_collision(&entity);
 
                                     if affect {
                                         entity.add_health(-spell.damage());
@@ -144,16 +144,18 @@ impl Arena {
                             }
                         }
                         else {
-                            spell.destroy();
-                            let actions = spell.behaviour().on_destroy_by_wall_collision(&spell);
-                            spell_actions.extend(actions);
+                            spell_actions.push_back(SpellAction::Destroy);
                         }
                     }
                     SpellAction::SetSpeed(speed) => spell.set_speed(speed),
                     SpellAction::SetDirection(direction) => spell.set_direction(direction),
                     SpellAction::Cast(_spells) => todo!(),
                     SpellAction::Create(_entities) => todo!(),
-                    SpellAction::Destroy => spell.destroy(),
+                    SpellAction::Destroy => {
+                        spell.destroy();
+                        let actions = spell.behaviour().destroy(&spell);
+                        spell_actions.extend(actions);
+                    }
                 }
             }
         }

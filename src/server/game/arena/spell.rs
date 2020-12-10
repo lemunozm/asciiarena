@@ -11,9 +11,9 @@ use std::collections::{HashMap, HashSet};
 use std::cell::{RefCell, RefMut};
 
 pub trait SpellBehaviour: Send + Sync {
-    fn on_entity_collision(&mut self, entity: &Entity) -> (Vec<SpellAction>, bool);
-    fn on_destroy_by_wall_collision(&mut self, spell: &Spell) -> Vec<SpellAction>;
-    fn on_update(
+    fn entity_collision(&mut self, entity: &Entity) -> (Vec<SpellAction>, bool);
+    fn destroy(&mut self, spell: &Spell) -> Vec<SpellAction>;
+    fn update(
         &mut self,
         time: Instant,
         spell: &Spell,
@@ -161,15 +161,15 @@ mod behaviour {
 
     pub struct None;
     impl SpellBehaviour for None {
-        fn on_entity_collision(&mut self, _entity: &Entity) -> (Vec<SpellAction>, bool) {
+        fn entity_collision(&mut self, _entity: &Entity) -> (Vec<SpellAction>, bool) {
             (vec![], false)
         }
 
-        fn on_destroy_by_wall_collision(&mut self, _spell: &Spell) -> Vec<SpellAction> {
+        fn destroy(&mut self, _spell: &Spell) -> Vec<SpellAction> {
             vec![]
         }
 
-        fn on_update(
+        fn update(
             &mut self,
             _time: Instant,
             _spell: &Spell,
@@ -182,15 +182,15 @@ mod behaviour {
 
     pub struct ExplotableBall;
     impl SpellBehaviour for ExplotableBall {
-        fn on_entity_collision(&mut self, _entity: &Entity) -> (Vec<SpellAction>, bool) {
+        fn entity_collision(&mut self, _entity: &Entity) -> (Vec<SpellAction>, bool) {
             (vec![SpellAction::Destroy], true)
         }
 
-        fn on_destroy_by_wall_collision(&mut self, _spell: &Spell) -> Vec<SpellAction> {
+        fn destroy(&mut self, _spell: &Spell) -> Vec<SpellAction> {
             vec![]
         }
 
-        fn on_update(
+        fn update(
             &mut self,
             _time: Instant,
             _spell: &Spell,
