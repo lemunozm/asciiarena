@@ -7,11 +7,14 @@ Choose an ascii character and use your arcade skills to be the last one in the a
   <img src="https://drive.google.com/uc?export=view&id=1TMTNIbn09Ssh_e1VnhWEUhb5zYfRNyiw"/>
 </p>
 
-**Currently under development (only the menu is completed)**
-
 The game is made in [rust][rust], and built on top of
 [tui][tui] for rendering into the terminal user interface and
 [message-io][message-io] for making the network connections.
+
+**Currently under development:**
+- [x] Menu
+- [x] Game demo
+- [ ] Full featured game *(working...)*
 
 ## Install it
 *AsciiArena* is multiplatform, you can install it in Linux, MacOS or Windows.
@@ -40,8 +43,15 @@ Of course, you can download the repository and compile it by yourself using `car
 Both application modes has several CLI flags and options to select
 the host, ports, enable logs, etc...
 
+### Manual
+Use `<W>`, `<A>`, `<S>`, `<D>` to move the player in the map.
 
-<!-- Links here! -->
+Use `<Space>` for cast the skill.
+
+**NOTE: The following keys are used for demo.
+The purpose of the game includes a lot of skills with custom keys configuration.**
+
+<!-- Links here -->
 [cargo]: https://doc.rust-lang.org/cargo/getting-started/installation.html
 [rust]: https://www.rust-lang.org/
 [tui]: https://github.com/fdehau/tui-rs
