@@ -17,6 +17,8 @@ use tui::text::{Span, Spans};
 
 use crossterm::event::{KeyCode};
 
+use std::time::{Instant};
+
 pub struct Arena {}
 
 impl Arena {
@@ -62,7 +64,7 @@ impl<'a> ArenaWidget<'a> {
         let map_dim = MapWidget::dimension(map_size);
 
         (PlayerPanelListWidget::WIDTH + 1 + map_dim.0,
-         ArenaInfoLabelWidget::HEIGHT + map_dim.1)
+         1 + ArenaInfoLabelWidget::HEIGHT + map_dim.1 + NotificationLabelWidget::HEIGHT)
     }
 }
 
@@ -74,28 +76,33 @@ impl Widget for ArenaWidget<'_> {
         let column = Layout::default()
             .direction(Dir::Vertical)
             .constraints([
+                Constraint::Length(1), //Margin
                 Constraint::Length(ArenaInfoLabelWidget::HEIGHT),
                 Constraint::Length(map_dim.1),
+                Constraint::Length(NotificationLabelWidget::HEIGHT),
             ].as_ref())
             .split(area);
 
         ArenaInfoLabelWidget::new(self.state)
-            .render(column[0], buffer);
+            .render(column[1], buffer);
 
         let row = Layout::default()
             .direction(Dir::Horizontal)
             .constraints([
                 Constraint::Length(PlayerPanelListWidget::WIDTH),
-                Constraint::Length(1),
+                Constraint::Length(1), //Margin
                 Constraint::Length(map_dim.0),
             ].as_ref())
-            .split(column[1]);
+            .split(column[2]);
 
         PlayerPanelListWidget::new(self.state)
             .render(row[0], buffer);
 
         MapWidget::new(self.state)
             .render(row[2], buffer);
+
+        NotificationLabelWidget::new(self.state)
+            .render(column[3], buffer);
     }
 }
 
@@ -387,5 +394,54 @@ impl Widget for FinishGameMessageWidget<'_> {
                 .alignment(Alignment::Center)
                 .render(util::vertically_centered(area, height), buffer);
         }
+    }
+}
+
+#[derive(derive_new::new)]
+struct NotificationLabelWidget<'a> {state: &'a State}
+
+impl NotificationLabelWidget<'_> {
+    const HEIGHT: u16 = 2;
+}
+
+impl Widget for NotificationLabelWidget<'_> {
+    fn render(self, area: Rect, buffer: &mut Buffer) {
+        let messages = match self.state.server.game.next_arena_timestamp {
+            Some(timestamp) => {
+                let secs = timestamp.saturating_duration_since(Instant::now()).as_secs() + 1;
+                let winner_arena_player = self.state.server.game.players
+                    .iter()
+                    .find(|p| self.state.server.game.arena().entities.contains_key(&p.entity_id));
+
+                let player_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
+                let style = Style::default().fg(Color::LightCyan);
+                let winner_message = match winner_arena_player {
+                    Some(player) => {
+                        let character = &self.state.server.game.characters[&player.character_id];
+                        Spans::from(vec![
+                            Span::styled("Player ", style),
+                            Span::styled(character.symbol().to_string(), player_style),
+                            Span::styled(" survived", style),
+                            Span::styled(". ", style),
+                        ])
+                    }
+                    None => Spans::from(vec![Span::styled("", style)])
+                };
+
+                vec![
+                    winner_message,
+                    Spans::from(vec![
+                        Span::styled("Starting new arena in ", style),
+                        Span::styled(secs.to_string(), style.add_modifier(Modifier::BOLD)),
+                        Span::styled("...", style),
+                    ]),
+                ]
+            }
+            None => vec![]
+        };
+
+        Paragraph::new(messages)
+            .alignment(Alignment::Center)
+            .render(area, buffer);
     }
 }

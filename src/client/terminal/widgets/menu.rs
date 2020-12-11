@@ -113,7 +113,7 @@ impl<'a> MenuWidget<'a> {
         VersionPanelWidget::HEIGHT +
         ClientInfoPanelWidget::HEIGHT +
         ServerInfoPanelWidget::HEIGHT +
-        NotifyPanelWidget::HEIGHT +
+        NotificationLabelWidget::HEIGHT +
         5) // margin sum
     }
 }
@@ -131,7 +131,7 @@ impl StatefulWidget for MenuWidget<'_> {
                 Constraint::Length(2), // Margin
                 Constraint::Length(ServerInfoPanelWidget::HEIGHT),
                 Constraint::Length(1), // Margin
-                Constraint::Length(NotifyPanelWidget::HEIGHT),
+                Constraint::Length(NotificationLabelWidget::HEIGHT),
             ].as_ref())
             .split(area);
 
@@ -160,7 +160,7 @@ impl StatefulWidget for MenuWidget<'_> {
         WaitingRoomPanelWidget::new(self.state, self.menu)
             .render(row[2], buffer);
 
-        NotifyPanelWidget::new(self.state, self.menu)
+        NotificationLabelWidget::new(self.state, self.menu)
             .render(column[7], buffer);
     }
 }
@@ -618,13 +618,13 @@ impl Widget for WaitingRoomPanelWidget<'_> {
 }
 
 #[derive(derive_new::new)]
-struct NotifyPanelWidget<'a> {state: &'a State, menu: &'a Menu}
+struct NotificationLabelWidget<'a> {state: &'a State, menu: &'a Menu}
 
-impl NotifyPanelWidget<'_> {
+impl NotificationLabelWidget<'_> {
     const HEIGHT: u16 = 2;
 }
 
-impl Widget for NotifyPanelWidget<'_> {
+impl Widget for NotificationLabelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let enter = Span::styled(" <Enter> ", Style::default()
             .add_modifier(Modifier::BOLD)
