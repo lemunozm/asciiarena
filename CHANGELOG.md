@@ -1,5 +1,9 @@
 # Changelog
 
+## Release 0.0.4 Alpha
+- Client: Fixed bug when the server is not found.
+- Client: Added a notification label to notify about new arena and arena winner.
+
 ## Release 0.0.3 Alpha
 - Player movement.
 - Player cast skill.
