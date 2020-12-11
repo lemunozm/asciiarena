@@ -48,8 +48,8 @@ Use `<W>`, `<A>`, `<S>`, `<D>` to move the player in the map.
 
 Use `<Space>` for cast the skill.
 
-**NOTE: The following keys are used for demo.
-The purpose of the game includes a lot of skills with custom keys configuration.**
+*NOTE: The following keys are used for demo.
+The final game will include a lot of skills with custom keys configuration.*
 
 <!-- Links here -->
 [cargo]: https://doc.rust-lang.org/cargo/getting-started/installation.html
