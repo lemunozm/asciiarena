@@ -15,7 +15,7 @@ Client <-- Server : Version
 
 == Server information subscription ==
 Client -> Server : SubscribeServerInfo
-Client <-- Server : ServerInfo
+Client <-- Server : StaticServerInfo
 group Any change in the server: e.g: a player login/logout
     Client <<- Server : DynamicServerInfo
 end
@@ -38,14 +38,14 @@ Client -> Server : Logout
 == Game/Arena system ==
 Client <- Server : StartGame
 loop there is not a game winner
-    Client <- Server : PrepareArena
+    Client <- Server : WaitingArena
     ...
     Client <- Server : StartArena
     note over Client, Server
        Arena round
     end note
-    Client <- Server : EndArena
 end
+Client <- Server : FinishGame
 
 == Arena round ==
 loop each frame until there is an arena winner
@@ -53,8 +53,8 @@ loop each frame until there is an arena winner
         Client ->> Server : MovePlayer
         Client ->> Server : CastSkill
     end
-    Client <[#purple]- Server : Step
-    Client <<[#purple]- Server : ArenaChange
+    Client <[#purple]- Server : GameStep
+    Client <<[#purple]- Server : GameEvent
 end
 
 @enduml

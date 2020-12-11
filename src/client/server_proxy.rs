@@ -36,8 +36,8 @@ pub enum ApiCall {
 pub enum ServerEvent {
     ConnectionResult(ConnectionStatus),
     CheckedVersion(String, Compatibility),
-    ServerInfo(ServerInfo),
-    PlayerListUpdated(Vec<char>),
+    StaticServerInfo(ServerInfo),
+    DynamicServerInfo(Vec<char>),
     LoginStatus(LoginStatus),
     UdpReachable(bool),
     StartGame(GameInfo),
@@ -252,11 +252,11 @@ where C: Fn(ServerEvent) {
                     ServerMessage::Version(server_version, server_side_compatibility) => {
                         self.process_version(server_version, server_side_compatibility);
                     },
-                    ServerMessage::ServerInfo(info) => {
-                        self.process_server_info(info);
+                    ServerMessage::StaticServerInfo(info) => {
+                        self.process_static_server_info(info);
                     },
                     ServerMessage::DynamicServerInfo(players) => {
-                        (self.event_callback)(ServerEvent::PlayerListUpdated(players));
+                        (self.event_callback)(ServerEvent::DynamicServerInfo(players));
                     },
                     ServerMessage::LoginStatus(character, status) => {
                         self.process_login_status(character, status);
@@ -320,9 +320,9 @@ where C: Fn(ServerEvent) {
         (self.event_callback)(ServerEvent::CheckedVersion(server_version, compatibility));
     }
 
-    fn process_server_info(&mut self, info: ServerInfo) {
+    fn process_static_server_info(&mut self, info: ServerInfo) {
         self.connection.udp_port = Some(info.udp_port);
-        (self.event_callback)(ServerEvent::ServerInfo(info));
+        (self.event_callback)(ServerEvent::StaticServerInfo(info));
     }
 
     fn process_login_status(&mut self, character: char, status: LoginStatus) {

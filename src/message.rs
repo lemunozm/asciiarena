@@ -17,8 +17,10 @@ use std::time::{Duration};
 /// Messages that Client sends to Server
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ClientMessage {
-    // Messages out of login
+    // Version
     Version(String),
+
+    // Server info
     SubscribeServerInfo,
 
     // Login messages
@@ -37,11 +39,11 @@ pub enum ClientMessage {
 /// Messages that Server sends to Client
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ServerMessage {
-    // Messages out of login
+    // Version
     Version(String, Compatibility),
 
     // Server info
-    ServerInfo(ServerInfo),
+    StaticServerInfo(ServerInfo),
     DynamicServerInfo(Vec<char>), //player list
 
     // Login messages

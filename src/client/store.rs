@@ -126,7 +126,7 @@ impl Store {
                     }
                 },
 
-                ServerEvent::ServerInfo(info) => {
+                ServerEvent::StaticServerInfo(info) => {
                     let game_info = StaticGameInfo {
                         players_number: info.players_number as usize,
                         map_size: info.map_size as usize,
@@ -141,8 +141,8 @@ impl Store {
                     }
                 },
 
-                ServerEvent::PlayerListUpdated(player_names) => {
-                    self.state.server.logged_players = player_names;
+                ServerEvent::DynamicServerInfo(logged_players) => {
+                    self.state.server.logged_players = logged_players;
                 },
 
                 ServerEvent::LoginStatus(status) => {

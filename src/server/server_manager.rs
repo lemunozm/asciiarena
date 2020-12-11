@@ -195,7 +195,7 @@ impl<'a> ServerManager<'a> {
 
         log::trace!("Client {} has subscribed to server info", endpoint.addr());
         self.subscriptions.insert(endpoint);
-        self.network.send(endpoint, ServerMessage::ServerInfo(info));
+        self.network.send(endpoint, ServerMessage::StaticServerInfo(info));
     }
 
     fn process_login(&mut self, endpoint: Endpoint, player_symbol: char) {
