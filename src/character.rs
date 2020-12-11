@@ -7,7 +7,7 @@ pub enum CharacterId {
 }
 
 impl CharacterId {
-    pub fn controller_name(&self) -> &'static str {
+    pub fn behaviour_name(&self) -> &'static str {
         match self {
             CharacterId::Player(_) => "",
             _ => "", //TODO

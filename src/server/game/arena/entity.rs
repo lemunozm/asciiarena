@@ -17,7 +17,7 @@ pub enum EntityAction {
     Destroy,
 }
 
-pub trait EntityController {
+pub trait EntityBehaviour {
     fn destroyed(&mut self) -> Vec<EntityAction>;
     fn update(
         &mut self,
@@ -31,7 +31,7 @@ pub trait EntityController {
 pub struct Entity {
     id: EntityId,
     character: Rc<Character>,
-    controller: RefCell<Box<dyn EntityController>>,
+    behaviour: RefCell<Box<dyn EntityBehaviour>>,
     direction: Direction,
     position: Vec2,
     health: usize,
@@ -45,7 +45,7 @@ impl Entity {
         Entity {
             id,
             position,
-            controller: RefCell::new(get_controller(character.id().controller_name())),
+            behaviour: RefCell::new(get_behaviour(character.id().behaviour_name())),
             direction: Direction::Down,
             health: character.max_health(),
             energy: character.max_energy(),
@@ -63,12 +63,12 @@ impl Entity {
         &*self.character
     }
 
-    pub fn controller(&self) -> RefMut<'_, Box<dyn EntityController>> {
-        self.controller.borrow_mut()
+    pub fn behaviour(&self) -> RefMut<'_, Box<dyn EntityBehaviour>> {
+        self.behaviour.borrow_mut()
     }
 
-    pub fn set_controller(&mut self, controller: Box<dyn EntityController>) {
-        self.controller = RefCell::new(controller);
+    pub fn set_behaviour(&mut self, behaviour: Box<dyn EntityBehaviour>) {
+        self.behaviour = RefCell::new(behaviour);
     }
 
     pub fn health(&self) -> usize {
@@ -157,17 +157,17 @@ impl Entity {
     }
 }
 
-fn get_controller(name: &'static str) -> Box<dyn EntityController> {
+fn get_behaviour(name: &'static str) -> Box<dyn EntityBehaviour> {
     match name {
-        "" => Box::new(controller::None),
-        _ => panic!("Entity controller '{}' not found", name),
+        "" => Box::new(behaviour::None),
+        _ => panic!("Entity behaviour '{}' not found", name),
     }
 }
 
-pub mod controller {
+pub mod behaviour {
     use super::super::map::{Map};
 
-    use super::{EntityController, EntityAction, Entity};
+    use super::{EntityBehaviour, EntityAction, Entity};
 
     use crate::ids::{EntityId};
 
@@ -175,7 +175,7 @@ pub mod controller {
     use std::collections::{HashMap};
 
     pub struct None;
-    impl EntityController for None {
+    impl EntityBehaviour for None {
         fn destroyed(&mut self) -> Vec<EntityAction> { vec![] }
 
         fn update(

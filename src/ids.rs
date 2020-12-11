@@ -5,8 +5,10 @@ macro_rules! define_optional_id {
         #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
         pub struct $name(pub usize);
         impl $name {
+            #[allow(dead_code)]
             pub const NONE: $name = $name(0);
 
+            #[allow(dead_code)]
             pub fn next(id: $name) -> $name {
                 $name(id.0 + 1)
             }

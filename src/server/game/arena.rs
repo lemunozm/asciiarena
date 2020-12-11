@@ -122,7 +122,7 @@ impl Arena {
         for entity_id in self.entities.keys().map(|id| *id).collect::<Vec<_>>() {
             let entity = &self.entities[&entity_id];
             let mut entity_actions = VecDeque::from(
-                entity.controller().update(current_time, &entity, &self.map, &self.entities)
+                entity.behaviour().update(current_time, &entity, &self.map, &self.entities)
             );
 
             if !entity.is_alive() {
@@ -155,7 +155,7 @@ impl Arena {
                     EntityAction::Destroy => {
                         let entity = self.entities.get_mut(&entity_id).unwrap();
                         entity.set_health(0);
-                        entity.controller().destroyed();
+                        entity.behaviour().destroyed();
                     }
                 }
             }

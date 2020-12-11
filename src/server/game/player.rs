@@ -1,4 +1,4 @@
-use super::arena::entity::{EntityAction, EntityController, Entity};
+use super::arena::entity::{EntityAction, EntityBehaviour, Entity};
 use super::arena::map::{Map};
 
 use crate::character::{Character};
@@ -57,9 +57,9 @@ impl Player {
         self.points += points;
     }
 
-    pub fn create_entity_controller(&mut self, entity_id: EntityId) -> Box<PlayerController> {
+    pub fn create_entity_behaviour(&mut self, entity_id: EntityId) -> Box<PlayerBehaviour> {
         self.entity_handler.borrow_mut().entity_id = entity_id;
-        Box::new(PlayerController {entity_handler: self.entity_handler.clone()})
+        Box::new(PlayerBehaviour {entity_handler: self.entity_handler.clone()})
     }
 }
 
@@ -69,11 +69,11 @@ pub struct EntityHandler {
     actions: Vec<EntityAction>,
 }
 
-pub struct PlayerController {
+pub struct PlayerBehaviour {
     entity_handler: Rc<RefCell<EntityHandler>>
 }
 
-impl EntityController for PlayerController {
+impl EntityBehaviour for PlayerBehaviour {
     fn destroyed(&mut self) -> Vec<EntityAction> {
         self.entity_handler.borrow_mut().entity_id = EntityId::NONE;
         vec![]

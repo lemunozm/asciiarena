@@ -94,7 +94,7 @@ impl Game {
             let position = arena.map().initial_position(index);
             let character = player.character().clone();
             let entity = arena.create_entity(character, position);
-            entity.set_controller(player.create_entity_controller(entity.id()));
+            entity.set_behaviour(player.create_entity_behaviour(entity.id()));
         }
 
         self.arena = Some(arena);
