@@ -105,8 +105,11 @@ impl Store {
                     if let ConnectionStatus::Connected = status {
                         self.server.call(ApiCall::CheckVersion(version::current().into()));
                     }
-                    else {
-                        self.dispatch(Action::ServerEvent(ServerEvent::FinishGame));
+                    else { //No connected (no matter the reason)
+                        self.state.server.game.status = GameStatus::Finished;
+                        self.state.server.udp_confirmed = None;
+                        self.state.user.character_symbol = None;
+                        self.state.user.login_status = None;
                         self.state.server.logged_players = Vec::new();
                         self.state.server.game.arena = None;
                         self.state.server.game_info = None;
