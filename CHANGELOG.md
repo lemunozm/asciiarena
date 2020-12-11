@@ -1,5 +1,8 @@
 # Changelog
 
+## Release 0.0.5 Alpha
+- When run with no arguments, client mode is selected.
+
 ## Release 0.0.4 Alpha
 - Client: Fixed bug when the server is not found.
 - Client: Added a notification label to notify about new arena and arena winner.
