@@ -13,8 +13,7 @@ use std::collections::{HashMap};
 pub struct Player {
     character: Rc<Character>,
     entity_handler: Rc<RefCell<EntityHandler>>,
-    total_points: usize,
-    partial_points: usize,
+    points: usize,
 }
 
 impl Player {
@@ -26,8 +25,7 @@ impl Player {
         Player {
             character,
             entity_handler: Rc::new(RefCell::new(EntityHandler::default())),
-            total_points: 0,
-            partial_points: 0,
+            points: 0,
         }
     }
 
@@ -39,12 +37,8 @@ impl Player {
         self.entity_handler.borrow().entity_id
     }
 
-    pub fn total_points(&self) -> usize {
-        self.total_points
-    }
-
-    pub fn partial_points(&self) -> usize {
-        self.partial_points
+    pub fn points(&self) -> usize {
+        self.points
     }
 
     pub fn is_alive(&self) -> bool {
@@ -59,13 +53,8 @@ impl Player {
         self.entity_handler.borrow_mut().actions.push(EntityAction::Cast(direction, id))
     }
 
-    pub fn update_points(&mut self, points: usize) {
-        self.partial_points = points;
-        self.total_points += points;
-    }
-
-    pub fn reset_partial_points(&mut self) {
-        self.partial_points = 0;
+    pub fn add_points(&mut self, points: usize) {
+        self.points += points;
     }
 
     pub fn create_entity_controller(&mut self, entity_id: EntityId) -> Box<PlayerController> {

@@ -1,8 +1,8 @@
-use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena, ArenaStatus,
+use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena,
     Player, UserPlayer};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
-use crate::message::{ArenaChange};
+use crate::message::{GameEvent};
 use crate::character::{CharacterId};
 use crate::direction::{Direction};
 use crate::ids::{EntityId, SkillId};
@@ -163,12 +163,11 @@ impl Store {
                     self.state.server.game.players = game_info.players
                         .into_iter()
                         .enumerate()
-                        .map(|(index, (character_id, total_points))| Player {
+                        .map(|(index, (character_id, points))| Player {
                             id: index,
                             character_id,
                             entity_id: EntityId::NONE,
-                            partial_points: 0,
-                            total_points,
+                            points,
                         })
                         .collect();
                 },
@@ -178,6 +177,8 @@ impl Store {
                     self.state.server.udp_confirmed = None;
                     self.state.user.character_symbol = None;
                     self.state.user.login_status = None;
+                    self.state.server.game.arena_mut().entities = HashMap::new();
+                    self.state.server.game.arena_mut().spells = HashMap::new();
                 },
 
                 ServerEvent::WaitArena(duration) => {
@@ -191,12 +192,10 @@ impl Store {
                     self.state.server.game.arena_number = arena_info.number;
 
                     for (i, player) in arena_info.players.into_iter().enumerate() {
-                        self.state.server.game.players[i].entity_id = player.0;
-                        self.state.server.game.players[i].partial_points = player.1;
+                        self.state.server.game.players[i].entity_id = player;
                     }
 
                     self.state.server.game.arena = Some(Arena {
-                        status: ArenaStatus::Playing,
                         entities: HashMap::new(),
                         spells: HashMap::new(),
                         user_player: UserPlayer {
@@ -215,14 +214,14 @@ impl Store {
                     });
                 },
 
-                ServerEvent::ArenaChange(arena_change) => {
-                    let ArenaChange::PlayerPartialPoints(player_points) = arena_change;
+                ServerEvent::GameEvent(game_event) => {
+                    let GameEvent::PlayerPointsUpdated(player_points) = game_event;
                     for (i, points) in player_points.into_iter().enumerate() {
-                        self.state.server.game.players[i].partial_points = points;
+                        self.state.server.game.players[i].points = points;
                     }
                 }
 
-                ServerEvent::ArenaStep(frame) => {
+                ServerEvent::GameStep(frame) => {
                     self.state.server.game.arena_mut().entities = frame.entities
                         .into_iter()
                         .map(|entity| (entity.id, entity))
@@ -232,10 +231,6 @@ impl Store {
                         .into_iter()
                         .map(|spell| (spell.id, spell))
                         .collect::<HashMap<_, _>>();
-                },
-
-                ServerEvent::FinishArena => {
-                    self.state.server.game.arena_mut().status = ArenaStatus::Finished;
                 },
             },
         }

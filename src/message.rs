@@ -50,16 +50,15 @@ pub enum ServerMessage {
     // Udp handshake
     UdpConnected,
 
-    // Game level messages
+    // Game messages
     StartGame(GameInfo),
-    FinishGame, //points
+    FinishGame,
+    GameEvent(GameEvent),
+    GameStep(Frame),
 
-    // Arena level messages
+    // Arena messages
     WaitArena(Duration),
     StartArena(ArenaInfo),
-    ArenaChange(ArenaChange),
-    Step(Frame),
-    FinishArena, // winners
 }
 
 // ===================================================
@@ -91,19 +90,19 @@ pub struct ServerInfo {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameInfo {
     pub characters: Vec<Character>,
-    pub players: Vec<(CharacterId, usize)>, //id, total_pointsd
+    pub players: Vec<(CharacterId, usize)>, //id, points
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ArenaInfo {
     pub number: usize,
-    pub players: Vec<(EntityId, usize)>, //id, partial_points
+    pub players: Vec<EntityId>, //id
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum ArenaChange {
-    PlayerPartialPoints(Vec<usize>)
-    // Other possible arena changes here
+pub enum GameEvent {
+    PlayerPointsUpdated(Vec<usize>)
+    // Other possible game event here
 }
 
 #[derive(Serialize, Deserialize, Debug)]

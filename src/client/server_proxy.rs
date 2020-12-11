@@ -1,5 +1,5 @@
 use crate::message::{LoginStatus, ServerInfo, ClientMessage, ServerMessage,
-    LoggedKind, GameInfo, ArenaInfo, Frame, ArenaChange};
+    LoggedKind, GameInfo, ArenaInfo, Frame, GameEvent};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
 use crate::ids::{SkillId};
@@ -42,11 +42,10 @@ pub enum ServerEvent {
     UdpReachable(bool),
     StartGame(GameInfo),
     FinishGame,
+    GameEvent(GameEvent),
+    GameStep(Frame),
     WaitArena(Duration),
     StartArena(ArenaInfo),
-    ArenaChange(ArenaChange),
-    ArenaStep(Frame),
-    FinishArena,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -277,14 +276,11 @@ where C: Fn(ServerEvent) {
                     ServerMessage::StartArena(arena_info) => {
                         (self.event_callback)(ServerEvent::StartArena(arena_info));
                     },
-                    ServerMessage::ArenaChange(arena_change) => {
-                        (self.event_callback)(ServerEvent::ArenaChange(arena_change));
+                    ServerMessage::GameEvent(game_event) => {
+                        (self.event_callback)(ServerEvent::GameEvent(game_event));
                     },
-                    ServerMessage::FinishArena => {
-                        (self.event_callback)(ServerEvent::FinishArena);
-                    },
-                    ServerMessage::Step(frame) => {
-                        (self.event_callback)(ServerEvent::ArenaStep(frame));
+                    ServerMessage::GameStep(frame) => {
+                        (self.event_callback)(ServerEvent::GameStep(frame));
                     },
                 },
                 NetEvent::AddedEndpoint(_) => unreachable!(),

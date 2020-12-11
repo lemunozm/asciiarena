@@ -29,18 +29,15 @@ impl Arena {
                     }
                 }
                 KeyCode::Char(c) => {
-                    //TODO: check arena running and entity alive
-                    match c {
-                        'w' => store.dispatch(Action::MovePlayer(Direction::Up)),
-                        'a' => store.dispatch(Action::MovePlayer(Direction::Left)),
-                        's' => store.dispatch(Action::MovePlayer(Direction::Down)),
-                        'd' => store.dispatch(Action::MovePlayer(Direction::Right)),
-                        ' ' => {
-                            //TODO: skill available
-                            let id = SkillId::next(SkillId::NONE);
-                            store.dispatch(Action::CastSkill(id));
+                    if let GameStatus::Started = store.state().server.game.status {
+                        match c {
+                            'w' => store.dispatch(Action::MovePlayer(Direction::Up)),
+                            'a' => store.dispatch(Action::MovePlayer(Direction::Left)),
+                            's' => store.dispatch(Action::MovePlayer(Direction::Down)),
+                            'd' => store.dispatch(Action::MovePlayer(Direction::Right)),
+                            ' ' => store.dispatch(Action::CastSkill(SkillId(1))),
+                            _ => (),
                         }
-                        _ => (),
                     }
                 }
                 _ => (),
@@ -204,7 +201,7 @@ impl Widget for PlayerPanelWidget<'_> {
 
         // Main panel
         let panel_area = Rect::new(symbol_area.right(), area.y, 22, 4).intersection(area);
-        let points = self.player.total_points + self.player.partial_points;
+        let points = self.player.points;
         let points_style = Style::default().fg(Color::White);
         Block::default()
             .title(Spans::from(
@@ -357,17 +354,30 @@ struct FinishGameMessageWidget<'a> {state: &'a State}
 
 impl Widget for FinishGameMessageWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
-        let number = self.state.server.game.arena_number;
         if let GameStatus::Finished = self.state.server.game.status {
+            let winner_points = self.state.server.game_info().winner_points;
+            let winner_player = self.state.server.game.players
+                .iter()
+                .find(|p| p.points >= winner_points)
+                .unwrap();
+            let winner_character = &self.state.server.game.characters[&winner_player.character_id];
+
             let message = vec![
-                Spans::from(Span::raw(format!("Arena {} view (Finished)", number))),
-                Spans::from(Span::raw(format!("Under construcion..."))),
+                Spans::from(vec![
+                    Span::raw("Player "),
+                    Span::styled(
+                        winner_character.symbol().to_string(),
+                        Style::default().add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw(" wins!"),
+                ]),
                 Spans::from(Span::raw("")),
                 Spans::from(vec![
                    Span::raw("Press"),
-                   Span::styled(" <Enter> ", Style::default()
-                       .add_modifier(Modifier::BOLD)
-                       .fg(Color::Cyan)),
+                   Span::styled(
+                       " <Enter> ",
+                       Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)
+                    ),
                    Span::raw("to back to the menu"),
                 ]),
             ];

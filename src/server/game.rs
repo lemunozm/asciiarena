@@ -1,5 +1,5 @@
-mod player;
-mod arena;
+pub mod player;
+pub mod arena;
 
 use player::{Player};
 use arena::{Arena};
@@ -83,7 +83,7 @@ impl Game {
     pub fn pole(&self) -> Vec<&Player> {
         let mut sorted_players = self.players.values().collect::<Vec<_>>();
 
-        sorted_players.sort_by(|a, b| b.total_points().partial_cmp(&a.total_points()).unwrap());
+        sorted_players.sort_by(|a, b| b.points().partial_cmp(&a.points()).unwrap());
         sorted_players
     }
 
@@ -95,7 +95,6 @@ impl Game {
             let character = player.character().clone();
             let entity = arena.create_entity(character, position);
             entity.set_controller(player.create_entity_controller(entity.id()));
-            player.reset_partial_points();
         }
 
         self.arena = Some(arena);
@@ -106,15 +105,17 @@ impl Game {
     pub fn step(&mut self) {
         let living_players_before = self.living_players();
 
-        self.arena.as_mut().unwrap().update();
+        if let Some(arena) = &mut self.arena {
+            arena.update();
+        }
 
         let living_players_after = self.living_players();
-        let death_players = living_players_before.difference(&living_players_after);
-
-        let player_number = self.players.len();
-        for symbol in death_players {
-            let player = self.players.get_mut(symbol).unwrap();
-            player.update_points(player_number - living_players_before.len());
+        let deleted_players = living_players_before.difference(&living_players_after).count();
+        if deleted_players > 0 {
+            for symbol in living_players_after {
+                let player = self.players.get_mut(&symbol).unwrap();
+                player.add_points(deleted_players);
+            }
         }
     }
 
@@ -129,7 +130,7 @@ impl Game {
     pub fn has_finished(&self) -> bool {
         self.players
             .values()
-            .find(|&player| player.total_points() >= self.winner_points)
+            .find(|&player| player.points() >= self.winner_points)
             .is_some()
     }
 }

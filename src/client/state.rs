@@ -36,19 +36,12 @@ pub struct StaticGameInfo {
     pub winner_points: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ArenaStatus {
-    Playing,
-    Finished,
-}
-
 pub struct UserPlayer {
     pub player_id: usize, // The position of server.arena.players Vec.
     pub direction: Direction,
 }
 
 pub struct Arena {
-    pub status: ArenaStatus,
     pub user_player: UserPlayer,
     pub entities: HashMap<EntityId, EntityData>,
     pub spells: HashMap<SpellId, SpellData>,
@@ -65,8 +58,7 @@ pub struct Player {
     pub id: usize, // The position of server.arena.players Vec.
     pub character_id: CharacterId,
     pub entity_id: EntityId,
-    pub partial_points: usize,
-    pub total_points: usize,
+    pub points: usize,
 }
 
 pub struct Game {
@@ -114,6 +106,10 @@ impl Server {
             ConnectionStatus::Connected => true,
             _ => false,
         }
+    }
+
+    pub fn game_info(&self) -> &StaticGameInfo {
+        self.game_info.as_ref().unwrap()
     }
 
     pub fn has_compatible_version(&self) -> bool {

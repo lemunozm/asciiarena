@@ -1,8 +1,9 @@
 use super::session::{RoomSession, SessionStatus};
 use super::game::{Game};
+use super::game::arena::{Arena};
 
 use crate::message::{ClientMessage, ServerMessage, ServerInfo, GameInfo, ArenaInfo,
-    LoginStatus, LoggedKind, EntityData, Frame, ArenaChange, SpellData};
+    LoginStatus, LoggedKind, EntityData, Frame, GameEvent, SpellData};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
 use crate::ids::{SessionToken, SkillId};
@@ -44,7 +45,7 @@ pub struct ServerManager<'a> {
     subscriptions: HashSet<Endpoint>,
     room: RoomSession<Endpoint, char>,
     game: Option<Game>,
-    timestamp_last_arena_creation: Option<Instant>,
+    waiting_arena_from: Option<Instant>,
     event_queue: EventQueue<Event>,
 }
 
@@ -84,7 +85,7 @@ impl<'a> ServerManager<'a> {
             subscriptions: HashSet::new(),
             room: RoomSession::new(config.players_number as usize),
             game: None,
-            timestamp_last_arena_creation: None,
+            waiting_arena_from: None,
             config,
         })
     }
@@ -268,9 +269,11 @@ impl<'a> ServerManager<'a> {
                         let message = Self::create_start_game_message(game);
                         self.network.send(endpoint, message);
 
-                        let timestamp = self.timestamp_last_arena_creation.as_ref().unwrap();
-                        let duration = Instant::now().duration_since(*timestamp);
-                        if let Some(waiting) = self.config.arena_waiting.checked_sub(duration) {
+                        if let Some(waiting_from) = self.waiting_arena_from {
+                            let duration = Instant::now().duration_since(waiting_from);
+                            let waiting = self.config.arena_waiting
+                                .checked_sub(duration)
+                                .unwrap_or(Duration::new(0, 0));
                             self.network.send(endpoint, ServerMessage::WaitArena(waiting));
                         }
 
@@ -357,6 +360,8 @@ impl<'a> ServerManager<'a> {
 
         self.game = Some(game);
         self.process_wait_arena();
+
+        self.event_queue.sender().send(Event::GameStep);
     }
 
     fn process_wait_arena(&mut self) {
@@ -372,10 +377,11 @@ impl<'a> ServerManager<'a> {
             .sender()
             .send_with_timer(Event::AsyncStartArena, self.config.arena_waiting);
 
-        self.timestamp_last_arena_creation = Some(Instant::now());
+        self.waiting_arena_from = Some(Instant::now());
     }
 
     fn process_start_arena(&mut self) {
+        self.waiting_arena_from = None;
         self.game.as_mut().unwrap().create_new_arena();
         let game = self.game.as_ref().unwrap();
         let arena = game.arena().unwrap();
@@ -400,95 +406,56 @@ impl<'a> ServerManager<'a> {
 
         let message = Self::create_start_arena_message(game);
         self.network.send_all(self.room.safe_endpoints(), message);
-
-        self.event_queue.sender().send(Event::GameStep);
-    }
-
-    fn process_finish_arena(&mut self) {
-        let game = self.game.as_mut().unwrap();
-        let player_partial_points_pairs = game
-            .pole()
-            .iter()
-            .map(|player| (player.character().symbol(), player.partial_points()))
-            .collect::<Vec<_>>();
-
-        log::info!(
-            "End arena {}. Raking: {}",
-            game.arena_number(),
-            util::format::pair_items_to_string(player_partial_points_pairs)
-        );
-
-        let player_total_points_pairs = game
-            .pole()
-            .iter()
-            .map(|player| (player.character().symbol(), player.total_points()))
-            .collect::<Vec<_>>();
-
-        log::info!(
-            "Game points: {}",
-            util::format::pair_items_to_string(player_total_points_pairs)
-        );
-
-        self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishArena);
-
-        if game.has_finished() {
-            log::info!("End game");
-            self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishGame);
-
-            self.process_reset();
-        }
-        else {
-            self.process_wait_arena();
-        }
     }
 
     fn process_game_step(&mut self) {
-        let game = self.game.as_mut().unwrap();
-
         log::trace!("Processing step");
 
+        let game = self.game.as_mut().unwrap();
         let previous_players = game.living_players().len();
+
         game.step();
+
+        if let Some(arena) = game.arena() {
+            let message = Self::create_game_step_message(&arena);
+            self.network.send_all(self.room.faster_endpoints(), message);
+        }
+
         let current_players = game.living_players().len();
 
         if current_players < previous_players {
+            let player_total_points_pairs = game
+                .pole()
+                .iter()
+                .map(|player| (player.character().symbol(), player.points()))
+                .collect::<Vec<_>>();
+
+            log::info!(
+                "Points: {}",
+                util::format::pair_items_to_string(player_total_points_pairs)
+            );
+
             let points = game
                 .players()
                 .values()
-                .map(|player| player.partial_points())
+                .map(|player| player.points())
                 .collect();
 
-            let change = ArenaChange::PlayerPartialPoints(points);
-            let message = ServerMessage::ArenaChange(change);
-            self.network.send_all(self.room.safe_endpoints(), message);
+            let event = GameEvent::PlayerPointsUpdated(points);
+            self.network.send_all(self.room.safe_endpoints(), ServerMessage::GameEvent(event));
         }
 
-        let arena = game.arena().unwrap();
-        let entities = arena.entities().values().map(|entity| {
-            EntityData {
-                id: entity.id(),
-                character_id: entity.character().id(),
-                position: entity.position(),
-                health: entity.health(),
-                energy: entity.energy(),
-            }
-        }).collect();
-
-        let spells = arena.spells().values().map(|spell| {
-            SpellData {
-                id: spell.id(),
-                spec_id: spell.spec_id(),
-                position: spell.position(),
-            }
-        }).collect();
-
-        let message = ServerMessage::Step(Frame { entities, spells });
-        self.network.send_all(self.room.faster_endpoints(), message);
-
-        if current_players <= 1 {
-            self.process_finish_arena();
+        let game = self.game.as_ref().unwrap();
+        if game.has_finished() {
+            log::info!("End game");
+            self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishGame);
+            self.process_reset();
         }
         else {
+            if current_players <= 1 && self.waiting_arena_from.is_none() {
+                log::info!("End arena");
+                self.process_wait_arena();
+            }
             self.event_queue.sender().send_with_timer(Event::GameStep, *GAME_STEP_DURATION);
         }
     }
@@ -554,7 +521,7 @@ impl<'a> ServerManager<'a> {
                 .iter()
                 .map(|(_, player)| (
                     player.character().id(),
-                    player.total_points()
+                    player.points()
                 ))
                 .collect()
         };
@@ -567,14 +534,33 @@ impl<'a> ServerManager<'a> {
             number: game.arena_number(),
             players: game.players()
                 .iter()
-                .map(|(_, player)| (
-                    player.entity_id(),
-                    player.partial_points()
-                ))
+                .map(|(_, player)| player.entity_id())
                 .collect()
         };
 
         ServerMessage::StartArena(arena_info)
+    }
+
+    fn create_game_step_message(arena: &Arena) -> ServerMessage {
+        let entities = arena.entities().values().map(|entity| {
+            EntityData {
+                id: entity.id(),
+                character_id: entity.character().id(),
+                position: entity.position(),
+                health: entity.health(),
+                energy: entity.energy(),
+            }
+        }).collect();
+
+        let spells = arena.spells().values().map(|spell| {
+            SpellData {
+                id: spell.id(),
+                spec_id: spell.spec_id(),
+                position: spell.position(),
+            }
+        }).collect();
+
+        ServerMessage::GameStep(Frame { entities, spells })
     }
 }
 
