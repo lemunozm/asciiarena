@@ -1,5 +1,10 @@
 # Changelog
 
+## Release 0.0.3 Alpha
+- Player movement.
+- Player cast skill.
+- Points system.
+
 ## Release 0.0.2 Alpha
 - Improved menu management.
 - Added `--map-size`.
