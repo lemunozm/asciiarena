@@ -95,10 +95,17 @@ pub struct GameInfo {
     pub players: Vec<(CharacterId, usize)>, //id, points
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum Terrain {
+    Floor,
+    Wall,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ArenaInfo {
     pub number: usize,
     pub players: Vec<EntityId>, //id
+    //pub map: Vec<Terrain>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

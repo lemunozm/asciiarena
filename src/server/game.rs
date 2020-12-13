@@ -5,9 +5,11 @@ use player::{Player};
 use arena::{Arena};
 
 use crate::character::{Character, CharacterId, CharacterBuilder};
+use crate::message::{Terrain};
+
+use rand::seq::{IteratorRandom};
 
 use std::collections::{HashMap, BTreeMap, BTreeSet};
-
 use std::rc::{Rc};
 
 pub struct Game {
@@ -88,10 +90,18 @@ impl Game {
     }
 
     pub fn create_new_arena(&mut self) -> &Arena {
-        let mut arena = Arena::new(self.map_size, self.players.len());
+        let mut arena = Arena::new(self.map_size);
+        let initial_positions = arena
+            .map()
+            .ground()
+            .iter()
+            .enumerate()
+            .filter(|(_, &terrain)| terrain == Terrain::Floor)
+            .map(|(index, _)| arena.map().position_of(index))
+            .choose_multiple(&mut rand::thread_rng(), self.players.len());
 
         for (index, player) in self.players.values_mut().enumerate() {
-            let position = arena.map().initial_position(index);
+            let position = initial_positions[index];
             let character = player.character().clone();
             let entity = arena.create_entity(character, position);
             entity.set_behaviour(player.create_entity_behaviour(entity.id()));

@@ -1,46 +1,47 @@
 use crate::vec2::Vec2;
-
-use rand::{distributions::{Distribution, Uniform}};
-
-pub enum Terrain {
-    //Floor,
-    //Wall,
-}
+use crate::message::Terrain;
 
 pub struct Map {
     size: usize,
-    _ground: Vec<Terrain>,
-    initial_positions: Vec<Vec2>,
+    ground: Vec<Terrain>,
 }
 
 impl Map {
-    pub fn new(size: usize, players_number: usize) -> Map {
+    pub fn new(size: usize) -> Map {
         Map {
             size,
-            _ground: Vec::new(), //TODO
-            initial_positions: Self::random_separated_positions(size, players_number),
+            ground: Self::build_ground(size, 0),
         }
     }
 
-    fn random_separated_positions(size: usize, count: usize) -> Vec<Vec2> {
-        let mut rng = rand::thread_rng();
+    fn build_ground(size: usize, _seed: usize) -> Vec<Terrain> {
+        (0..size * size).map(|index|{
+            let x = index % size;
+            let y = index / size;
 
-        (0..count).map(|_| {
-            let x_range = Uniform::from(1..size - 1);
-            let y_range = Uniform::from(1..size - 1);
+            if x == 0 || y == 0 || x == size - 1 || y == size - 1 {
+                Terrain::Wall
+            }
+            else {
+                Terrain::Floor
+            }
 
-            Vec2::xy(x_range.sample(&mut rng) as i32, y_range.sample(&mut rng) as i32)
         }).collect()
     }
 
-    pub fn initial_position(&self, index: usize) -> Vec2 {
-        *self.initial_positions.get(index).unwrap()
+    pub fn ground(&self) -> &Vec<Terrain> {
+        &self.ground
     }
 
-    pub fn contains(&self, position: Vec2) -> bool {
-        position.x >= 1 &&
-        position.y >= 1 &&
-        position.x < (self.size - 1) as i32 &&
-        position.y < (self.size - 1) as i32
+    pub fn get(&self, position: Vec2) -> Terrain {
+        assert!(position.x >= 0 && position.x < self.size as i32);
+        assert!(position.y >= 0 && position.y < self.size as i32);
+        self.ground[position.y as usize* self.size + position.x as usize]
+    }
+
+    pub fn position_of(&self, index: usize) -> Vec2 {
+        assert!(index < self.size * self.size);
+        Vec2::xy((index % self.size) as i32, (index / self.size) as i32)
     }
 }
+

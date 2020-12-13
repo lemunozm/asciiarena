@@ -425,7 +425,7 @@ impl Widget for NotificationLabelWidget<'_> {
                             Span::styled(". ", style),
                         ])
                     }
-                    None => Spans::from(vec![Span::styled("", style)])
+                    None => Spans::from(vec![Span::styled("No one survived", style)])
                 };
 
                 vec![

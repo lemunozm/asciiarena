@@ -9,6 +9,7 @@ use spell::{Spell, SpellAction};
 use crate::character::{Character};
 use crate::ids::{SpellId, EntityId, SpellSpecId};
 use crate::vec2::Vec2;
+use crate::message::Terrain;
 
 use std::collections::{HashMap, VecDeque};
 
@@ -24,9 +25,9 @@ pub struct Arena {
 }
 
 impl Arena {
-    pub fn new(map_size: usize, players_number: usize) -> Arena {
+    pub fn new(map_size: usize) -> Arena {
         Arena {
-            map: Map::new(map_size, players_number),
+            map: Map::new(map_size),
             entities: HashMap::new(),
             spells: HashMap::new(),
             last_entity_id: EntityId::NONE,
@@ -81,7 +82,7 @@ impl Arena {
             while let Some(action) = spell_actions.pop_front() {
                 match action {
                     SpellAction::Move => {
-                        if self.map.contains(spell.position()) {
+                        if self.map.get(spell.position()) != Terrain::Wall {
                             spell.move_step(current_time);
                             let entity_position = self.entities
                                 .values_mut()
@@ -135,7 +136,7 @@ impl Arena {
                         let entity = self.entities.get_mut(&entity_id).unwrap();
                         entity.set_direction(direction);
                         let next_position = entity.position() + direction.to_vec2();
-                        if self.map.contains(next_position) {
+                        if self.map.get(next_position) != Terrain::Wall {
                             let occupied_position = self.entities
                                 .values()
                                 .find(|entity| entity.position() == next_position)
