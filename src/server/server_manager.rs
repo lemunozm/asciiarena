@@ -535,7 +535,8 @@ impl<'a> ServerManager<'a> {
             players: game.players()
                 .iter()
                 .map(|(_, player)| player.entity_id())
-                .collect()
+                .collect(),
+            ground: game.arena().unwrap().map().ground().clone(),
         };
 
         ServerMessage::StartArena(arena_info)

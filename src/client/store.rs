@@ -213,7 +213,9 @@ impl Store {
                                 .map(|(index, _)| index)
                                 .unwrap(),
                             direction: Direction::Down,
-                        }
+                        },
+                        size: self.state.server.game_info().map_size,
+                        ground: arena_info.ground,
                     });
                 },
 

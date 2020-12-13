@@ -82,7 +82,7 @@ impl Arena {
             while let Some(action) = spell_actions.pop_front() {
                 match action {
                     SpellAction::Move => {
-                        if self.map.get(spell.position()) != Terrain::Wall {
+                        if self.map.terrain(spell.position()) != Terrain::Wall {
                             spell.move_step(current_time);
                             let entity_position = self.entities
                                 .values_mut()
@@ -136,7 +136,7 @@ impl Arena {
                         let entity = self.entities.get_mut(&entity_id).unwrap();
                         entity.set_direction(direction);
                         let next_position = entity.position() + direction.to_vec2();
-                        if self.map.get(next_position) != Terrain::Wall {
+                        if self.map.terrain(next_position) != Terrain::Wall {
                             let occupied_position = self.entities
                                 .values()
                                 .find(|entity| entity.position() == next_position)

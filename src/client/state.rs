@@ -2,9 +2,10 @@ use super::server_proxy::{ConnectionStatus};
 use super::configuration::{Config};
 
 use crate::version::{Compatibility};
-use crate::message::{LoginStatus, EntityData, SpellData};
+use crate::message::{LoginStatus, EntityData, SpellData, Terrain};
 use crate::character::{CharacterId, Character};
 use crate::direction::{Direction};
+use crate::vec2::{Vec2};
 use crate::ids::{EntityId, SpellId};
 
 use std::net::{SocketAddr};
@@ -45,6 +46,16 @@ pub struct Arena {
     pub user_player: UserPlayer,
     pub entities: HashMap<EntityId, EntityData>,
     pub spells: HashMap<SpellId, SpellData>,
+    pub size: usize,
+    pub ground: Vec<Terrain>,
+}
+
+impl Arena {
+    pub fn terrain(&self, position: Vec2) -> Terrain {
+        assert!(position.x >= 0 && position.x < self.size as i32);
+        assert!(position.y >= 0 && position.y < self.size as i32);
+        self.ground[position.y as usize* self.size + position.x as usize]
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -33,7 +33,7 @@ impl Map {
         &self.ground
     }
 
-    pub fn get(&self, position: Vec2) -> Terrain {
+    pub fn terrain(&self, position: Vec2) -> Terrain {
         assert!(position.x >= 0 && position.x < self.size as i32);
         assert!(position.y >= 0 && position.y < self.size as i32);
         self.ground[position.y as usize* self.size + position.x as usize]

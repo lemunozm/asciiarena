@@ -105,7 +105,7 @@ pub enum Terrain {
 pub struct ArenaInfo {
     pub number: usize,
     pub players: Vec<EntityId>, //id
-    //pub map: Vec<Terrain>,
+    pub ground: Vec<Terrain>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
