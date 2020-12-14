@@ -1,5 +1,8 @@
 # Changelog
 
+## Release 0.0.6 Alpha
+- Entity visual damage
+
 ## Release 0.0.5 Alpha
 - When run with no arguments, client mode is selected.
 
