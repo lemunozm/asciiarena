@@ -114,7 +114,7 @@ pub enum GameEvent {
     // Other possible game event here
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EntityData {
     pub id: EntityId,
     pub character_id: CharacterId,
@@ -123,7 +123,7 @@ pub struct EntityData {
     pub energy: usize,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SpellData {
     pub id: SpellId,
     pub spec_id: SpellSpecId,

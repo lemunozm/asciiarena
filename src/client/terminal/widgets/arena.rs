@@ -7,9 +7,8 @@ use crate::client::configuration::{Config};
 
 use crate::direction::{Direction};
 use crate::character::{CharacterId, Character};
-use crate::message::{EntityData, Terrain};
-use crate::vec2::{Vec2};
-use crate::ids::{SkillId, EntityId, SpellId};
+use crate::message::{EntityData};
+use crate::ids::{SkillId, EntityId};
 
 use tui::buffer::{Buffer};
 use tui::widgets::{Paragraph, Block, Borders, BorderType, Widget};
@@ -24,14 +23,14 @@ use std::collections::{HashMap};
 
 pub struct Arena {
     previous_entities: HashMap<EntityId, EntityData>,
-    entity_damage: HashMap<EntityId, (Vec2, Instant)>,
+    damaged_entities: HashMap<EntityId, Instant>,
 }
 
 impl Arena {
     pub fn new(_config: &Config) -> Arena {
         Arena {
             previous_entities: HashMap::new(),
-            entity_damage: HashMap::new(),
+            damaged_entities: HashMap::new(),
         }
     }
 
@@ -62,9 +61,25 @@ impl Arena {
     }
 
     pub fn update(&mut self, state: &State) {
-        //spell_wall_collisions
-        // spell_collisions: HashMap<SpellId, (Vec2, Instant)>
-        // entity_damage: HashMap<EntityId, (Vec2, Instant)>
+        let arena = state.server.game.arena();
+
+        const ENTITY_DAMAGE_ANIMATION_TIME: Duration = Duration::from_millis(66);
+        let now = Instant::now();
+        self.damaged_entities.retain(|_, from|{
+            now - *from < ENTITY_DAMAGE_ANIMATION_TIME
+        });
+
+        for (id, entity) in &self.previous_entities {
+            let damaged = entity.health > arena.entities
+                .get(id)
+                .map(|e| e.health)
+                .unwrap_or(0);
+
+            if damaged {
+                self.damaged_entities.insert(*id, now);
+            }
+        }
+        self.previous_entities = arena.entities.clone();
     }
 }
 
@@ -354,16 +369,17 @@ impl Widget for MapWidget<'_> {
         }
 
         // Entities
-        let entity_style = Style::default().fg(Color::White);
-        let player_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
-
-        for (_, entity) in &self.state.server.game.arena().entities {
+        for (id, entity) in &self.state.server.game.arena().entities {
             let x = entity.position.x as u16 * 2;
             let y = entity.position.y as u16;
             let character = self.state.server.game.characters.get(&entity.character_id).unwrap();
+            let color = match self.arena.damaged_entities.get(id) {
+                Some(_) => Color::LightRed,
+                None => Color::White,
+            };
             let style = match character.id() {
-                CharacterId::Player(_) => player_style,
-                _ => entity_style,
+                CharacterId::Player(_) => Style::default().fg(color).add_modifier(Modifier::BOLD),
+                _ => Style::default().fg(color),
             };
             buffer.set_string(area.x + x, area.y + y, &character.symbol().to_string(), style);
         }
