@@ -23,7 +23,6 @@ use std::time::{Instant, Duration};
 use std::collections::{HashMap};
 
 pub struct Arena {
-    spell_wall_collisions: HashMap<SpellId, (Vec2, Instant)>,
     previous_entities: HashMap<EntityId, EntityData>,
     entity_damage: HashMap<EntityId, (Vec2, Instant)>,
 }
@@ -31,7 +30,6 @@ pub struct Arena {
 impl Arena {
     pub fn new(_config: &Config) -> Arena {
         Arena {
-            spell_wall_collisions: HashMap::new(),
             previous_entities: HashMap::new(),
             entity_damage: HashMap::new(),
         }
@@ -64,21 +62,6 @@ impl Arena {
     }
 
     pub fn update(&mut self, state: &State) {
-        const WALL_COLLISION_ANIMATION_TIME: Duration = Duration::from_millis(150);
-        let now = Instant::now();
-        self.spell_wall_collisions.retain(|_, (_, from)|{
-            now - *from < WALL_COLLISION_ANIMATION_TIME
-        });
-
-        let arena = state.server.game.arena();
-        for (id, spell) in &arena.spells {
-            if arena.terrain(spell.position) == Terrain::Wall {
-                if !self.spell_wall_collisions.contains_key(id) {
-                    self.spell_wall_collisions.insert(*id, (spell.position, now));
-                }
-            }
-        }
-
         //spell_wall_collisions
         // spell_collisions: HashMap<SpellId, (Vec2, Instant)>
         // entity_damage: HashMap<EntityId, (Vec2, Instant)>
@@ -355,14 +338,6 @@ impl Widget for MapWidget<'_> {
             buffer.set_string(area.x + x, area.y + y, &"·", style);
         }
 
-        // Spells
-        for (_, spell) in &self.state.server.game.arena().spells {
-            let x = spell.position.x as u16 * 2;
-            let y = spell.position.y as u16;
-            let style = Style::default().fg(Color::Indexed(208)).remove_modifier(Modifier::BOLD);
-            buffer.set_string(area.x + x, area.y + y, "o", style);
-        }
-
         // Border
         Block::default()
             .borders(Borders::ALL)
@@ -370,10 +345,12 @@ impl Widget for MapWidget<'_> {
             .border_type(BorderType::Rounded)
             .render(area, buffer);
 
-        for (_ ,(position, _)) in &self.arena.spell_wall_collisions {
-            let x = position.x as u16 * 2;
-            let y = position.y as u16;
-            buffer.get_mut(area.x + x, area.y + y).set_fg(Color::Yellow);
+        // Spells
+        for (_, spell) in &self.state.server.game.arena().spells {
+            let x = spell.position.x as u16 * 2;
+            let y = spell.position.y as u16;
+            let style = Style::default().fg(Color::Indexed(208)).remove_modifier(Modifier::BOLD);
+            buffer.set_string(area.x + x, area.y + y, "o", style);
         }
 
         // Entities

@@ -68,9 +68,8 @@ impl Arena {
     }
 
     pub fn update(&mut self) {
+        assert!(self.spells.iter().all(|(_, spell)| !spell.is_destroyed()));
         assert!(self.entities.iter().all(|(_, entity)| entity.is_alive()));
-
-        self.spells.retain(|_, spell| !spell.is_destroyed());
 
         let current_time = Instant::now();
 
@@ -82,8 +81,8 @@ impl Arena {
             while let Some(action) = spell_actions.pop_front() {
                 match action {
                     SpellAction::Move => {
+                        spell.move_step(current_time);
                         if self.map.terrain(spell.position()) != Terrain::Wall {
-                            spell.move_step(current_time);
                             let entity_position = self.entities
                                 .values_mut()
                                 .find(|entity| entity.position() == spell.position());
@@ -162,6 +161,7 @@ impl Arena {
             }
         }
 
+        self.spells.retain(|_, spell| !spell.is_destroyed());
         self.entities.retain(|_, entity| entity.is_alive());
     }
 }
