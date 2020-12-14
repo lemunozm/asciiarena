@@ -3,11 +3,13 @@ use super::util::{self};
 use crate::client::state::{State, GameStatus, Player};
 use crate::client::store::{Store, Action};
 use crate::client::terminal::input::{InputEvent};
+use crate::client::configuration::{Config};
 
 use crate::direction::{Direction};
 use crate::character::{CharacterId, Character};
-use crate::message::{EntityData};
-use crate::ids::{SkillId};
+use crate::message::{EntityData, Terrain};
+use crate::vec2::{Vec2};
+use crate::ids::{SkillId, EntityId, SpellId};
 
 use tui::buffer::{Buffer};
 use tui::widgets::{Paragraph, Block, Borders, BorderType, Widget};
@@ -17,11 +19,24 @@ use tui::text::{Span, Spans};
 
 use crossterm::event::{KeyCode};
 
-use std::time::{Instant};
+use std::time::{Instant, Duration};
+use std::collections::{HashMap};
 
-pub struct Arena {}
+pub struct Arena {
+    spell_wall_collisions: HashMap<SpellId, (Vec2, Instant)>,
+    previous_entities: HashMap<EntityId, EntityData>,
+    entity_damage: HashMap<EntityId, (Vec2, Instant)>,
+}
 
 impl Arena {
+    pub fn new(_config: &Config) -> Arena {
+        Arena {
+            spell_wall_collisions: HashMap::new(),
+            previous_entities: HashMap::new(),
+            entity_damage: HashMap::new(),
+        }
+    }
+
     pub fn process_event(&mut self, store: &mut Store, event: InputEvent) {
         match event {
             InputEvent::KeyPressed(key_event) => match key_event.code {
@@ -48,14 +63,33 @@ impl Arena {
         }
     }
 
-    pub fn update(&mut self, _state: &State) { }
+    pub fn update(&mut self, state: &State) {
+        const WALL_COLLISION_ANIMATION_TIME: Duration = Duration::from_millis(150);
+        let now = Instant::now();
+        self.spell_wall_collisions.retain(|_, (_, from)|{
+            now - *from < WALL_COLLISION_ANIMATION_TIME
+        });
+
+        let arena = state.server.game.arena();
+        for (id, spell) in &arena.spells {
+            if arena.terrain(spell.position) == Terrain::Wall {
+                if !self.spell_wall_collisions.contains_key(id) {
+                    self.spell_wall_collisions.insert(*id, (spell.position, now));
+                }
+            }
+        }
+
+        //spell_wall_collisions
+        // spell_collisions: HashMap<SpellId, (Vec2, Instant)>
+        // entity_damage: HashMap<EntityId, (Vec2, Instant)>
+    }
 }
 
 
 #[derive(derive_new::new)]
 pub struct ArenaWidget<'a> {
     state: &'a State,
-    _arena: &'a Arena,
+    arena: &'a Arena,
 }
 
 impl<'a> ArenaWidget<'a> {
@@ -98,7 +132,7 @@ impl Widget for ArenaWidget<'_> {
         PlayerPanelListWidget::new(self.state)
             .render(row[0], buffer);
 
-        MapWidget::new(self.state)
+        MapWidget::new(self.state, self.arena)
             .render(row[2], buffer);
 
         NotificationLabelWidget::new(self.state)
@@ -300,7 +334,7 @@ impl Widget for BarWidget {
 }
 
 #[derive(derive_new::new)]
-struct MapWidget<'a> {state: &'a State}
+struct MapWidget<'a> {state: &'a State, arena: &'a Arena}
 
 impl MapWidget<'_> {
     pub fn dimension(map_size: u16) -> (u16, u16) {
@@ -335,6 +369,12 @@ impl Widget for MapWidget<'_> {
             .border_style(Style::default().fg(Color::White))
             .border_type(BorderType::Rounded)
             .render(area, buffer);
+
+        for (_ ,(position, _)) in &self.arena.spell_wall_collisions {
+            let x = position.x as u16 * 2;
+            let y = position.y as u16;
+            buffer.get_mut(area.x + x, area.y + y).set_fg(Color::Yellow);
+        }
 
         // Entities
         let entity_style = Style::default().fg(Color::White);

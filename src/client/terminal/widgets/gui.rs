@@ -29,7 +29,7 @@ impl Gui {
     pub fn new(config: &Config) -> Gui {
         Gui {
             menu: Menu::new(config),
-            arena: Arena {},
+            arena: Arena::new(config),
         }
     }
 
