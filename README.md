@@ -17,9 +17,11 @@ The game is made in [rust][rust], and built on top of
 - [ ] Full featured game *(working...)*
 
 ## Install it
-*AsciiArena* is multiplatform, you can install it in Linux, MacOS or Windows.
+*AsciiArena* is multiplatform, you can play it in Linux, MacOS or Windows.
 
-You can use the [cargo][cargo] package manager in order to install it:
+You can download [here](https://github.com/lemunozm/asciiarena/releases) the last release version from your OS.
+
+Also, you can use the [cargo][cargo] package manager in order to install it and keep it updated easily:
 ```
 $ cargo install asciiarena
 ```
