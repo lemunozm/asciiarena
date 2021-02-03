@@ -5,7 +5,7 @@ use crate::direction::{Direction};
 use crate::ids::{SkillId};
 
 use message_io::events::{EventQueue, EventSender};
-use message_io::network::{Network, NetEvent, Endpoint};
+use message_io::network::{Network, NetEvent, Endpoint, Transport};
 
 use std::net::{IpAddr, SocketAddr};
 use std::thread::{self, JoinHandle};
@@ -174,7 +174,7 @@ where C: Fn(ServerEvent) {
 
     pub fn connect(&mut self, addr: SocketAddr) -> ConnectionStatus {
         self.disconnect(); // Ensure there is no connection, reset if there is.
-        match self.network.connect_tcp(addr) {
+        match self.network.connect(Transport::Tcp, addr) {
             Ok(tcp_endpoint) => {
                 log::info!("Connected to server by tcp on {}", addr);
                 self.connection.tcp = Some(tcp_endpoint);
@@ -340,7 +340,8 @@ where C: Fn(ServerEvent) {
                 let udp_port = *self.connection.udp_port.as_ref().unwrap();
                 let ip = *self.connection.ip.as_ref().unwrap();
                 self.connection.session_token = Some(token);
-                self.connection.udp = Some(self.network.connect_udp((ip, udp_port)).unwrap());
+                self.connection.udp =
+                    Some(self.network.connect(Transport::Udp, (ip, udp_port)).unwrap());
                 log::info!("Connection by udp on port {}", udp_port);
                 self.event_sender.send(Event::HelloUdp(0));
             },

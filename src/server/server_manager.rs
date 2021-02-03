@@ -10,7 +10,7 @@ use crate::ids::{SessionToken, SkillId};
 use crate::util::{self};
 
 use message_io::events::{EventQueue};
-use message_io::network::{Network, NetEvent, Endpoint};
+use message_io::network::{Network, NetEvent, Endpoint, Transport};
 
 use itertools::{Itertools};
 
@@ -62,12 +62,12 @@ impl<'a> ServerManager<'a> {
         }).unwrap();
 
         let network_interface = "0.0.0.0";
-        if let Err(_) = network.listen_tcp((network_interface, config.tcp_port)) {
+        if let Err(_) = network.listen(Transport::Tcp, (network_interface, config.tcp_port)) {
             log::error!("Can not run server on TCP port {}", config.tcp_port);
             return None;
         }
 
-        if let Err(_) = network.listen_udp((network_interface, config.udp_port)) {
+        if let Err(_) = network.listen(Transport::Udp, (network_interface, config.udp_port)) {
             log::error!("Can not run server on UDP port {}", config.udp_port);
             return None;
         }
