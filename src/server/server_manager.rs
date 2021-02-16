@@ -109,10 +109,10 @@ impl<'a> ServerManager<'a> {
                     break
                 },
                 Event::Network(net_event) => match net_event {
-                    NetEvent::AddedEndpoint(endpoint) => {
+                    NetEvent::Connected(endpoint) => {
                         log::trace!("{} has connected", endpoint);
                     },
-                    NetEvent::RemovedEndpoint(endpoint) => {
+                    NetEvent::Disconnected(endpoint) => {
                         log::trace!("{} has disconnected", endpoint);
                         self.process_disconnection(endpoint);
                     },

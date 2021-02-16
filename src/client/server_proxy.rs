@@ -175,7 +175,7 @@ where C: Fn(ServerEvent) {
     pub fn connect(&mut self, addr: SocketAddr) -> ConnectionStatus {
         self.disconnect(); // Ensure there is no connection, reset if there is.
         match self.network.connect(Transport::Tcp, addr) {
-            Ok(tcp_endpoint) => {
+            Ok((tcp_endpoint, _)) => {
                 log::info!("Connected to server by tcp on {}", addr);
                 self.connection.tcp = Some(tcp_endpoint);
                 self.connection.ip = Some(addr.ip());
@@ -283,8 +283,8 @@ where C: Fn(ServerEvent) {
                         (self.event_callback)(ServerEvent::GameStep(frame));
                     },
                 },
-                NetEvent::AddedEndpoint(_) => unreachable!(),
-                NetEvent::RemovedEndpoint(_) => {
+                NetEvent::Connected(_) => unreachable!(),
+                NetEvent::Disconnected(_) => {
                     let result = ConnectionStatus::Lost;
                     (self.event_callback)(ServerEvent::ConnectionResult(result));
                 },
@@ -340,8 +340,10 @@ where C: Fn(ServerEvent) {
                 let udp_port = *self.connection.udp_port.as_ref().unwrap();
                 let ip = *self.connection.ip.as_ref().unwrap();
                 self.connection.session_token = Some(token);
-                self.connection.udp =
-                    Some(self.network.connect(Transport::Udp, (ip, udp_port)).unwrap());
+
+                let addr = SocketAddr::new(ip, udp_port);
+                let (endpoint,  _) = self.network.connect(Transport::Udp, addr).unwrap();
+                self.connection.udp = Some(endpoint);
                 log::info!("Connection by udp on port {}", udp_port);
                 self.event_sender.send(Event::HelloUdp(0));
             },
