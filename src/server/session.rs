@@ -2,6 +2,8 @@ use crate::ids::{SessionToken};
 
 use rand::prelude::*;
 
+use message_io::network::{Endpoint};
+
 use std::collections::HashMap;
 
 pub enum SessionStatus {
@@ -11,15 +13,13 @@ pub enum SessionStatus {
     Full,
 }
 
-pub struct RoomSession<E, U> {
-    sessions: HashMap<SessionToken, Session<E, U>>,
+pub struct RoomSession<U> {
+    sessions: HashMap<SessionToken, Session<U>>,
     size: usize,
 }
 
-impl<E, U> RoomSession<E, U>
-where E: Eq, U: Eq
-{
-    pub fn new(size: usize) -> RoomSession<E, U> {
+impl<U: Eq> RoomSession<U> {
+    pub fn new(size: usize) -> RoomSession<U> {
         RoomSession {
             sessions: HashMap::new(),
             size,
@@ -34,15 +34,15 @@ where E: Eq, U: Eq
         self.sessions.len() == self.size
     }
 
-    pub fn sessions(&self) -> impl Iterator<Item = &Session<E, U>> {
+    pub fn sessions(&self) -> impl Iterator<Item = &Session<U>> {
         self.sessions.values()
     }
 
-    pub fn session_mut(&mut self, token: SessionToken) -> Option<&mut Session<E, U>> {
+    pub fn session_mut(&mut self, token: SessionToken) -> Option<&mut Session<U>> {
         self.sessions.get_mut(&token)
     }
 
-    pub fn remove_session_by_endpoint(&mut self, endpoint: E) -> Option<Session<E, U>> {
+    pub fn remove_session_by_endpoint(&mut self, endpoint: Endpoint) -> Option<Session<U>> {
         if let Some(session) = self.session_by_endpoint(endpoint) {
             let token = session.token();
             self.sessions.remove(&token)
@@ -50,7 +50,7 @@ where E: Eq, U: Eq
         else { None }
     }
 
-    pub fn session_by_endpoint(&self, safe_endpoint: E) -> Option<&Session<E, U>> {
+    pub fn session_by_endpoint(&self, safe_endpoint: Endpoint) -> Option<&Session<U>> {
         self.sessions.values().find(|session| {
             match session.safe_endpoint() {
                 Some(endpoint) if *endpoint == safe_endpoint => true,
@@ -59,7 +59,7 @@ where E: Eq, U: Eq
         })
     }
 
-    pub fn session_by_endpoint_mut(&mut self, safe_endpoint: E) -> Option<&mut Session<E, U>> {
+    pub fn session_by_endpoint_mut(&mut self, safe_endpoint: Endpoint) -> Option<&mut Session<U>> {
         self.sessions.values_mut().find(|session| {
             match session.safe_endpoint() {
                 Some(endpoint) if *endpoint == safe_endpoint => true,
@@ -68,7 +68,7 @@ where E: Eq, U: Eq
         })
     }
 
-    pub fn create_session(&mut self, user: U, safe_endpoint: E) -> SessionStatus {
+    pub fn create_session(&mut self, user: U, safe_endpoint: Endpoint) -> SessionStatus {
         let existing_session = self.sessions
             .values_mut()
             .find(|session| *session.user() == user);
@@ -93,22 +93,20 @@ where E: Eq, U: Eq
         }
     }
 
-    pub fn safe_endpoints(&self) -> impl Iterator<Item = &E> {
-        self.sessions()
-            .map(|session| session.safe_endpoint().as_ref())
-            .filter_map(|e| e) // Only connected endpoints
+    pub fn safe_endpoints(&self) -> Vec<Endpoint> {
+        self.sessions().filter_map(|session| *session.safe_endpoint()).collect()
     }
 
     /// Tries to return the fast endpoint, if this is not possible, the safe endpoint is returned.
-    pub fn faster_endpoints(&self) -> impl Iterator<Item = &E> {
+    pub fn faster_endpoints(&self) -> Vec<Endpoint> {
         self.sessions()
-            .map(|session| {
+            .filter_map(|session| {
                 match session.trusted_fast_endpoint() {
-                    Some(fast_endpoint) => Some(fast_endpoint),
-                    None => session.safe_endpoint().as_ref(),
+                    Some(fast_endpoint) => Some(*fast_endpoint),
+                    None => *session.safe_endpoint(),
                 }
             })
-            .filter_map(|e| e) // Only connected endpoints
+            .collect()
     }
 
     fn generate_unique_token(&self) -> SessionToken {
@@ -122,16 +120,16 @@ where E: Eq, U: Eq
     }
 }
 
-pub struct Session<E, U> {
+pub struct Session<U> {
     token: SessionToken,
     user: U,
-    safe_endpoint: Option<E>,
-    fast_endpoint: Option<E>,
+    safe_endpoint: Option<Endpoint>,
+    fast_endpoint: Option<Endpoint>,
     is_fast_endpoint_trusted: bool,
 }
 
-impl<E, U> Session<E, U> {
-    fn new(token: SessionToken, user: U, safe_endpoint: E) -> Session<E, U> {
+impl<U> Session<U> {
+    fn new(token: SessionToken, user: U, safe_endpoint: Endpoint) -> Session<U> {
         Session {
             token,
             user,
@@ -149,27 +147,27 @@ impl<E, U> Session<E, U> {
         self.token
     }
 
-    pub fn safe_endpoint(&self) -> &Option<E> {
+    pub fn safe_endpoint(&self) -> &Option<Endpoint> {
         &self.safe_endpoint
     }
 
-    pub fn trusted_fast_endpoint(&self) -> &Option<E> {
+    pub fn trusted_fast_endpoint(&self) -> &Option<Endpoint> {
         match self.is_fast_endpoint_trusted {
             true => &self.fast_endpoint,
             false => &None,
         }
     }
 
-    fn set_safe_endpoint(&mut self, endpoint: E) {
+    fn set_safe_endpoint(&mut self, endpoint: Endpoint) {
         self.safe_endpoint = Some(endpoint);
     }
 
-    pub fn set_untrusted_fast_endpoint(&mut self, endpoint: E) {
+    pub fn set_untrusted_fast_endpoint(&mut self, endpoint: Endpoint) {
         self.fast_endpoint = Some(endpoint);
         self.is_fast_endpoint_trusted = false;
     }
 
-    pub fn trust_in_fast_endpoint(&mut self) -> &Option<E> {
+    pub fn trust_in_fast_endpoint(&mut self) -> &Option<Endpoint> {
         if self.fast_endpoint.is_some() {
             self.is_fast_endpoint_trusted = true;
         }

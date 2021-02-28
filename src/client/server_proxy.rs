@@ -1,11 +1,12 @@
 use crate::message::{LoginStatus, ServerInfo, ClientMessage, ServerMessage,
     LoggedKind, GameInfo, ArenaInfo, Frame, GameEvent};
+use crate::encoding::{self, Encoder};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
 use crate::ids::{SkillId};
 
 use message_io::events::{EventQueue, EventSender};
-use message_io::network::{Network, NetEvent, Endpoint, Transport};
+use message_io::network::{Network, AdapterEvent, Endpoint, Transport};
 
 use std::net::{IpAddr, SocketAddr};
 use std::thread::{self, JoinHandle};
@@ -68,12 +69,15 @@ impl ConnectionStatus {
 #[derive(Debug)]
 enum Event {
     Api(ApiCall),
-    Network(NetEvent<ServerMessage>),
+    Connected(Endpoint),
+    Disconnected(Endpoint),
+    DeserializationError(Endpoint),
+    Message(Endpoint, ServerMessage),
     HelloUdp(usize),
 }
 
 pub struct ServerProxy {
-    event_sender: EventSender<Event>,
+    event_sender: Option<EventSender<Event>>,
     proxy_thread_running: Arc<AtomicBool>,
     proxy_thread_handle: Option<JoinHandle<()>>,
 }
@@ -100,7 +104,7 @@ impl ServerProxy {
         }.unwrap();
 
         ServerProxy {
-            event_sender,
+            event_sender: Some(event_sender),
             proxy_thread_running,
             proxy_thread_handle: Some(proxy_thread_handle),
         }
@@ -109,7 +113,7 @@ impl ServerProxy {
     pub fn api(&mut self) -> ServerApi {
         return ServerApi {
             proxy_thread_running: self.proxy_thread_running.clone(),
-            sender: self.event_sender.clone(),
+            sender: self.event_sender.as_ref().unwrap().clone(),
         }
     }
 }
@@ -117,6 +121,7 @@ impl ServerProxy {
 impl Drop for ServerProxy {
     fn drop(&mut self) {
         self.proxy_thread_running.store(false, Ordering::Relaxed);
+        self.event_sender.take().unwrap(); // Remove the sender before the event_queue
         self.proxy_thread_handle.take().unwrap().join().unwrap();
     }
 }
@@ -147,6 +152,7 @@ struct ConnectionInfo {
 struct ServerConnection<C> {
     event_sender: EventSender<Event>,
     network: Network,
+    encoder: Encoder,
     connection: ConnectionInfo,
     event_callback: C,
 }
@@ -155,11 +161,22 @@ impl<C> ServerConnection<C>
 where C: Fn(ServerEvent) {
     pub fn new(event_sender: EventSender<Event>, event_callback: C) -> ServerConnection<C> {
         let sender = event_sender.clone();
-        let network = Network::new(move |net_event| sender.send(Event::Network(net_event)));
+        let network = Network::new(move |endpoint, adapter_event| {
+            let event = match adapter_event {
+                AdapterEvent::Added => Event::Connected(endpoint),
+                AdapterEvent::Data(data) => match encoding::decode(&data) {
+                    Some(message) => Event::Message(endpoint, message),
+                    None => Event::DeserializationError(endpoint),
+                },
+                AdapterEvent::Removed => Event::Disconnected(endpoint),
+            };
+            sender.send(event);
+        });
 
         ServerConnection {
             event_sender,
             network,
+            encoder: Encoder::new(),
             connection: ConnectionInfo {
                 ip: None,
                 udp_port: None,
@@ -170,6 +187,10 @@ where C: Fn(ServerEvent) {
             },
             event_callback
         }
+    }
+
+    fn send_to_server(&mut self, endpoint: Endpoint, message: ClientMessage) {
+        self.network.send(endpoint, self.encoder.encode(message));
     }
 
     pub fn connect(&mut self, addr: SocketAddr) -> ConnectionStatus {
@@ -195,7 +216,7 @@ where C: Fn(ServerEvent) {
         self.connection.udp = None;
         self.connection.ip = None;
         if let Some(endpoint) = self.connection.tcp {
-            self.network.remove_resource(endpoint.resource_id());
+            self.network.remove(endpoint.resource_id());
             self.connection.tcp = None;
         }
         ConnectionStatus::NotConnected
@@ -206,95 +227,91 @@ where C: Fn(ServerEvent) {
         self.connection.session_token = None;
         self.connection.udp = None;
         let tcp = *self.connection.tcp.as_ref().unwrap();
-        self.network.send(tcp, ClientMessage::Logout);
+        self.send_to_server(tcp, ClientMessage::Logout);
     }
 
     pub fn process_event(&mut self, event: Event) {
         log::trace!("Process event: {:?}", event);
         match event {
-            Event::Api(api_event) => {
-                match api_event {
-                    ApiCall::Connect(addr) => {
-                        let result = self.connect(addr);
-                        (self.event_callback)(ServerEvent::ConnectionResult(result));
-                    },
-                    ApiCall::Disconnect => {
-                        let result = self.disconnect();
-                        (self.event_callback)(ServerEvent::ConnectionResult(result));
-                    },
-                    ApiCall::CheckVersion(version) => {
-                        let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::Version(version));
-                    },
-                    ApiCall::SubscribeInfo => {
-                        let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::SubscribeServerInfo);
-                    },
-                    ApiCall::Login(character) => {
-                        let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::Login(character));
-                    },
-                    ApiCall::Logout => {
-                        self.logout()
-                    },
-                    ApiCall::MovePlayer(direction) => {
-                        let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::MovePlayer(direction));
-                    },
-                    ApiCall::CastSkill(direction, id) => {
-                        let tcp = *self.connection.tcp.as_ref().unwrap();
-                        self.network.send(tcp, ClientMessage::CastSkill(direction, id));
-                    },
-                }
-            },
-            Event::Network(net_event) => match net_event {
-                NetEvent::Message(_, message) => match message {
-                    ServerMessage::Version(server_version, server_side_compatibility) => {
-                        self.process_version(server_version, server_side_compatibility);
-                    },
-                    ServerMessage::StaticServerInfo(info) => {
-                        self.process_static_server_info(info);
-                    },
-                    ServerMessage::DynamicServerInfo(players) => {
-                        (self.event_callback)(ServerEvent::DynamicServerInfo(players));
-                    },
-                    ServerMessage::LoginStatus(character, status) => {
-                        self.process_login_status(character, status);
-                    },
-                    ServerMessage::UdpConnected => {
-                        self.process_udp_connected();
-                    },
-                    ServerMessage::StartGame(game_info) => {
-                        (self.event_callback)(ServerEvent::StartGame(game_info));
-                    },
-                    ServerMessage::FinishGame => {
-                        self.process_finish_game();
-                    },
-                    ServerMessage::WaitArena(duration) => {
-                        (self.event_callback)(ServerEvent::WaitArena(duration));
-                    },
-                    ServerMessage::StartArena(arena_info) => {
-                        (self.event_callback)(ServerEvent::StartArena(arena_info));
-                    },
-                    ServerMessage::GameEvent(game_event) => {
-                        (self.event_callback)(ServerEvent::GameEvent(game_event));
-                    },
-                    ServerMessage::GameStep(frame) => {
-                        (self.event_callback)(ServerEvent::GameStep(frame));
-                    },
-                },
-                NetEvent::Connected(_) => unreachable!(),
-                NetEvent::Disconnected(_) => {
-                    let result = ConnectionStatus::Lost;
+            Event::Api(api_event) => match api_event {
+                ApiCall::Connect(addr) => {
+                    let result = self.connect(addr);
                     (self.event_callback)(ServerEvent::ConnectionResult(result));
                 },
-                NetEvent::DeserializationError(endpoint) => {
-                    log::error!(
-                        "Server sends an unknown message. Connection rejected. \
-                        Ensure the version compatibility.",
-                    );
-                    self.network.remove_resource(endpoint.resource_id()).unwrap();
-                }
+                ApiCall::Disconnect => {
+                    let result = self.disconnect();
+                    (self.event_callback)(ServerEvent::ConnectionResult(result));
+                },
+                ApiCall::CheckVersion(version) => {
+                    let tcp = *self.connection.tcp.as_ref().unwrap();
+                    self.send_to_server(tcp, ClientMessage::Version(version));
+                },
+                ApiCall::SubscribeInfo => {
+                    let tcp = *self.connection.tcp.as_ref().unwrap();
+                    self.send_to_server(tcp, ClientMessage::SubscribeServerInfo);
+                },
+                ApiCall::Login(character) => {
+                    let tcp = *self.connection.tcp.as_ref().unwrap();
+                    self.send_to_server(tcp, ClientMessage::Login(character));
+                },
+                ApiCall::Logout => {
+                    self.logout()
+                },
+                ApiCall::MovePlayer(direction) => {
+                    let tcp = *self.connection.tcp.as_ref().unwrap();
+                    self.send_to_server(tcp, ClientMessage::MovePlayer(direction));
+                },
+                ApiCall::CastSkill(direction, id) => {
+                    let tcp = *self.connection.tcp.as_ref().unwrap();
+                    self.send_to_server(tcp, ClientMessage::CastSkill(direction, id));
+                },
+            },
+            Event::Message(_, message) => match message {
+                ServerMessage::Version(server_version, server_side_compatibility) => {
+                    self.process_version(server_version, server_side_compatibility);
+                },
+                ServerMessage::StaticServerInfo(info) => {
+                    self.process_static_server_info(info);
+                },
+                ServerMessage::DynamicServerInfo(players) => {
+                    (self.event_callback)(ServerEvent::DynamicServerInfo(players));
+                },
+                ServerMessage::LoginStatus(character, status) => {
+                    self.process_login_status(character, status);
+                },
+                ServerMessage::UdpConnected => {
+                    self.process_udp_connected();
+                },
+                ServerMessage::StartGame(game_info) => {
+                    (self.event_callback)(ServerEvent::StartGame(game_info));
+                },
+                ServerMessage::FinishGame => {
+                    self.process_finish_game();
+                },
+                ServerMessage::WaitArena(duration) => {
+                    (self.event_callback)(ServerEvent::WaitArena(duration));
+                },
+                ServerMessage::StartArena(arena_info) => {
+                    (self.event_callback)(ServerEvent::StartArena(arena_info));
+                },
+                ServerMessage::GameEvent(game_event) => {
+                    (self.event_callback)(ServerEvent::GameEvent(game_event));
+                },
+                ServerMessage::GameStep(frame) => {
+                    (self.event_callback)(ServerEvent::GameStep(frame));
+                },
+            },
+            Event::Connected(_) => unreachable!(),
+            Event::Disconnected(_) => {
+                let result = ConnectionStatus::Lost;
+                (self.event_callback)(ServerEvent::ConnectionResult(result));
+            },
+            Event::DeserializationError(endpoint) => {
+                log::error!(
+                    "Server sends an unknown message. Connection rejected. \
+                    Ensure the version compatibility.",
+                );
+                self.network.remove(endpoint.resource_id()).unwrap();
             },
             Event::HelloUdp(attempt) => {
                 self.process_hello_udp(attempt);
@@ -367,7 +384,7 @@ where C: Fn(ServerEvent) {
                     Some(udp_endpoint) =>
                         if attempt < UDP_HANDSHAKE_MAX_ATTEMPS {
                             log::trace!("Udp handshake attempt: {}", attempt);
-                            self.network.send(udp_endpoint, ClientMessage::ConnectUdp(token));
+                            self.send_to_server(udp_endpoint, ClientMessage::ConnectUdp(token));
                             let next_time = (attempt * attempt) as u64 + 1;
                             let next_message_timer = Duration::from_millis(next_time);
                             let hello_udp = Event::HelloUdp(attempt + 1);
@@ -386,7 +403,7 @@ where C: Fn(ServerEvent) {
 
     fn process_udp_connected(&mut self) {
         let tcp = *self.connection.tcp.as_ref().unwrap();
-        self.network.send(tcp, ClientMessage::TrustUdp);
+        self.send_to_server(tcp, ClientMessage::TrustUdp);
         self.connection.has_udp_hasdshake = true;
         log::info!("Client udp successful reachable from server");
         (self.event_callback)(ServerEvent::UdpReachable(true));
@@ -398,4 +415,3 @@ where C: Fn(ServerEvent) {
     }
 
 }
-

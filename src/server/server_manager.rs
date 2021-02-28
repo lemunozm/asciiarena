@@ -4,13 +4,14 @@ use super::game::arena::{Arena};
 
 use crate::message::{ClientMessage, ServerMessage, ServerInfo, GameInfo, ArenaInfo,
     LoginStatus, LoggedKind, EntityData, Frame, GameEvent, SpellData};
+use crate::encoding::{self, Encoder};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
 use crate::ids::{SessionToken, SkillId};
 use crate::util::{self};
 
 use message_io::events::{EventQueue};
-use message_io::network::{Network, NetEvent, Endpoint, Transport};
+use message_io::network::{Network, AdapterEvent, Endpoint, Transport};
 
 use itertools::{Itertools};
 
@@ -23,7 +24,10 @@ lazy_static! {
 
 #[derive(Debug)]
 enum Event {
-    Network(NetEvent<ClientMessage>),
+    Connected(Endpoint),
+    Disconnected(Endpoint),
+    Message(Endpoint, ClientMessage),
+    DeserializationError(Endpoint),
     AsyncCreateGame, // Could take time in processing
     AsyncStartArena, // Generated Eventually
     GameStep,        // Generated Eventually
@@ -41,9 +45,10 @@ pub struct Config {
 
 pub struct ServerManager<'a> {
     config: &'a Config,
+    encoder: Encoder,
     network: Network,
     subscriptions: HashSet<Endpoint>,
-    room: RoomSession<Endpoint, char>,
+    room: RoomSession<char>,
     game: Option<Game>,
     waiting_arena_from: Option<Instant>,
     event_queue: EventQueue<Event>,
@@ -51,10 +56,17 @@ pub struct ServerManager<'a> {
 
 impl<'a> ServerManager<'a> {
     pub fn new(config: &'a Config) -> Option<ServerManager<'a>> {
-        let mut event_queue = EventQueue::new();
-
-        let sender = event_queue.sender().clone();
-        let mut network = Network::new(move |net_event| sender.send(Event::Network(net_event)));
+        let (mut event_queue, mut network)
+            = Network::split_and_map_from_adapter(|endpoint, adapter_event| {
+                match adapter_event {
+                    AdapterEvent::Added => Event::Connected(endpoint),
+                    AdapterEvent::Data(data) => match encoding::decode(&data) {
+                        Some(message) => Event::Message(endpoint, message),
+                        None => Event::DeserializationError(endpoint),
+                    },
+                    AdapterEvent::Removed => Event::Disconnected(endpoint),
+                }
+            });
 
         let signal_sender = event_queue.sender().clone();
         ctrlc::set_handler(move || {
@@ -82,12 +94,28 @@ impl<'a> ServerManager<'a> {
         Some(ServerManager {
             event_queue,
             network,
+            encoder: Encoder::new(),
             subscriptions: HashSet::new(),
             room: RoomSession::new(config.players_number as usize),
             game: None,
             waiting_arena_from: None,
             config,
         })
+    }
+
+    fn send_to_client(&mut self, endpoint: Endpoint, message: ServerMessage) {
+        self.network.send(endpoint, self.encoder.encode(message));
+    }
+
+    fn send_to_all_clients(
+        &mut self,
+        endpoints: Vec<Endpoint>,
+        message: ServerMessage,
+    ){
+        let output_data = self.encoder.encode(message);
+        for endpoint in endpoints {
+            self.network.send(endpoint, output_data);
+        }
     }
 
     pub fn run(&mut self) {
@@ -108,47 +136,45 @@ impl<'a> ServerManager<'a> {
                     log::info!("Closing server");
                     break
                 },
-                Event::Network(net_event) => match net_event {
-                    NetEvent::Connected(endpoint) => {
-                        log::trace!("{} has connected", endpoint);
-                    },
-                    NetEvent::Disconnected(endpoint) => {
-                        log::trace!("{} has disconnected", endpoint);
-                        self.process_disconnection(endpoint);
-                    },
-                    NetEvent::DeserializationError(endpoint) => {
-                        log::error!("{} sends an unknown message. Connection rejected", endpoint);
-                        self.network.remove_resource(endpoint.resource_id()).unwrap();
+                Event::Connected(endpoint) => {
+                    log::trace!("{} has connected", endpoint);
+                },
+                Event::Disconnected(endpoint) => {
+                    log::trace!("{} has disconnected", endpoint);
+                    self.process_disconnection(endpoint);
+                },
+                Event::DeserializationError(endpoint) => {
+                    log::error!("{} sends an unknown message. Connection rejected", endpoint);
+                    self.network.remove(endpoint.resource_id()).unwrap();
+                },
+                Event::Message(endpoint, message) => {
+                    log::trace!("Message from {}", endpoint.addr());
+                    match message {
+                        ClientMessage::Version(client_version) => {
+                            self.process_version(endpoint, &client_version);
+                        },
+                        ClientMessage::SubscribeServerInfo => {
+                            self.process_subscribe_server_info(endpoint);
+                        },
+                        ClientMessage::Login(user) => {
+                            self.process_login(endpoint, user);
+                        },
+                        ClientMessage::Logout => {
+                            self.process_logout(endpoint);
+                        },
+                        ClientMessage::ConnectUdp(session_token) => {
+                            self.process_connect_udp(endpoint, session_token);
+                        },
+                        ClientMessage::TrustUdp => {
+                            self.process_trust_udp(endpoint);
+                        },
+                        ClientMessage::MovePlayer(direction) => {
+                            self.process_move_player(endpoint, direction);
+                        },
+                        ClientMessage::CastSkill(direction, id) => {
+                            self.process_cast_skill(endpoint, direction, id);
+                        },
                     }
-                    NetEvent::Message(endpoint, message) => {
-                        log::trace!("Message from {}", endpoint.addr());
-                        match message {
-                            ClientMessage::Version(client_version) => {
-                                self.process_version(endpoint, &client_version);
-                            },
-                            ClientMessage::SubscribeServerInfo => {
-                                self.process_subscribe_server_info(endpoint);
-                            },
-                            ClientMessage::Login(user) => {
-                                self.process_login(endpoint, user);
-                            },
-                            ClientMessage::Logout => {
-                                self.process_logout(endpoint);
-                            },
-                            ClientMessage::ConnectUdp(session_token) => {
-                                self.process_connect_udp(endpoint, session_token);
-                            },
-                            ClientMessage::TrustUdp => {
-                                self.process_trust_udp(endpoint);
-                            },
-                            ClientMessage::MovePlayer(direction) => {
-                                self.process_move_player(endpoint, direction);
-                            },
-                            ClientMessage::CastSkill(direction, id) => {
-                                self.process_cast_skill(endpoint, direction, id);
-                            },
-                        }
-                    },
                 },
             }
         }
@@ -174,10 +200,10 @@ impl<'a> ServerManager<'a> {
         };
 
         let message = ServerMessage::Version(version::current().into(), compatibility);
-        self.network.send(endpoint, message);
+        self.send_to_client(endpoint, message);
 
         if let Compatibility::None = compatibility {
-            self.network.remove_resource(endpoint.resource_id()).unwrap();
+            self.network.remove(endpoint.resource_id()).unwrap();
         }
     }
 
@@ -195,7 +221,8 @@ impl<'a> ServerManager<'a> {
 
         log::trace!("Client {} has subscribed to server info", endpoint.addr());
         self.subscriptions.insert(endpoint);
-        self.network.send(endpoint, ServerMessage::StaticServerInfo(info));
+        let message = ServerMessage::StaticServerInfo(info);
+        self.send_to_client(endpoint, message);
     }
 
     fn process_login(&mut self, endpoint: Endpoint, player_symbol: char) {
@@ -247,7 +274,8 @@ impl<'a> ServerManager<'a> {
             status
         );
 
-        self.network.send(endpoint, ServerMessage::LoginStatus(player_symbol, status));
+        let message = ServerMessage::LoginStatus(player_symbol, status);
+        self.send_to_client(endpoint, message);
 
         if let LoginStatus::Logged(_, kind) = status {
             match kind {
@@ -258,7 +286,8 @@ impl<'a> ServerManager<'a> {
                         .collect();
 
                     let message = ServerMessage::DynamicServerInfo(player_symbols);
-                    self.network.send_all(self.subscriptions.iter(), message);
+                    let subscriptions = self.subscriptions.iter().cloned().collect();
+                    self.send_to_all_clients(subscriptions, message);
 
                     if self.game.is_none() && self.room.is_full() {
                         self.event_queue.sender().send(Event::AsyncCreateGame);
@@ -267,19 +296,21 @@ impl<'a> ServerManager<'a> {
                 LoggedKind::Reconnection => {
                     if let Some(game) = &self.game {
                         let message = Self::create_start_game_message(game);
-                        self.network.send(endpoint, message);
+                        self.send_to_client(endpoint, message);
 
                         if let Some(waiting_from) = self.waiting_arena_from {
                             let duration = Instant::now().duration_since(waiting_from);
                             let waiting = self.config.arena_waiting
                                 .checked_sub(duration)
                                 .unwrap_or(Duration::new(0, 0));
-                            self.network.send(endpoint, ServerMessage::WaitArena(waiting));
+                            let message = ServerMessage::WaitArena(waiting);
+                            self.send_to_client(endpoint, message);
                         }
 
+                        let game = self.game.as_ref().unwrap();
                         if let Some(_) = game.arena() {
                             let message = Self::create_start_arena_message(game);
-                            self.network.send(endpoint, message);
+                            self.send_to_client(endpoint, message);
                         }
                     }
                 }
@@ -308,7 +339,8 @@ impl<'a> ServerManager<'a> {
                 );
 
                 let message = ServerMessage::DynamicServerInfo(player_symbols);
-                self.network.send_all(self.subscriptions.iter(), message);
+                let subscriptions = self.subscriptions.iter().cloned().collect();
+                self.send_to_all_clients(subscriptions, message);
             }
         }
     }
@@ -318,7 +350,8 @@ impl<'a> ServerManager<'a> {
             Some(session) => {
                 log::trace!("Attached udp endpoint to session '{}'", session_token);
                 session.set_untrusted_fast_endpoint(udp_endpoint);
-                self.network.send(udp_endpoint, ServerMessage::UdpConnected);
+                let message = ServerMessage::UdpConnected;
+                self.send_to_client(udp_endpoint, message);
             }
             None =>
                 log::warn!(
@@ -356,7 +389,7 @@ impl<'a> ServerManager<'a> {
         );
 
         let message = Self::create_start_game_message(&game);
-        self.network.send_all(self.room.safe_endpoints(), message);
+        self.send_to_all_clients(self.room.safe_endpoints(), message);
 
         self.game = Some(game);
         self.process_wait_arena();
@@ -371,7 +404,7 @@ impl<'a> ServerManager<'a> {
         );
 
         let message = ServerMessage::WaitArena(self.config.arena_waiting);
-        self.network.send_all(self.room.safe_endpoints(), message);
+        self.send_to_all_clients(self.room.safe_endpoints(), message);
 
         self.event_queue
             .sender()
@@ -405,7 +438,7 @@ impl<'a> ServerManager<'a> {
         log::trace!("Player positions: {}", util::format::pair_items_to_string(player_positions));
 
         let message = Self::create_start_arena_message(game);
-        self.network.send_all(self.room.safe_endpoints(), message);
+        self.send_to_all_clients(self.room.safe_endpoints(), message);
     }
 
     fn process_game_step(&mut self) {
@@ -418,9 +451,10 @@ impl<'a> ServerManager<'a> {
 
         if let Some(arena) = game.arena() {
             let message = Self::create_game_step_message(&arena);
-            self.network.send_all(self.room.faster_endpoints(), message);
+            self.send_to_all_clients(self.room.faster_endpoints(), message);
         }
 
+        let game = self.game.as_ref().unwrap();
         let current_players = game.living_players().len();
 
         if current_players < previous_players {
@@ -441,14 +475,15 @@ impl<'a> ServerManager<'a> {
                 .map(|player| player.points())
                 .collect();
 
-            let event = GameEvent::PlayerPointsUpdated(points);
-            self.network.send_all(self.room.safe_endpoints(), ServerMessage::GameEvent(event));
+            let message = ServerMessage::GameEvent(GameEvent::PlayerPointsUpdated(points));
+            self.send_to_all_clients(self.room.safe_endpoints(), message);
         }
 
         let game = self.game.as_ref().unwrap();
         if game.has_finished() {
             log::info!("End game");
-            self.network.send_all(self.room.safe_endpoints(), ServerMessage::FinishGame);
+            let message = ServerMessage::FinishGame;
+            self.send_to_all_clients(self.room.safe_endpoints(), message);
             self.process_reset();
         }
         else {
@@ -501,7 +536,8 @@ impl<'a> ServerManager<'a> {
             .collect();
 
         let message = ServerMessage::DynamicServerInfo(player_symbols);
-        self.network.send_all(self.subscriptions.iter(), message);
+        let subscriptions = self.subscriptions.iter().cloned().collect();
+        self.send_to_all_clients(subscriptions, message);
     }
 
     fn process_disconnection(&mut self, endpoint: Endpoint) {

@@ -10,6 +10,7 @@ mod server;
 mod logger;
 mod version;
 mod message;
+mod encoding;
 mod util;
 mod direction;
 mod vec2;
