@@ -161,14 +161,14 @@ impl<C> ServerConnection<C>
 where C: Fn(ServerEvent) {
     pub fn new(event_sender: EventSender<Event>, event_callback: C) -> ServerConnection<C> {
         let sender = event_sender.clone();
-        let network = Network::new(move |endpoint, adapter_event| {
+        let network = Network::new(move |adapter_event| {
             let event = match adapter_event {
-                AdapterEvent::Added => Event::Connected(endpoint),
-                AdapterEvent::Data(data) => match encoding::decode(&data) {
+                AdapterEvent::Added(endpoint) => Event::Connected(endpoint),
+                AdapterEvent::Data(endpoint, data) => match encoding::decode(&data) {
                     Some(message) => Event::Message(endpoint, message),
                     None => Event::DeserializationError(endpoint),
                 },
-                AdapterEvent::Removed => Event::Disconnected(endpoint),
+                AdapterEvent::Removed(endpoint) => Event::Disconnected(endpoint),
             };
             sender.send(event);
         });
@@ -195,7 +195,7 @@ where C: Fn(ServerEvent) {
 
     pub fn connect(&mut self, addr: SocketAddr) -> ConnectionStatus {
         self.disconnect(); // Ensure there is no connection, reset if there is.
-        match self.network.connect(Transport::Tcp, addr) {
+        match self.network.connect(Transport::FramedTcp, addr) {
             Ok((tcp_endpoint, _)) => {
                 log::info!("Connected to server by tcp on {}", addr);
                 self.connection.tcp = Some(tcp_endpoint);

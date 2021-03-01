@@ -56,15 +56,15 @@ pub struct ServerManager<'a> {
 
 impl<'a> ServerManager<'a> {
     pub fn new(config: &'a Config) -> Option<ServerManager<'a>> {
-        let (mut event_queue, mut network)
-            = Network::split_and_map_from_adapter(|endpoint, adapter_event| {
+        let (mut network, mut event_queue)
+            = Network::split_and_map_from_adapter(|adapter_event| {
                 match adapter_event {
-                    AdapterEvent::Added => Event::Connected(endpoint),
-                    AdapterEvent::Data(data) => match encoding::decode(&data) {
+                    AdapterEvent::Added(endpoint) => Event::Connected(endpoint),
+                    AdapterEvent::Data(endpoint, data) => match encoding::decode(&data) {
                         Some(message) => Event::Message(endpoint, message),
                         None => Event::DeserializationError(endpoint),
                     },
-                    AdapterEvent::Removed => Event::Disconnected(endpoint),
+                    AdapterEvent::Removed(endpoint) => Event::Disconnected(endpoint),
                 }
             });
 
@@ -74,7 +74,7 @@ impl<'a> ServerManager<'a> {
         }).unwrap();
 
         let network_interface = "0.0.0.0";
-        if let Err(_) = network.listen(Transport::Tcp, (network_interface, config.tcp_port)) {
+        if let Err(_) = network.listen(Transport::FramedTcp, (network_interface, config.tcp_port)) {
             log::error!("Can not run server on TCP port {}", config.tcp_port);
             return None;
         }
