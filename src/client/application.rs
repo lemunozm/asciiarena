@@ -7,7 +7,7 @@ use super::terminal::input::{InputReceiver, InputEvent};
 use super::terminal::renderer::{Renderer};
 use super::terminal::widgets::gui::{Gui};
 
-use message_io::events::{EventQueue};
+use message_io::events::{EventReceiver};
 
 use std::time::{Duration};
 
@@ -25,14 +25,14 @@ pub enum AppEvent {
 pub struct Application {
     store: Store,
     gui: Gui,
-    _server: ServerProxy,  //Should be dropped before event_queue
-    _input: InputReceiver, //Should be dropped before event_queue
-    event_queue: EventQueue<AppEvent>,
+    _server: ServerProxy,
+    _input: InputReceiver,
+    event_queue: EventReceiver<AppEvent>,
 }
 
 impl Application {
     pub fn new(config: Config) -> Application {
-        let mut event_queue = EventQueue::new();
+        let mut event_queue = EventReceiver::default();
 
         let event_sender = event_queue.sender().clone();
         let mut server = ServerProxy::new(move |server_event| {

@@ -12,8 +12,8 @@ use crate::direction::{Direction};
 use crate::ids::{SessionToken, SkillId};
 use crate::util::{self};
 
-use message_io::events::{EventQueue};
-use message_io::network::{Network, AdapterEvent, Endpoint, Transport};
+use message_io::node::{self, NodeHandler, NodeListener, NodeEvent};
+use message_io::network::{Endpoint, Transport, NetEvent};
 
 use itertools::{Itertools};
 
@@ -25,11 +25,7 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-enum Event {
-    Connected(Endpoint),
-    Disconnected(Endpoint),
-    Message(Endpoint, ClientMessage),
-    DeserializationError(Endpoint),
+enum Signal {
     AsyncCreateGame, // Could take time in processing
     AsyncStartArena, // Generated Eventually
     GameStep,        // Generated Eventually
@@ -45,39 +41,45 @@ pub struct Config {
     pub arena_waiting: Duration,
 }
 
-pub struct ServerManager<'a> {
-    config: &'a Config,
+pub struct ServerManager {
+    config: Config,
     encoder: Encoder,
-    network: Network,
+    node: NodeHandler<Signal>,
+    listener: Option<NodeListener<Signal>>,
     subscriptions: HashSet<Endpoint>,
     room: RoomSession<char>,
     game: Option<Game>,
     waiting_arena_from: Option<Instant>,
-    event_queue: EventQueue<Event>,
 }
 
-impl<'a> ServerManager<'a> {
-    pub fn new(config: &'a Config) -> Option<ServerManager<'a>> {
-        let (mut network, mut event_queue) =
-            Network::split_and_map_from_adapter(|adapter_event| match adapter_event {
-                AdapterEvent::Added(endpoint) => Event::Connected(endpoint),
-                AdapterEvent::Data(endpoint, data) => match encoding::decode(&data) {
-                    Some(message) => Event::Message(endpoint, message),
-                    None => Event::DeserializationError(endpoint),
-                },
-                AdapterEvent::Removed(endpoint) => Event::Disconnected(endpoint),
-            });
+impl ServerManager {
+    pub fn new(config: Config) -> Option<ServerManager> {
+        let (node, listener) = node::split();
+        /*
+        Network::split_and_map_from_adapter(|adapter_event| match adapter_event {
+            AdapterEvent::Added(endpoint) => Event::Connected(endpoint),
+            AdapterEvent::Data(endpoint, data) => match encoding::decode(&data) {
+                Some(message) => Event::Message(endpoint, message),
+                None => Event::DeserializationError(endpoint),
+            },
+            AdapterEvent::Removed(endpoint) => Event::Disconnected(endpoint),
+        });
+        */
 
-        let signal_sender = event_queue.sender().clone();
-        ctrlc::set_handler(move || signal_sender.send_with_priority(Event::Close)).unwrap();
+        let node_closer = node.clone();
+        ctrlc::set_handler(move || node_closer.signals().send_with_priority(Signal::Close))
+            .unwrap();
 
         let network_interface = "0.0.0.0";
-        if let Err(_) = network.listen(Transport::FramedTcp, (network_interface, config.tcp_port)) {
+        if let Err(_) =
+            node.network().listen(Transport::FramedTcp, (network_interface, config.tcp_port))
+        {
             log::error!("Can not run server on TCP port {}", config.tcp_port);
             return None
         }
 
-        if let Err(_) = network.listen(Transport::Udp, (network_interface, config.udp_port)) {
+        if let Err(_) = node.network().listen(Transport::Udp, (network_interface, config.udp_port))
+        {
             log::error!("Can not run server on UDP port {}", config.udp_port);
             return None
         }
@@ -90,9 +92,9 @@ impl<'a> ServerManager<'a> {
         );
 
         Some(ServerManager {
-            event_queue,
-            network,
             encoder: Encoder::new(),
+            node,
+            listener: Some(listener),
             subscriptions: HashSet::new(),
             room: RoomSession::new(config.players_number as usize),
             game: None,
@@ -102,76 +104,75 @@ impl<'a> ServerManager<'a> {
     }
 
     fn send_to_client(&mut self, endpoint: Endpoint, message: ServerMessage) {
-        self.network.send(endpoint, self.encoder.encode(message));
+        self.node.network().send(endpoint, self.encoder.encode(message));
     }
 
     fn send_to_all_clients(&mut self, endpoints: Vec<Endpoint>, message: ServerMessage) {
         let output_data = self.encoder.encode(message);
         for endpoint in endpoints {
-            self.network.send(endpoint, output_data);
+            self.node.network().send(endpoint, output_data);
         }
     }
 
-    pub fn run(&mut self) {
-        loop {
-            let event = self.event_queue.receive();
-            log::trace!("[Process event] - {:?}", event);
-            match event {
-                Event::AsyncCreateGame => {
-                    self.process_create_game();
-                }
-                Event::AsyncStartArena => {
-                    self.process_start_arena();
-                }
-                Event::GameStep => {
-                    self.process_game_step();
-                }
-                Event::Close => {
+    pub fn run(mut self) {
+        //log::trace!("[Process network event] - {:?}", event);
+        let listener = self.listener.take().unwrap();
+        listener.for_each(move |event| match event {
+            NodeEvent::Signal(signal) => match signal {
+                Signal::AsyncCreateGame => self.process_create_game(),
+                Signal::AsyncStartArena => self.process_start_arena(),
+                Signal::GameStep => self.process_game_step(),
+                Signal::Close => {
                     log::info!("Closing server");
-                    break
+                    self.node.stop();
                 }
-                Event::Connected(endpoint) => {
-                    log::trace!("{} has connected", endpoint);
-                }
-                Event::Disconnected(endpoint) => {
+            },
+            NodeEvent::Network(network) => match network {
+                NetEvent::Connected(endpoint, _) => log::trace!("{} has connected", endpoint),
+                NetEvent::Disconnected(endpoint) => {
                     log::trace!("{} has disconnected", endpoint);
                     self.process_disconnection(endpoint);
                 }
-                Event::DeserializationError(endpoint) => {
-                    log::error!("{} sends an unknown message. Connection rejected", endpoint);
-                    self.network.remove(endpoint.resource_id()).unwrap();
-                }
-                Event::Message(endpoint, message) => {
+                NetEvent::Message(endpoint, data) => {
                     log::trace!("Message from {}", endpoint.addr());
-                    match message {
-                        ClientMessage::Version(client_version) => {
-                            self.process_version(endpoint, &client_version);
+                    match encoding::decode::<ClientMessage>(&data) {
+                        Some(message) => match message {
+                            ClientMessage::Version(client_version) => {
+                                self.process_version(endpoint, &client_version);
+                            }
+                            ClientMessage::SubscribeServerInfo => {
+                                self.process_subscribe_server_info(endpoint);
+                            }
+                            ClientMessage::Login(user) => {
+                                self.process_login(endpoint, user);
+                            }
+                            ClientMessage::Logout => {
+                                self.process_logout(endpoint);
+                            }
+                            ClientMessage::ConnectUdp(session_token) => {
+                                self.process_connect_udp(endpoint, session_token);
+                            }
+                            ClientMessage::TrustUdp => {
+                                self.process_trust_udp(endpoint);
+                            }
+                            ClientMessage::MovePlayer(direction) => {
+                                self.process_move_player(endpoint, direction);
+                            }
+                            ClientMessage::CastSkill(direction, id) => {
+                                self.process_cast_skill(endpoint, direction, id);
+                            }
+                        },
+                        None => {
+                            log::error!(
+                                "{} sends an unknown message. Connection rejected",
+                                endpoint
+                            );
+                            self.node.network().remove(endpoint.resource_id());
                         }
-                        ClientMessage::SubscribeServerInfo => {
-                            self.process_subscribe_server_info(endpoint);
-                        }
-                        ClientMessage::Login(user) => {
-                            self.process_login(endpoint, user);
-                        }
-                        ClientMessage::Logout => {
-                            self.process_logout(endpoint);
-                        }
-                        ClientMessage::ConnectUdp(session_token) => {
-                            self.process_connect_udp(endpoint, session_token);
-                        }
-                        ClientMessage::TrustUdp => {
-                            self.process_trust_udp(endpoint);
-                        }
-                        ClientMessage::MovePlayer(direction) => {
-                            self.process_move_player(endpoint, direction);
-                        }
-                        ClientMessage::CastSkill(direction, id) => {
-                            self.process_cast_skill(endpoint, direction, id);
-                        }
-                    }
+                    };
                 }
-            }
-        }
+            },
+        });
     }
 
     fn process_version(&mut self, endpoint: Endpoint, client_version: &str) {
@@ -194,7 +195,7 @@ impl<'a> ServerManager<'a> {
         self.send_to_client(endpoint, message);
 
         if let Compatibility::None = compatibility {
-            self.network.remove(endpoint.resource_id()).unwrap();
+            self.node.network().remove(endpoint.resource_id());
         }
     }
 
@@ -273,7 +274,7 @@ impl<'a> ServerManager<'a> {
                     self.send_to_all_clients(subscriptions, message);
 
                     if self.game.is_none() && self.room.is_full() {
-                        self.event_queue.sender().send(Event::AsyncCreateGame);
+                        self.node.signals().send(Signal::AsyncCreateGame);
                     }
                 }
                 LoggedKind::Reconnection => {
@@ -367,7 +368,7 @@ impl<'a> ServerManager<'a> {
         self.game = Some(game);
         self.process_wait_arena();
 
-        self.event_queue.sender().send(Event::GameStep);
+        self.node.signals().send(Signal::GameStep);
     }
 
     fn process_wait_arena(&mut self) {
@@ -379,9 +380,7 @@ impl<'a> ServerManager<'a> {
         let message = ServerMessage::WaitArena(self.config.arena_waiting);
         self.send_to_all_clients(self.room.safe_endpoints(), message);
 
-        self.event_queue
-            .sender()
-            .send_with_timer(Event::AsyncStartArena, self.config.arena_waiting);
+        self.node.signals().send_with_timer(Signal::AsyncStartArena, self.config.arena_waiting);
 
         self.waiting_arena_from = Some(Instant::now());
     }
@@ -457,7 +456,7 @@ impl<'a> ServerManager<'a> {
                 log::info!("End arena");
                 self.process_wait_arena();
             }
-            self.event_queue.sender().send_with_timer(Event::GameStep, *GAME_STEP_DURATION);
+            self.node.signals().send_with_timer(Signal::GameStep, *GAME_STEP_DURATION);
         }
     }
 

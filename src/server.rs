@@ -94,7 +94,7 @@ pub fn run(matches: &ArgMatches) {
         arena_waiting: Duration::from_secs(3),
     };
 
-    if let Some(mut server_manager) = ServerManager::new(&config) {
+    if let Some(server_manager) = ServerManager::new(config) {
         server_manager.run();
     }
 }

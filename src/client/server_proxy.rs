@@ -7,8 +7,8 @@ use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
 use crate::ids::{SkillId};
 
-use message_io::events::{EventQueue, EventSender};
-use message_io::network::{Network, AdapterEvent, Endpoint, Transport};
+use message_io::node::{self, NodeHandler, NodeListener, NodeEvent};
+use message_io::network::{Endpoint, Transport, NetEvent};
 
 use std::net::{IpAddr, SocketAddr};
 use std::thread::{self, JoinHandle};

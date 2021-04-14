@@ -15,7 +15,8 @@ categories = ["command-line-utilities", "command-line-interface", "games", "gui"
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-message-io = "0.10.1"
+#message-io = "0.12.2"
+message-io = { git = "https://github.com/lemunozm/message-io", branch = "for_each_sync_and_async" }
 bincode = "1.3.2"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
