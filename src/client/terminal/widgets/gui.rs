@@ -27,10 +27,7 @@ pub struct Gui {
 
 impl Gui {
     pub fn new(config: &Config) -> Gui {
-        Gui {
-            menu: Menu::new(config),
-            arena: Arena::new(config),
-        }
+        Gui { menu: Menu::new(config), arena: Arena::new(config) }
     }
 
     fn view(&self, state: &State) -> View {
@@ -45,12 +42,12 @@ impl Gui {
             InputEvent::KeyPressed(key_event) => match key_event.code {
                 KeyCode::Char(character) => {
                     if character == 'c' && key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                        return store.dispatch(Action::CloseApp);
+                        return store.dispatch(Action::CloseApp)
                     }
-                },
+                }
                 _ => (),
-            }
-            InputEvent::ResizeDisplay(_, _) => {},
+            },
+            InputEvent::ResizeDisplay(_, _) => {}
         }
 
         match self.view(store.state()) {
@@ -67,7 +64,6 @@ impl Gui {
     }
 }
 
-
 #[derive(derive_new::new)]
 pub struct GuiWidget<'a> {
     state: &'a State,
@@ -80,16 +76,13 @@ impl StatefulWidget for GuiWidget<'_> {
         match self.gui.view(self.state) {
             View::Menu => {
                 let area = util::centered_area(area, MenuWidget::dimension());
-                MenuWidget::new(self.state, &self.gui.menu)
-                    .render(area, buffer, cursor)
-            },
+                MenuWidget::new(self.state, &self.gui.menu).render(area, buffer, cursor)
+            }
             View::Arena => {
                 let dimension = ArenaWidget::dimension(self.state);
                 let area = util::centered_area(area, dimension);
-                ArenaWidget::new(self.state, &self.gui.arena)
-                    .render(area, buffer)
+                ArenaWidget::new(self.state, &self.gui.arena).render(area, buffer)
             }
         }
     }
 }
-

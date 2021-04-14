@@ -13,7 +13,7 @@ pub enum Level {
     Info,
     Debug,
     Trace,
-    Dev
+    Dev,
 }
 
 #[derive(Debug, Clone)]
@@ -65,12 +65,8 @@ pub fn init(level: Level, output: Output) {
     };
 
     let log_config = log_config.format(move |out, message, record| {
-        let target = if level == Level::Dev {
-            format!("[{}] ", record.target())
-        }
-        else {
-            String::new()
-        };
+        let target =
+            if level == Level::Dev { format!("[{}] ", record.target()) } else { String::new() };
 
         out.finish(format_args!(
             "{}{}{} {}",
@@ -88,4 +84,3 @@ pub fn init(level: Level, output: Output) {
 
     log_config.apply().unwrap();
 }
-

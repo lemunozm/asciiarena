@@ -28,7 +28,7 @@ impl Game {
     pub fn new(
         map_size: usize,
         winner_points: usize,
-        player_characters: impl Iterator<Item = char>
+        player_characters: impl Iterator<Item = char>,
     ) -> Game {
         let characters = player_characters
             .map(|symbol| {
@@ -47,19 +47,10 @@ impl Game {
 
         let players = characters
             .values()
-            .map(|character|{
-                (character.symbol(), Player::new(character.clone()))
-            })
+            .map(|character| (character.symbol(), Player::new(character.clone())))
             .collect();
 
-        Game {
-            map_size,
-            winner_points,
-            arena_number: 0,
-            arena: None,
-            players,
-            characters,
-        }
+        Game { map_size, winner_points, arena_number: 0, arena: None, players, characters }
     }
 
     pub fn arena(&self) -> Option<&Arena> {
@@ -138,9 +129,6 @@ impl Game {
     }
 
     pub fn has_finished(&self) -> bool {
-        self.players
-            .values()
-            .find(|&player| player.points() >= self.winner_points)
-            .is_some()
+        self.players.values().find(|&player| player.points() >= self.winner_points).is_some()
     }
 }

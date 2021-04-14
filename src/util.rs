@@ -8,8 +8,9 @@ pub fn is_valid_character(character: char) -> bool {
 
 pub mod format {
     pub fn items_to_string<I>(items: I) -> String
-    where I: IntoIterator,
-          I::Item: std::fmt::Display,
+    where
+        I: IntoIterator,
+        I::Item: std::fmt::Display,
     {
         let mut formatted = String::new();
         let mut it = items.into_iter();
@@ -23,9 +24,10 @@ pub mod format {
     }
 
     pub fn pair_items_to_string<I, D1, D2>(items: I) -> String
-    where D1: std::fmt::Display,
-          D2: std::fmt::Display,
-          I: IntoIterator<Item = (D1, D2)>,
+    where
+        D1: std::fmt::Display,
+        D2: std::fmt::Display,
+        I: IntoIterator<Item = (D1, D2)>,
     {
         let mut formatted = String::new();
         let mut it = items.into_iter();
@@ -38,5 +40,3 @@ pub mod format {
         formatted
     }
 }
-
-

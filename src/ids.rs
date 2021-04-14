@@ -13,7 +13,7 @@ macro_rules! define_optional_id {
                 $name(id.0 + 1)
             }
         }
-    }
+    };
 }
 
 pub type SessionToken = usize;

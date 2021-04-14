@@ -2,8 +2,10 @@ use super::session::{RoomSession, SessionStatus};
 use super::game::{Game};
 use super::game::arena::{Arena};
 
-use crate::message::{ClientMessage, ServerMessage, ServerInfo, GameInfo, ArenaInfo,
-    LoginStatus, LoggedKind, EntityData, Frame, GameEvent, SpellData};
+use crate::message::{
+    ClientMessage, ServerMessage, ServerInfo, GameInfo, ArenaInfo, LoginStatus, LoggedKind,
+    EntityData, Frame, GameEvent, SpellData,
+};
 use crate::encoding::{self, Encoder};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
@@ -56,32 +58,28 @@ pub struct ServerManager<'a> {
 
 impl<'a> ServerManager<'a> {
     pub fn new(config: &'a Config) -> Option<ServerManager<'a>> {
-        let (mut network, mut event_queue)
-            = Network::split_and_map_from_adapter(|adapter_event| {
-                match adapter_event {
-                    AdapterEvent::Added(endpoint) => Event::Connected(endpoint),
-                    AdapterEvent::Data(endpoint, data) => match encoding::decode(&data) {
-                        Some(message) => Event::Message(endpoint, message),
-                        None => Event::DeserializationError(endpoint),
-                    },
-                    AdapterEvent::Removed(endpoint) => Event::Disconnected(endpoint),
-                }
+        let (mut network, mut event_queue) =
+            Network::split_and_map_from_adapter(|adapter_event| match adapter_event {
+                AdapterEvent::Added(endpoint) => Event::Connected(endpoint),
+                AdapterEvent::Data(endpoint, data) => match encoding::decode(&data) {
+                    Some(message) => Event::Message(endpoint, message),
+                    None => Event::DeserializationError(endpoint),
+                },
+                AdapterEvent::Removed(endpoint) => Event::Disconnected(endpoint),
             });
 
         let signal_sender = event_queue.sender().clone();
-        ctrlc::set_handler(move || {
-            signal_sender.send_with_priority(Event::Close)
-        }).unwrap();
+        ctrlc::set_handler(move || signal_sender.send_with_priority(Event::Close)).unwrap();
 
         let network_interface = "0.0.0.0";
         if let Err(_) = network.listen(Transport::FramedTcp, (network_interface, config.tcp_port)) {
             log::error!("Can not run server on TCP port {}", config.tcp_port);
-            return None;
+            return None
         }
 
         if let Err(_) = network.listen(Transport::Udp, (network_interface, config.udp_port)) {
             log::error!("Can not run server on UDP port {}", config.udp_port);
-            return None;
+            return None
         }
 
         log::info!(
@@ -107,11 +105,7 @@ impl<'a> ServerManager<'a> {
         self.network.send(endpoint, self.encoder.encode(message));
     }
 
-    fn send_to_all_clients(
-        &mut self,
-        endpoints: Vec<Endpoint>,
-        message: ServerMessage,
-    ){
+    fn send_to_all_clients(&mut self, endpoints: Vec<Endpoint>, message: ServerMessage) {
         let output_data = self.encoder.encode(message);
         for endpoint in endpoints {
             self.network.send(endpoint, output_data);
@@ -125,57 +119,57 @@ impl<'a> ServerManager<'a> {
             match event {
                 Event::AsyncCreateGame => {
                     self.process_create_game();
-                },
+                }
                 Event::AsyncStartArena => {
                     self.process_start_arena();
-                },
+                }
                 Event::GameStep => {
                     self.process_game_step();
-                },
+                }
                 Event::Close => {
                     log::info!("Closing server");
                     break
-                },
+                }
                 Event::Connected(endpoint) => {
                     log::trace!("{} has connected", endpoint);
-                },
+                }
                 Event::Disconnected(endpoint) => {
                     log::trace!("{} has disconnected", endpoint);
                     self.process_disconnection(endpoint);
-                },
+                }
                 Event::DeserializationError(endpoint) => {
                     log::error!("{} sends an unknown message. Connection rejected", endpoint);
                     self.network.remove(endpoint.resource_id()).unwrap();
-                },
+                }
                 Event::Message(endpoint, message) => {
                     log::trace!("Message from {}", endpoint.addr());
                     match message {
                         ClientMessage::Version(client_version) => {
                             self.process_version(endpoint, &client_version);
-                        },
+                        }
                         ClientMessage::SubscribeServerInfo => {
                             self.process_subscribe_server_info(endpoint);
-                        },
+                        }
                         ClientMessage::Login(user) => {
                             self.process_login(endpoint, user);
-                        },
+                        }
                         ClientMessage::Logout => {
                             self.process_logout(endpoint);
-                        },
+                        }
                         ClientMessage::ConnectUdp(session_token) => {
                             self.process_connect_udp(endpoint, session_token);
-                        },
+                        }
                         ClientMessage::TrustUdp => {
                             self.process_trust_udp(endpoint);
-                        },
+                        }
                         ClientMessage::MovePlayer(direction) => {
                             self.process_move_player(endpoint, direction);
-                        },
+                        }
                         ClientMessage::CastSkill(direction, id) => {
                             self.process_cast_skill(endpoint, direction, id);
-                        },
+                        }
                     }
-                },
+                }
             }
         }
     }
@@ -183,20 +177,17 @@ impl<'a> ServerManager<'a> {
     fn process_version(&mut self, endpoint: Endpoint, client_version: &str) {
         let compatibility = version::check(&client_version, version::current());
         match compatibility {
-            Compatibility::Fully =>
-                log::trace!("Fully compatible versions: {}", client_version),
-            Compatibility::NotExact =>
-                log::warn!(
-                    "Compatible client version, but not exact. Client: {}. Server: {}",
-                    client_version,
-                    version::current()
-                ),
-            Compatibility::None =>
-                log::warn!(
-                    "Incompatible client version. Client: {}. Server: {}. Connection rejected",
-                    client_version,
-                    version::current()
-                ),
+            Compatibility::Fully => log::trace!("Fully compatible versions: {}", client_version),
+            Compatibility::NotExact => log::warn!(
+                "Compatible client version, but not exact. Client: {}. Server: {}",
+                client_version,
+                version::current()
+            ),
+            Compatibility::None => log::warn!(
+                "Incompatible client version. Client: {}. Server: {}. Connection rejected",
+                client_version,
+                version::current()
+            ),
         };
 
         let message = ServerMessage::Version(version::current().into(), compatibility);
@@ -213,10 +204,7 @@ impl<'a> ServerManager<'a> {
             players_number: self.config.players_number,
             map_size: self.config.map_size as u16,
             winner_points: self.config.winner_points as u16,
-            logged_players: self.room
-                .sessions()
-                .map(|session| *session.user())
-                .collect(),
+            logged_players: self.room.sessions().map(|session| *session.user()).collect(),
         };
 
         log::trace!("Client {} has subscribed to server info", endpoint.addr());
@@ -226,18 +214,15 @@ impl<'a> ServerManager<'a> {
     }
 
     fn process_login(&mut self, endpoint: Endpoint, player_symbol: char) {
-        let status =
-        if !util::is_valid_character(player_symbol) {
+        let status = if !util::is_valid_character(player_symbol) {
             log::warn!("Invalid character symbol '{}' has tried to login", player_symbol);
             LoginStatus::InvalidPlayerName
         }
         else {
             match self.room.create_session(player_symbol, endpoint) {
                 SessionStatus::Created(token) => {
-                    let player_symbols = self.room
-                        .sessions()
-                        .map(|session| session.user())
-                        .sorted();
+                    let player_symbols =
+                        self.room.sessions().map(|session| session.user()).sorted();
 
                     log::info!(
                         "New player logged: {}, current players: {}",
@@ -245,25 +230,25 @@ impl<'a> ServerManager<'a> {
                         util::format::items_to_string(player_symbols)
                     );
                     LoginStatus::Logged(token, LoggedKind::FirstTime)
-                },
+                }
                 SessionStatus::Recycled(token) => {
                     log::info!("Player '{}' reconnected", player_symbol);
                     LoginStatus::Logged(token, LoggedKind::Reconnection)
-                },
+                }
                 SessionStatus::AlreadyLogged => {
                     log::warn!(
                         "Player '{}' has tried to login but the character symbol is already logged",
                         player_symbol
                     );
                     LoginStatus::AlreadyLogged
-                },
+                }
                 SessionStatus::Full => {
                     log::warn!(
                         "Player '{}' has tried to login but the player limit has been reached",
                         player_symbol
                     );
                     LoginStatus::PlayerLimit
-                },
+                }
             }
         };
 
@@ -280,10 +265,8 @@ impl<'a> ServerManager<'a> {
         if let LoginStatus::Logged(_, kind) = status {
             match kind {
                 LoggedKind::FirstTime => {
-                    let player_symbols = self.room
-                        .sessions()
-                        .map(|session| *session.user())
-                        .collect();
+                    let player_symbols =
+                        self.room.sessions().map(|session| *session.user()).collect();
 
                     let message = ServerMessage::DynamicServerInfo(player_symbols);
                     let subscriptions = self.subscriptions.iter().cloned().collect();
@@ -292,7 +275,7 @@ impl<'a> ServerManager<'a> {
                     if self.game.is_none() && self.room.is_full() {
                         self.event_queue.sender().send(Event::AsyncCreateGame);
                     }
-                },
+                }
                 LoggedKind::Reconnection => {
                     if let Some(game) = &self.game {
                         let message = Self::create_start_game_message(game);
@@ -300,7 +283,9 @@ impl<'a> ServerManager<'a> {
 
                         if let Some(waiting_from) = self.waiting_arena_from {
                             let duration = Instant::now().duration_since(waiting_from);
-                            let waiting = self.config.arena_waiting
+                            let waiting = self
+                                .config
+                                .arena_waiting
                                 .checked_sub(duration)
                                 .unwrap_or(Duration::new(0, 0));
                             let message = ServerMessage::WaitArena(waiting);
@@ -327,10 +312,8 @@ impl<'a> ServerManager<'a> {
         }
         else {
             if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
-                let player_symbols = self.room
-                    .sessions()
-                    .map(|session| *session.user())
-                    .collect::<Vec<_>>();
+                let player_symbols =
+                    self.room.sessions().map(|session| *session.user()).collect::<Vec<_>>();
 
                 log::info!(
                     "Player '{}' logout, current players: {} ",
@@ -353,27 +336,21 @@ impl<'a> ServerManager<'a> {
                 let message = ServerMessage::UdpConnected;
                 self.send_to_client(udp_endpoint, message);
             }
-            None =>
-                log::warn!(
-                    "Attempt to attach udp endpoint to non-existent session '{}'",
-                    session_token
-                )
+            None => log::warn!(
+                "Attempt to attach udp endpoint to non-existent session '{}'",
+                session_token
+            ),
         }
     }
 
     fn process_trust_udp(&mut self, related_tcp_endpoint: Endpoint) {
         match self.room.session_by_endpoint_mut(related_tcp_endpoint) {
             Some(session) => match session.trust_in_fast_endpoint() {
-                Some(_) =>
-                    log::trace!(
-                        "Trusted udp endpoint for session '{}'",
-                        session.token()
-                    ),
-                None =>
-                    log::error!(
-                        "Attempt to trust into a non-existent udp endpoint. Session '{}'",
-                        session.token()
-                    ),
+                Some(_) => log::trace!("Trusted udp endpoint for session '{}'", session.token()),
+                None => log::error!(
+                    "Attempt to trust into a non-existent udp endpoint. Session '{}'",
+                    session.token()
+                ),
             },
             None => log::error!("Attempt to trust an udp endpoint in an non-existent session"),
         }
@@ -382,11 +359,7 @@ impl<'a> ServerManager<'a> {
     fn process_create_game(&mut self) {
         log::info!("Starting new game");
         let player_symbols = self.room.sessions().map(|session| *session.user());
-        let game = Game::new(
-            self.config.map_size,
-            self.config.winner_points,
-            player_symbols
-        );
+        let game = Game::new(self.config.map_size, self.config.winner_points, player_symbols);
 
         let message = Self::create_start_game_message(&game);
         self.send_to_all_clients(self.room.safe_endpoints(), message);
@@ -464,16 +437,9 @@ impl<'a> ServerManager<'a> {
                 .map(|player| (player.character().symbol(), player.points()))
                 .collect::<Vec<_>>();
 
-            log::info!(
-                "Points: {}",
-                util::format::pair_items_to_string(player_total_points_pairs)
-            );
+            log::info!("Points: {}", util::format::pair_items_to_string(player_total_points_pairs));
 
-            let points = game
-                .players()
-                .values()
-                .map(|player| player.points())
-                .collect();
+            let points = game.players().values().map(|player| player.points()).collect();
 
             let message = ServerMessage::GameEvent(GameEvent::PlayerPointsUpdated(points));
             self.send_to_all_clients(self.room.safe_endpoints(), message);
@@ -504,9 +470,9 @@ impl<'a> ServerManager<'a> {
                         player.walk(direction);
                     }
                 }
-                None => log::warn!("Client attempted to move a player without a created game")
-            }
-            None => log::warn!("Unlogged client attempted to move a player. Maybe an attack?")
+                None => log::warn!("Client attempted to move a player without a created game"),
+            },
+            None => log::warn!("Unlogged client attempted to move a player. Maybe an attack?"),
         };
     }
 
@@ -519,9 +485,9 @@ impl<'a> ServerManager<'a> {
                         player.cast(direction, id);
                     }
                 }
-                None => log::warn!("Client attempted to cast a skill without a created game")
-            }
-            None => log::warn!("Unlogged client attempted to cast a skill. Maybe an attack?")
+                None => log::warn!("Client attempted to cast a skill without a created game"),
+            },
+            None => log::warn!("Unlogged client attempted to cast a skill. Maybe an attack?"),
         };
     }
 
@@ -530,10 +496,7 @@ impl<'a> ServerManager<'a> {
         self.game = None;
         self.room.clear();
 
-        let player_symbols = self.room
-            .sessions()
-            .map(|session| *session.user())
-            .collect();
+        let player_symbols = self.room.sessions().map(|session| *session.user()).collect();
 
         let message = ServerMessage::DynamicServerInfo(player_symbols);
         let subscriptions = self.subscriptions.iter().cloned().collect();
@@ -549,17 +512,16 @@ impl<'a> ServerManager<'a> {
 
     fn create_start_game_message(game: &Game) -> ServerMessage {
         let game_info = GameInfo {
-            characters: game.characters()
+            characters: game
+                .characters()
                 .iter()
                 .map(|(_, character)| (**character).clone())
                 .collect(),
-            players: game.players()
+            players: game
+                .players()
                 .iter()
-                .map(|(_, player)| (
-                    player.character().id(),
-                    player.points()
-                ))
-                .collect()
+                .map(|(_, player)| (player.character().id(), player.points()))
+                .collect(),
         };
 
         ServerMessage::StartGame(game_info)
@@ -568,10 +530,7 @@ impl<'a> ServerManager<'a> {
     fn create_start_arena_message(game: &Game) -> ServerMessage {
         let arena_info = ArenaInfo {
             number: game.arena_number(),
-            players: game.players()
-                .iter()
-                .map(|(_, player)| player.entity_id())
-                .collect(),
+            players: game.players().iter().map(|(_, player)| player.entity_id()).collect(),
             ground: game.arena().unwrap().map().ground().clone(),
         };
 
@@ -579,25 +538,28 @@ impl<'a> ServerManager<'a> {
     }
 
     fn create_game_step_message(arena: &Arena) -> ServerMessage {
-        let entities = arena.entities().values().map(|entity| {
-            EntityData {
+        let entities = arena
+            .entities()
+            .values()
+            .map(|entity| EntityData {
                 id: entity.id(),
                 character_id: entity.character().id(),
                 position: entity.position(),
                 health: entity.health(),
                 energy: entity.energy(),
-            }
-        }).collect();
+            })
+            .collect();
 
-        let spells = arena.spells().values().map(|spell| {
-            SpellData {
+        let spells = arena
+            .spells()
+            .values()
+            .map(|spell| SpellData {
                 id: spell.id(),
                 spec_id: spell.spec_id(),
                 position: spell.position(),
-            }
-        }).collect();
+            })
+            .collect();
 
         ServerMessage::GameStep(Frame { entities, spells })
     }
 }
-

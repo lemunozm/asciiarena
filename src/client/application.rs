@@ -25,7 +25,7 @@ pub enum AppEvent {
 pub struct Application {
     store: Store,
     gui: Gui,
-    _server: ServerProxy, //Should be dropped before event_queue
+    _server: ServerProxy,  //Should be dropped before event_queue
     _input: InputReceiver, //Should be dropped before event_queue
     event_queue: EventQueue<AppEvent>,
 }
@@ -60,7 +60,7 @@ impl Application {
         let mut renderer = Renderer::new();
         loop {
             if self.store.should_close() {
-                return log::info!("Closing client");
+                return log::info!("Closing client")
             }
 
             let event = self.event_queue.receive();
@@ -68,16 +68,16 @@ impl Application {
                 AppEvent::ServerEvent(server_event) => {
                     log::trace!("[Process server event] - {:?}", server_event);
                     self.store.dispatch(Action::ServerEvent(server_event));
-                },
+                }
                 AppEvent::InputEvent(input_event) => {
                     log::trace!("[Process input event] - {:?}", input_event);
                     self.gui.process_event(&mut self.store, input_event);
-                },
+                }
                 AppEvent::Draw => {
                     self.gui.update(self.store.state());
                     renderer.render(self.store.state(), &self.gui);
                     self.event_queue.sender().send_with_timer(AppEvent::Draw, *APP_FRAME_DURATION);
-                },
+                }
             }
         }
     }

@@ -45,4 +45,3 @@ impl Character {
         self.speed_base
     }
 }
-

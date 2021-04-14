@@ -1,5 +1,7 @@
-use crate::message::{LoginStatus, ServerInfo, ClientMessage, ServerMessage,
-    LoggedKind, GameInfo, ArenaInfo, Frame, GameEvent};
+use crate::message::{
+    LoginStatus, ServerInfo, ClientMessage, ServerMessage, LoggedKind, GameInfo, ArenaInfo, Frame,
+    GameEvent,
+};
 use crate::encoding::{self, Encoder};
 use crate::version::{self, Compatibility};
 use crate::direction::{Direction};
@@ -10,7 +12,10 @@ use message_io::network::{Network, AdapterEvent, Endpoint, Transport};
 
 use std::net::{IpAddr, SocketAddr};
 use std::thread::{self, JoinHandle};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use std::time::{Duration};
 
 const UDP_HANDSHAKE_MAX_ATTEMPS: usize = 10;
@@ -90,18 +95,19 @@ impl ServerProxy {
         let proxy_thread_running = Arc::new(AtomicBool::new(true));
         let proxy_thread_handle = {
             let running = proxy_thread_running.clone();
-            thread::Builder::new()
-                .name("asciiarena: server event collector".into())
-                .spawn(move || {
-                let sender = event_queue.sender().clone();
-                let mut connection = ServerConnection::new(sender, event_callback);
-                while running.load(Ordering::Relaxed) {
-                    if let Some(event) = event_queue.receive_timeout(*EVENT_SAMPLING_TIMEOUT) {
-                        connection.process_event(event);
+            thread::Builder::new().name("asciiarena: server event collector".into()).spawn(
+                move || {
+                    let sender = event_queue.sender().clone();
+                    let mut connection = ServerConnection::new(sender, event_callback);
+                    while running.load(Ordering::Relaxed) {
+                        if let Some(event) = event_queue.receive_timeout(*EVENT_SAMPLING_TIMEOUT) {
+                            connection.process_event(event);
+                        }
                     }
-                }
-            })
-        }.unwrap();
+                },
+            )
+        }
+        .unwrap();
 
         ServerProxy {
             event_sender: Some(event_sender),
@@ -158,7 +164,8 @@ struct ServerConnection<C> {
 }
 
 impl<C> ServerConnection<C>
-where C: Fn(ServerEvent) {
+where C: Fn(ServerEvent)
+{
     pub fn new(event_sender: EventSender<Event>, event_callback: C) -> ServerConnection<C> {
         let sender = event_sender.clone();
         let network = Network::new(move |adapter_event| {
@@ -185,7 +192,7 @@ where C: Fn(ServerEvent) {
                 has_udp_hasdshake: false,
                 session_token: None,
             },
-            event_callback
+            event_callback,
         }
     }
 
@@ -201,7 +208,7 @@ where C: Fn(ServerEvent) {
                 self.connection.tcp = Some(tcp_endpoint);
                 self.connection.ip = Some(addr.ip());
                 ConnectionStatus::Connected
-            },
+            }
             Err(_) => {
                 log::error!("Could not connect to server by tcp on {}", addr);
                 ConnectionStatus::NotFound
@@ -237,89 +244,91 @@ where C: Fn(ServerEvent) {
                 ApiCall::Connect(addr) => {
                     let result = self.connect(addr);
                     (self.event_callback)(ServerEvent::ConnectionResult(result));
-                },
+                }
                 ApiCall::Disconnect => {
                     let result = self.disconnect();
                     (self.event_callback)(ServerEvent::ConnectionResult(result));
-                },
+                }
                 ApiCall::CheckVersion(version) => {
                     let tcp = *self.connection.tcp.as_ref().unwrap();
                     self.send_to_server(tcp, ClientMessage::Version(version));
-                },
+                }
                 ApiCall::SubscribeInfo => {
                     let tcp = *self.connection.tcp.as_ref().unwrap();
                     self.send_to_server(tcp, ClientMessage::SubscribeServerInfo);
-                },
+                }
                 ApiCall::Login(character) => {
                     let tcp = *self.connection.tcp.as_ref().unwrap();
                     self.send_to_server(tcp, ClientMessage::Login(character));
-                },
-                ApiCall::Logout => {
-                    self.logout()
-                },
+                }
+                ApiCall::Logout => self.logout(),
                 ApiCall::MovePlayer(direction) => {
                     let tcp = *self.connection.tcp.as_ref().unwrap();
                     self.send_to_server(tcp, ClientMessage::MovePlayer(direction));
-                },
+                }
                 ApiCall::CastSkill(direction, id) => {
                     let tcp = *self.connection.tcp.as_ref().unwrap();
                     self.send_to_server(tcp, ClientMessage::CastSkill(direction, id));
-                },
+                }
             },
             Event::Message(_, message) => match message {
                 ServerMessage::Version(server_version, server_side_compatibility) => {
                     self.process_version(server_version, server_side_compatibility);
-                },
+                }
                 ServerMessage::StaticServerInfo(info) => {
                     self.process_static_server_info(info);
-                },
+                }
                 ServerMessage::DynamicServerInfo(players) => {
                     (self.event_callback)(ServerEvent::DynamicServerInfo(players));
-                },
+                }
                 ServerMessage::LoginStatus(character, status) => {
                     self.process_login_status(character, status);
-                },
+                }
                 ServerMessage::UdpConnected => {
                     self.process_udp_connected();
-                },
+                }
                 ServerMessage::StartGame(game_info) => {
                     (self.event_callback)(ServerEvent::StartGame(game_info));
-                },
+                }
                 ServerMessage::FinishGame => {
                     self.process_finish_game();
-                },
+                }
                 ServerMessage::WaitArena(duration) => {
                     (self.event_callback)(ServerEvent::WaitArena(duration));
-                },
+                }
                 ServerMessage::StartArena(arena_info) => {
                     (self.event_callback)(ServerEvent::StartArena(arena_info));
-                },
+                }
                 ServerMessage::GameEvent(game_event) => {
                     (self.event_callback)(ServerEvent::GameEvent(game_event));
-                },
+                }
                 ServerMessage::GameStep(frame) => {
                     (self.event_callback)(ServerEvent::GameStep(frame));
-                },
+                }
             },
             Event::Connected(_) => unreachable!(),
             Event::Disconnected(_) => {
                 let result = ConnectionStatus::Lost;
                 (self.event_callback)(ServerEvent::ConnectionResult(result));
-            },
+            }
             Event::DeserializationError(endpoint) => {
                 log::error!(
                     "Server sends an unknown message. Connection rejected. \
                     Ensure the version compatibility.",
                 );
                 self.network.remove(endpoint.resource_id()).unwrap();
-            },
+            }
             Event::HelloUdp(attempt) => {
                 self.process_hello_udp(attempt);
-            },
+            }
         }
     }
 
-    fn process_version(&mut self, server_version: String, server_side_compatibility: Compatibility) {
+    fn process_version(
+        &mut self,
+        server_version: String,
+        server_side_compatibility: Compatibility,
+    ) {
         let client_side_compatibility = version::check(version::current(), &server_version);
         let compatibility = std::cmp::min(client_side_compatibility, server_side_compatibility);
         match compatibility {
@@ -327,10 +336,18 @@ where C: Fn(ServerEvent) {
                 log::info!("Fully compatible versions {}", version::current());
             }
             Compatibility::NotExact => {
-                log::warn!("Compatible server version, but not exact. Client: {}. Server: {}", version::current(), server_version);
+                log::warn!(
+                    "Compatible server version, but not exact. Client: {}. Server: {}",
+                    version::current(),
+                    server_version
+                );
             }
             Compatibility::None => {
-                log::error!("Incompatible server version. Client: {}. Server: {}", version::current(), server_version);
+                log::error!(
+                    "Incompatible server version. Client: {}. Server: {}",
+                    version::current(),
+                    server_version
+                );
             }
         }
 
@@ -351,7 +368,9 @@ where C: Fn(ServerEvent) {
                 };
                 log::info!(
                     "{} with name '{}' successful. Token Id: {}",
-                    kind_str, character, token
+                    kind_str,
+                    character,
+                    token
                 );
 
                 let udp_port = *self.connection.udp_port.as_ref().unwrap();
@@ -359,20 +378,20 @@ where C: Fn(ServerEvent) {
                 self.connection.session_token = Some(token);
 
                 let addr = SocketAddr::new(ip, udp_port);
-                let (endpoint,  _) = self.network.connect(Transport::Udp, addr).unwrap();
+                let (endpoint, _) = self.network.connect(Transport::Udp, addr).unwrap();
                 self.connection.udp = Some(endpoint);
                 log::info!("Connection by udp on port {}", udp_port);
                 self.event_sender.send(Event::HelloUdp(0));
-            },
+            }
             LoginStatus::InvalidPlayerName => {
                 log::warn!("Invalid character name {}", character);
-            },
+            }
             LoginStatus::AlreadyLogged => {
                 log::warn!("Character name '{}' already logged", character);
-            },
+            }
             LoginStatus::PlayerLimit => {
                 log::error!("Server full");
-            },
+            }
         }
         (self.event_callback)(ServerEvent::LoginStatus(status));
     }
@@ -381,7 +400,7 @@ where C: Fn(ServerEvent) {
         if !self.connection.has_udp_hasdshake {
             match self.connection.session_token {
                 Some(token) => match self.connection.udp {
-                    Some(udp_endpoint) =>
+                    Some(udp_endpoint) => {
                         if attempt < UDP_HANDSHAKE_MAX_ATTEMPS {
                             log::trace!("Udp handshake attempt: {}", attempt);
                             self.send_to_server(udp_endpoint, ClientMessage::ConnectUdp(token));
@@ -394,6 +413,7 @@ where C: Fn(ServerEvent) {
                             log::warn!("Unable to communicate by udp.");
                             (self.event_callback)(ServerEvent::UdpReachable(false));
                         }
+                    }
                     None => log::warn!("Attempt to send hello udp without known endpoint"),
                 },
                 None => log::warn!("Attempt to send hello udp without logged session"),
@@ -413,5 +433,4 @@ where C: Fn(ServerEvent) {
         self.connection.has_udp_hasdshake = false;
         (self.event_callback)(ServerEvent::FinishGame);
     }
-
 }

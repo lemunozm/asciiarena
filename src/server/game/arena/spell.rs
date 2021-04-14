@@ -18,7 +18,7 @@ pub trait SpellBehaviour: Send + Sync {
         time: Instant,
         spell: &Spell,
         map: &Map,
-        entities: &HashMap<EntityId, Entity>
+        entities: &HashMap<EntityId, Entity>,
     ) -> Vec<SpellAction>;
 }
 
@@ -51,7 +51,7 @@ impl Spell {
         let spec = SPELL_SPECIFICATIONS.get(&spec_id).unwrap();
         Spell {
             id,
-            spec_id: spec_id,
+            spec_id,
             entity_origin_id: entity.id(),
             behaviour: RefCell::new(get_behaviour(spec.behaviour_name)),
             damage: spec.damage, /* Mul to entity effects */
@@ -114,7 +114,6 @@ impl Spell {
 
     pub fn set_speed(&mut self, speed: f32) {
         self.speed = speed
-
     }
 
     pub fn move_step(&mut self, current: Instant) -> bool {
@@ -174,7 +173,7 @@ mod behaviour {
             _time: Instant,
             _spell: &Spell,
             _map: &Map,
-            _entities: &HashMap<EntityId, Entity>
+            _entities: &HashMap<EntityId, Entity>,
         ) -> Vec<SpellAction> {
             vec![]
         }
@@ -195,7 +194,7 @@ mod behaviour {
             _time: Instant,
             _spell: &Spell,
             _map: &Map,
-            _entities: &HashMap<EntityId, Entity>
+            _entities: &HashMap<EntityId, Entity>,
         ) -> Vec<SpellAction> {
             vec![SpellAction::Move]
         }

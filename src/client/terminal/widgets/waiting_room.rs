@@ -7,7 +7,10 @@ use tui::buffer::{Buffer};
 use tui::layout::{Rect};
 use tui::style::{Style, Modifier};
 
-use rand::{distributions::{Distribution, Uniform}, Rng};
+use rand::{
+    distributions::{Distribution, Uniform},
+    Rng,
+};
 
 use std::collections::{HashMap, HashSet};
 use std::time::{Instant, Duration};
@@ -25,10 +28,7 @@ pub struct WaitingRoom {
 
 impl WaitingRoom {
     pub fn new(x: u16, y: u16) -> WaitingRoom {
-        WaitingRoom {
-            dimension: (x / 2, y),
-            players: HashMap::new(),
-        }
+        WaitingRoom { dimension: (x / 2, y), players: HashMap::new() }
     }
 
     pub fn update(&mut self, state: &State) {
@@ -42,18 +42,19 @@ impl WaitingRoom {
                 let y_range = Uniform::from(0..self.dimension.1);
                 let position = (x_range.sample(&mut rng), y_range.sample(&mut rng));
 
-                self.players.insert(*player, PlayerState{
-                    position,
-                    direction: rng.gen(),
-                    last_move: Instant::now() - MINIMAL_MOVE_TIME,
-                });
+                self.players.insert(
+                    *player,
+                    PlayerState {
+                        position,
+                        direction: rng.gen(),
+                        last_move: Instant::now() - MINIMAL_MOVE_TIME,
+                    },
+                );
             }
         }
 
-        let mut player_positions = self.players
-            .values()
-            .map(|state| state.position)
-            .collect::<HashSet<_>>();
+        let mut player_positions =
+            self.players.values().map(|state| state.position).collect::<HashSet<_>>();
 
         let now = Instant::now();
         for (_, state) in &mut self.players {
@@ -70,18 +71,10 @@ impl WaitingRoom {
                     }
 
                     let movement = match state.direction {
-                        Direction::Up if state.position.1 > 0 => {
-                            (0, -1)
-                        },
-                        Direction::Left if state.position.0 > 0 => {
-                            (-1, 0)
-                        },
-                        Direction::Down if state.position.1 < self.dimension.1 - 1 => {
-                            (0, 1)
-                        },
-                        Direction::Right if state.position.0 < self.dimension.0 - 1 => {
-                            (1, 0)
-                        },
+                        Direction::Up if state.position.1 > 0 => (0, -1),
+                        Direction::Left if state.position.0 > 0 => (-1, 0),
+                        Direction::Down if state.position.1 < self.dimension.1 - 1 => (0, 1),
+                        Direction::Right if state.position.0 < self.dimension.0 - 1 => (1, 0),
                         _ => (0, 0),
                     };
 
@@ -90,12 +83,14 @@ impl WaitingRoom {
                         (state.position.1 as i16 + movement.1) as u16,
                     );
 
-                    if !player_positions.contains(&new_position) { // To avoid player collisions
+                    if !player_positions.contains(&new_position) {
+                        // To avoid player collisions
                         state.position = new_position;
                         player_positions.insert(state.position);
                     }
 
-                    if movement == (0, 0) { // An easy way to avoid to stop in the walls
+                    if movement == (0, 0) {
+                        // An easy way to avoid to stop in the walls
                         state.direction.turn_right()
                     }
                 }
@@ -106,7 +101,7 @@ impl WaitingRoom {
 
 #[derive(derive_new::new)]
 pub struct WaitingRoomWidget<'a> {
-    waiting_room: &'a WaitingRoom
+    waiting_room: &'a WaitingRoom,
 }
 
 impl Widget for WaitingRoomWidget<'_> {
@@ -122,4 +117,3 @@ impl Widget for WaitingRoomWidget<'_> {
         }
     }
 }
-

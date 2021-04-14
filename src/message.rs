@@ -110,8 +110,7 @@ pub struct ArenaInfo {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum GameEvent {
-    PlayerPointsUpdated(Vec<usize>)
-    // Other possible game event here
+    PlayerPointsUpdated(Vec<usize>), // Other possible game event here
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

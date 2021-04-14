@@ -1,7 +1,10 @@
 use crossterm::event::{Event};
 
 use std::thread::{self, JoinHandle};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use std::time::{Duration};
 
 const EVENT_SAMPLING_TIMEOUT: u64 = 50; //ms
@@ -18,18 +21,18 @@ impl TerminalEventCollector {
         let collector_thread_handle = {
             let running = collector_thread_running.clone();
             let timeout = Duration::from_millis(EVENT_SAMPLING_TIMEOUT);
-            thread::Builder::new()
-                .name("asciiarena: terminal event collector".into())
-                .spawn(move || {
+            thread::Builder::new().name("asciiarena: terminal event collector".into()).spawn(
+                move || {
                     while running.load(Ordering::Relaxed) {
                         if crossterm::event::poll(timeout).unwrap() {
                             let event = crossterm::event::read().unwrap();
                             event_callback(event);
                         }
                     }
-                }
+                },
             )
-        }.unwrap();
+        }
+        .unwrap();
 
         TerminalEventCollector {
             collector_thread_running,

@@ -18,61 +18,66 @@ lazy_static! {
 pub fn configure_cli<'a, 'b>() -> App<'a, 'b> {
     App::new("server")
         .about("Running asciiarena server mode")
-        .arg(Arg::with_name("log")
-            .long("log")
-            .short("l")
-            .value_name("LEVEL")
-            .default_value("info")
-            .possible_values(&logger::LOG_LEVELS)
-            .help("Set the log level of verbosity")
+        .arg(
+            Arg::with_name("log")
+                .long("log")
+                .short("l")
+                .value_name("LEVEL")
+                .default_value("info")
+                .possible_values(&logger::LOG_LEVELS)
+                .help("Set the log level of verbosity"),
         )
-        .arg(Arg::with_name("tcp-port")
-            .long("tcp-port")
-            .value_name("PORT")
-            .default_value(&DEFAULT_TCP_PORT)
-            .validator(|port| match port.parse::<u16>() {
-                Ok(_) => Ok(()),
-                Err(_) => Err("The value must be in range 0..65535".into())
-            })
-            .help("Set the tcp port for client connections")
+        .arg(
+            Arg::with_name("tcp-port")
+                .long("tcp-port")
+                .value_name("PORT")
+                .default_value(&DEFAULT_TCP_PORT)
+                .validator(|port| match port.parse::<u16>() {
+                    Ok(_) => Ok(()),
+                    Err(_) => Err("The value must be in range 0..65535".into()),
+                })
+                .help("Set the tcp port for client connections"),
         )
-        .arg(Arg::with_name("udp-port")
-            .long("udp-port")
-            .value_name("PORT")
-            .default_value(&DEFAULT_UDP_PORT)
-            .validator(|port| match port.parse::<u16>() {
-                Ok(_) => Ok(()),
-                Err(_) => Err("The value must be in range 0..65535".into())
-            })
-            .help("Set the udp port for client connections")
+        .arg(
+            Arg::with_name("udp-port")
+                .long("udp-port")
+                .value_name("PORT")
+                .default_value(&DEFAULT_UDP_PORT)
+                .validator(|port| match port.parse::<u16>() {
+                    Ok(_) => Ok(()),
+                    Err(_) => Err("The value must be in range 0..65535".into()),
+                })
+                .help("Set the udp port for client connections"),
         )
-        .arg(Arg::with_name("map-size")
-            .long("map-size")
-            .short("s")
-            .value_name("SIZE")
-            .default_value("20")
-            .validator(|port| match port.parse::<usize>() {
-                Ok(_) => Ok(()),
-                Err(_) => Err("The value must be a positive number".into())
-            })
-            .help("Set the map size length")
+        .arg(
+            Arg::with_name("map-size")
+                .long("map-size")
+                .short("s")
+                .value_name("SIZE")
+                .default_value("20")
+                .validator(|port| match port.parse::<usize>() {
+                    Ok(_) => Ok(()),
+                    Err(_) => Err("The value must be a positive number".into()),
+                })
+                .help("Set the map size length"),
         )
-        .arg(Arg::with_name("players")
-            .long("players")
-            .short("p")
-            .value_name("NUMBER")
-            .required(true)
-            .validator(|value| {
-                match value.parse::<u32>() {
+        .arg(
+            Arg::with_name("players")
+                .long("players")
+                .short("p")
+                .value_name("NUMBER")
+                .required(true)
+                .validator(|value| match value.parse::<u32>() {
                     Ok(number) => match number > 0 {
                         true => Ok(()),
                         false => Err("The value must be > 0".into()),
-                    }
-                    Err(_) => Err("The value must be a number".into())
-                }
-            })
-            .help("Number of players. \
-                The game will not start until the number of players has been reached.")
+                    },
+                    Err(_) => Err("The value must be a number".into()),
+                })
+                .help(
+                    "Number of players. \
+                The game will not start until the number of players has been reached.",
+                ),
         )
 }
 

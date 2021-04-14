@@ -6,9 +6,7 @@ pub struct Encoder {
 
 impl Encoder {
     pub fn new() -> Encoder {
-        Self {
-            output_buffer: Vec::new(),
-        }
+        Self { output_buffer: Vec::new() }
     }
 
     pub fn encode<M: Serialize>(&mut self, message: M) -> &[u8] {
@@ -18,6 +16,6 @@ impl Encoder {
     }
 }
 
-pub fn decode<'a, M: Deserialize<'a>>(data_message: &'a[u8]) -> Option<M> {
+pub fn decode<'a, M: Deserialize<'a>>(data_message: &'a [u8]) -> Option<M> {
     bincode::deserialize::<M>(data_message).ok()
 }

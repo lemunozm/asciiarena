@@ -1,5 +1,4 @@
-use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena,
-    Player, UserPlayer};
+use super::state::{State, StaticGameInfo, VersionInfo, GameStatus, Arena, Player, UserPlayer};
 use super::server_proxy::{ServerApi, ApiCall, ConnectionStatus, ServerEvent};
 
 use crate::message::{GameEvent};
@@ -30,16 +29,12 @@ pub enum Action {
 pub struct Store {
     state: State,
     server: ServerApi,
-    close : bool,
+    close: bool,
 }
 
 impl Store {
     pub fn new(state: State, server: ServerApi) -> Store {
-        Store {
-            state,
-            server,
-            close: false,
-        }
+        Store { state, server, close: false }
     }
 
     pub fn state(&self) -> &State {
@@ -57,12 +52,12 @@ impl Store {
                 if let Some(addr) = self.state.server.addr {
                     self.server.call(ApiCall::Connect(addr));
                 }
-            },
+            }
 
             Action::Connect(addr) => {
                 self.state.server.addr = Some(addr);
                 self.server.call(ApiCall::Connect(addr));
-            },
+            }
 
             Action::Disconnect => {
                 self.state.server.addr = None;
@@ -72,7 +67,7 @@ impl Store {
             Action::Login(character) => {
                 self.state.user.character_symbol = Some(character);
                 self.server.call(ApiCall::Login(character));
-            },
+            }
 
             Action::Logout => {
                 self.state.user.character_symbol = None;
@@ -100,12 +95,13 @@ impl Store {
             }
 
             Action::ServerEvent(server_event) => match server_event {
-                ServerEvent::ConnectionResult(status)  => {
+                ServerEvent::ConnectionResult(status) => {
                     self.state.server.connection_status = status;
                     if let ConnectionStatus::Connected = status {
                         self.server.call(ApiCall::CheckVersion(version::current().into()));
                     }
-                    else { //No connected (no matter the reason)
+                    else {
+                        //No connected (no matter the reason)
                         self.state.server.game.status = GameStatus::Finished;
                         self.state.server.udp_confirmed = None;
                         self.state.user.character_symbol = None;
@@ -114,7 +110,7 @@ impl Store {
                         self.state.server.game.arena = None;
                         self.state.server.game_info = None;
                     }
-                },
+                }
 
                 ServerEvent::CheckedVersion(server_version, compatibility) => {
                     let version_info = VersionInfo { version: server_version, compatibility };
@@ -127,7 +123,7 @@ impl Store {
                         // Protect the client against an unknown or not compatible server version
                         self.server.call(ApiCall::Disconnect);
                     }
-                },
+                }
 
                 ServerEvent::StaticServerInfo(info) => {
                     let game_info = StaticGameInfo {
@@ -142,28 +138,30 @@ impl Store {
                     if let Some(character) = self.state.user.character_symbol {
                         self.server.call(ApiCall::Login(character));
                     }
-                },
+                }
 
                 ServerEvent::DynamicServerInfo(logged_players) => {
                     self.state.server.logged_players = logged_players;
-                },
+                }
 
                 ServerEvent::LoginStatus(status) => {
                     self.state.user.login_status = Some(status);
-                },
+                }
 
                 ServerEvent::UdpReachable(value) => {
                     self.state.server.udp_confirmed = Some(value);
-                },
+                }
 
                 ServerEvent::StartGame(game_info) => {
                     self.state.server.game.status = GameStatus::Started;
-                    self.state.server.game.characters = game_info.characters
+                    self.state.server.game.characters = game_info
+                        .characters
                         .into_iter()
                         .map(|character| (character.id(), character))
                         .collect();
 
-                    self.state.server.game.players = game_info.players
+                    self.state.server.game.players = game_info
+                        .players
                         .into_iter()
                         .enumerate()
                         .map(|(index, (character_id, points))| Player {
@@ -173,7 +171,7 @@ impl Store {
                             points,
                         })
                         .collect();
-                },
+                }
 
                 ServerEvent::FinishGame => {
                     self.state.server.game.status = GameStatus::Finished;
@@ -182,13 +180,11 @@ impl Store {
                     self.state.user.login_status = None;
                     self.state.server.game.arena_mut().entities = HashMap::new();
                     self.state.server.game.arena_mut().spells = HashMap::new();
-                },
+                }
 
                 ServerEvent::WaitArena(duration) => {
-                    self.state.server.game.next_arena_timestamp = Some(
-                        Instant::now() + duration
-                    );
-                },
+                    self.state.server.game.next_arena_timestamp = Some(Instant::now() + duration);
+                }
 
                 ServerEvent::StartArena(arena_info) => {
                     self.state.server.game.next_arena_timestamp = None;
@@ -202,13 +198,18 @@ impl Store {
                         entities: HashMap::new(),
                         spells: HashMap::new(),
                         user_player: UserPlayer {
-                            player_id: self.state.server.game.players
+                            player_id: self
+                                .state
+                                .server
+                                .game
+                                .players
                                 .iter()
                                 .enumerate()
                                 .find(|(_, player)| match player.character_id {
-                                    CharacterId::Player(symbol) =>
-                                        symbol == self.state.user.character_symbol.unwrap(),
-                                    _ => false
+                                    CharacterId::Player(symbol) => {
+                                        symbol == self.state.user.character_symbol.unwrap()
+                                    }
+                                    _ => false,
                                 })
                                 .map(|(index, _)| index)
                                 .unwrap(),
@@ -217,7 +218,7 @@ impl Store {
                         size: self.state.server.game_info().map_size,
                         ground: arena_info.ground,
                     });
-                },
+                }
 
                 ServerEvent::GameEvent(game_event) => {
                     let GameEvent::PlayerPointsUpdated(player_points) = game_event;
@@ -227,16 +228,18 @@ impl Store {
                 }
 
                 ServerEvent::GameStep(frame) => {
-                    self.state.server.game.arena_mut().entities = frame.entities
+                    self.state.server.game.arena_mut().entities = frame
+                        .entities
                         .into_iter()
                         .map(|entity| (entity.id, entity))
                         .collect::<HashMap<_, _>>();
 
-                    self.state.server.game.arena_mut().spells = frame.spells
+                    self.state.server.game.arena_mut().spells = frame
+                        .spells
                         .into_iter()
                         .map(|spell| (spell.id, spell))
                         .collect::<HashMap<_, _>>();
-                },
+                }
             },
         }
     }

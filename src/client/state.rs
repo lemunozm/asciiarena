@@ -54,7 +54,7 @@ impl Arena {
     pub fn terrain(&self, position: Vec2) -> Terrain {
         assert!(position.x >= 0 && position.x < self.size as i32);
         assert!(position.y >= 0 && position.y < self.size as i32);
-        self.ground[position.y as usize* self.size + position.x as usize]
+        self.ground[position.y as usize * self.size + position.x as usize]
     }
 }
 
@@ -104,7 +104,7 @@ pub struct Server {
 
 impl Server {
     pub fn is_full(&self) -> bool {
-        if let Some(StaticGameInfo {players_number, .. }) = self.game_info {
+        if let Some(StaticGameInfo { players_number, .. }) = self.game_info {
             if players_number == self.logged_players.len() {
                 return true
             }
@@ -139,10 +139,7 @@ pub struct State {
 impl State {
     pub fn new(config: &Config) -> State {
         State {
-            user: User {
-                character_symbol: config.character,
-                login_status: None,
-            },
+            user: User { character_symbol: config.character, login_status: None },
             server: Server {
                 addr: config.server_addr,
                 connection_status: ConnectionStatus::NotConnected,
@@ -157,7 +154,7 @@ impl State {
                     next_arena_timestamp: None,
                     arena: None,
                     characters: HashMap::new(),
-                    players: Vec::new()
+                    players: Vec::new(),
                 },
             },
         }

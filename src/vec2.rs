@@ -10,19 +10,19 @@ pub struct Vec2 {
 
 impl Vec2 {
     pub fn zero() -> Vec2 {
-        Vec2 {x: 0, y: 0}
+        Vec2 { x: 0, y: 0 }
     }
 
     pub fn xy(x: i32, y: i32) -> Vec2 {
-        Vec2 {x, y}
+        Vec2 { x, y }
     }
 
     pub fn x(x: i32) -> Vec2 {
-        Vec2 {x, y: 0}
+        Vec2 { x, y: 0 }
     }
 
     pub fn y(y: i32) -> Vec2 {
-        Vec2 {x: 0, y}
+        Vec2 { x: 0, y }
     }
 
     pub fn clear(&mut self) {
@@ -43,10 +43,7 @@ impl Add for Vec2 {
     type Output = Vec2;
 
     fn add(self, other: Vec2) -> Vec2 {
-        Vec2 {
-            x: self.x + other.x,
-            y: self.y + other.y,
-        }
+        Vec2 { x: self.x + other.x, y: self.y + other.y }
     }
 }
 
@@ -54,10 +51,7 @@ impl Sub for Vec2 {
     type Output = Vec2;
 
     fn sub(self, other: Vec2) -> Vec2 {
-        Vec2 {
-            x: self.x - other.x,
-            y: self.y - other.y,
-        }
+        Vec2 { x: self.x - other.x, y: self.y - other.y }
     }
 }
 
@@ -73,10 +67,7 @@ impl Mul<i32> for Vec2 {
     type Output = Vec2;
 
     fn mul(self, scalar: i32) -> Vec2 {
-        Vec2 {
-            x: self.x * scalar,
-            y: self.y * scalar,
-        }
+        Vec2 { x: self.x * scalar, y: self.y * scalar }
     }
 }
 
@@ -84,10 +75,7 @@ impl Div<i32> for Vec2 {
     type Output = Vec2;
 
     fn div(self, scalar: i32) -> Vec2 {
-        Vec2 {
-            x: self.x / scalar,
-            y: self.y / scalar,
-        }
+        Vec2 { x: self.x / scalar, y: self.y / scalar }
     }
 }
 
@@ -95,10 +83,7 @@ impl Neg for Vec2 {
     type Output = Vec2;
 
     fn neg(self) -> Vec2 {
-        Vec2 {
-            x: -self.x,
-            y: -self.y,
-        }
+        Vec2 { x: -self.x, y: -self.y }
     }
 }
 

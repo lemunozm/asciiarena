@@ -24,7 +24,7 @@ pub trait EntityBehaviour {
         time: Instant,
         entity: &Entity,
         map: &Map,
-        entities: &HashMap<EntityId, Entity>
+        entities: &HashMap<EntityId, Entity>,
     ) -> Vec<EntityAction>;
 }
 
@@ -176,14 +176,16 @@ pub mod behaviour {
 
     pub struct None;
     impl EntityBehaviour for None {
-        fn destroyed(&mut self) -> Vec<EntityAction> { vec![] }
+        fn destroyed(&mut self) -> Vec<EntityAction> {
+            vec![]
+        }
 
         fn update(
             &mut self,
             _time: Instant,
             _entity: &Entity,
             _map: &Map,
-            _entities: &HashMap<EntityId, Entity>
+            _entities: &HashMap<EntityId, Entity>,
         ) -> Vec<EntityAction> {
             vec![]
         }

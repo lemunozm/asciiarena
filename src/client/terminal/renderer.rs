@@ -19,24 +19,23 @@ impl Renderer {
         terminal::enable_raw_mode().unwrap();
         io::stdout().execute(terminal::EnterAlternateScreen).unwrap();
 
-        Renderer {
-            terminal: Terminal::new(CrosstermBackend::new(io::stdout())).unwrap()
-        }
+        Renderer { terminal: Terminal::new(CrosstermBackend::new(io::stdout())).unwrap() }
     }
 
     pub fn render(&mut self, state: &State, gui: &Gui) {
-        self.terminal.draw(|frame| {
-            let main_widget = GuiWidget::new(state, gui);
-            let area = frame.size();
-            let mut cursor = Cursor::default();
+        self.terminal
+            .draw(|frame| {
+                let main_widget = GuiWidget::new(state, gui);
+                let area = frame.size();
+                let mut cursor = Cursor::default();
 
-            frame.render_stateful_widget(main_widget, area, &mut cursor);
+                frame.render_stateful_widget(main_widget, area, &mut cursor);
 
-            if let Some(position) = cursor.take() {
-                frame.set_cursor(position.0, position.1);
-            }
-
-        }).unwrap();
+                if let Some(position) = cursor.take() {
+                    frame.set_cursor(position.0, position.1);
+                }
+            })
+            .unwrap();
     }
 }
 

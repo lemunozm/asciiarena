@@ -59,7 +59,7 @@ impl Player {
 
     pub fn create_entity_behaviour(&mut self, entity_id: EntityId) -> Box<PlayerBehaviour> {
         self.entity_handler.borrow_mut().entity_id = entity_id;
-        Box::new(PlayerBehaviour {entity_handler: self.entity_handler.clone()})
+        Box::new(PlayerBehaviour { entity_handler: self.entity_handler.clone() })
     }
 }
 
@@ -70,7 +70,7 @@ pub struct EntityHandler {
 }
 
 pub struct PlayerBehaviour {
-    entity_handler: Rc<RefCell<EntityHandler>>
+    entity_handler: Rc<RefCell<EntityHandler>>,
 }
 
 impl EntityBehaviour for PlayerBehaviour {
@@ -84,7 +84,7 @@ impl EntityBehaviour for PlayerBehaviour {
         _time: Instant,
         _entity: &Entity,
         _map: &Map,
-        _entities: &HashMap<EntityId, Entity>
+        _entities: &HashMap<EntityId, Entity>,
     ) -> Vec<EntityAction> {
         let actions = &mut self.entity_handler.borrow_mut().actions;
         let returned = actions.clone();

@@ -18,7 +18,7 @@ impl InputReceiver {
             Self::process_event(event, &event_callback);
         });
 
-        InputReceiver { _event_collector, }
+        InputReceiver { _event_collector }
     }
 
     fn process_event(event: TermEvent, event_callback: &impl Fn(InputEvent)) {

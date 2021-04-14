@@ -47,11 +47,7 @@ impl Arena {
         &self.spells
     }
 
-    pub fn create_entity(
-        &mut self,
-        character: Rc<Character>,
-        position: Vec2
-    ) -> &mut Entity {
+    pub fn create_entity(&mut self, character: Rc<Character>, position: Vec2) -> &mut Entity {
         let id = EntityId::next(self.last_entity_id);
         let entity = Entity::new(id, character, position);
         self.last_entity_id = id;
@@ -74,24 +70,27 @@ impl Arena {
         let current_time = Instant::now();
 
         for (_, spell) in &mut self.spells {
-            let mut spell_actions = VecDeque::from(
-                spell.behaviour().update(current_time, &spell, &self.map, &self.entities)
-            );
+            let mut spell_actions = VecDeque::from(spell.behaviour().update(
+                current_time,
+                &spell,
+                &self.map,
+                &self.entities,
+            ));
 
             while let Some(action) = spell_actions.pop_front() {
                 match action {
                     SpellAction::Move => {
                         spell.move_step(current_time);
                         if self.map.terrain(spell.position()) != Terrain::Wall {
-                            let entity_position = self.entities
+                            let entity_position = self
+                                .entities
                                 .values_mut()
                                 .find(|entity| entity.position() == spell.position());
 
                             if let Some(entity) = entity_position {
                                 if !spell.is_affected_entity(entity.id()) {
-                                    let (actions, affect) = spell
-                                        .behaviour()
-                                        .entity_collision(&entity);
+                                    let (actions, affect) =
+                                        spell.behaviour().entity_collision(&entity);
 
                                     if affect {
                                         entity.add_health(-spell.damage());
@@ -121,9 +120,12 @@ impl Arena {
 
         for entity_id in self.entities.keys().map(|id| *id).collect::<Vec<_>>() {
             let entity = &self.entities[&entity_id];
-            let mut entity_actions = VecDeque::from(
-                entity.behaviour().update(current_time, &entity, &self.map, &self.entities)
-            );
+            let mut entity_actions = VecDeque::from(entity.behaviour().update(
+                current_time,
+                &entity,
+                &self.map,
+                &self.entities,
+            ));
 
             if !entity.is_alive() {
                 entity_actions.push_back(EntityAction::Destroy);
@@ -136,7 +138,8 @@ impl Arena {
                         entity.set_direction(direction);
                         let next_position = entity.position() + direction.to_vec2();
                         if self.map.terrain(next_position) != Terrain::Wall {
-                            let occupied_position = self.entities
+                            let occupied_position = self
+                                .entities
                                 .values()
                                 .find(|entity| entity.position() == next_position)
                                 .is_some();

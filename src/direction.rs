@@ -2,11 +2,17 @@ use crate::vec2::Vec2;
 
 use serde::{Serialize, Deserialize};
 
-use rand::{distributions::{Distribution, Standard}, Rng};
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum Direction {
-    Up, Down, Left, Right,
+    Up,
+    Down,
+    Left,
+    Right,
 }
 
 impl Direction {

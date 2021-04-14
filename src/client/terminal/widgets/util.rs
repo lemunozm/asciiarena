@@ -26,10 +26,7 @@ pub struct InputText {
 
 impl InputText {
     pub fn new(content: Option<String>) -> InputText {
-        InputText {
-            content: content.unwrap_or_default(),
-            cursor: None,
-        }
+        InputText { content: content.unwrap_or_default(), cursor: None }
     }
 
     pub fn key_pressed(&mut self, key_event: KeyEvent) {
@@ -102,10 +99,7 @@ pub struct InputCapitalLetter {
 
 impl InputCapitalLetter {
     pub fn new(content: Option<char>) -> InputCapitalLetter {
-        InputCapitalLetter {
-            content,
-            focus: false,
-        }
+        InputCapitalLetter { content, focus: false }
     }
 
     pub fn key_pressed(&mut self, key_event: KeyEvent) {

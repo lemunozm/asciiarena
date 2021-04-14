@@ -20,10 +20,7 @@ pub struct RoomSession<U> {
 
 impl<U: Eq> RoomSession<U> {
     pub fn new(size: usize) -> RoomSession<U> {
-        RoomSession {
-            sessions: HashMap::new(),
-            size,
-        }
+        RoomSession { sessions: HashMap::new(), size }
     }
 
     pub fn clear(&mut self) {
@@ -47,31 +44,27 @@ impl<U: Eq> RoomSession<U> {
             let token = session.token();
             self.sessions.remove(&token)
         }
-        else { None }
+        else {
+            None
+        }
     }
 
     pub fn session_by_endpoint(&self, safe_endpoint: Endpoint) -> Option<&Session<U>> {
-        self.sessions.values().find(|session| {
-            match session.safe_endpoint() {
-                Some(endpoint) if *endpoint == safe_endpoint => true,
-                _ => false,
-            }
+        self.sessions.values().find(|session| match session.safe_endpoint() {
+            Some(endpoint) if *endpoint == safe_endpoint => true,
+            _ => false,
         })
     }
 
     pub fn session_by_endpoint_mut(&mut self, safe_endpoint: Endpoint) -> Option<&mut Session<U>> {
-        self.sessions.values_mut().find(|session| {
-            match session.safe_endpoint() {
-                Some(endpoint) if *endpoint == safe_endpoint => true,
-                _ => false,
-            }
+        self.sessions.values_mut().find(|session| match session.safe_endpoint() {
+            Some(endpoint) if *endpoint == safe_endpoint => true,
+            _ => false,
         })
     }
 
     pub fn create_session(&mut self, user: U, safe_endpoint: Endpoint) -> SessionStatus {
-        let existing_session = self.sessions
-            .values_mut()
-            .find(|session| *session.user() == user);
+        let existing_session = self.sessions.values_mut().find(|session| *session.user() == user);
 
         if let Some(session) = existing_session {
             match session.safe_endpoint() {
@@ -100,11 +93,9 @@ impl<U: Eq> RoomSession<U> {
     /// Tries to return the fast endpoint, if this is not possible, the safe endpoint is returned.
     pub fn faster_endpoints(&self) -> Vec<Endpoint> {
         self.sessions()
-            .filter_map(|session| {
-                match session.trusted_fast_endpoint() {
-                    Some(fast_endpoint) => Some(*fast_endpoint),
-                    None => *session.safe_endpoint(),
-                }
+            .filter_map(|session| match session.trusted_fast_endpoint() {
+                Some(fast_endpoint) => Some(*fast_endpoint),
+                None => *session.safe_endpoint(),
             })
             .collect()
     }
@@ -114,7 +105,7 @@ impl<U: Eq> RoomSession<U> {
             let mut rng = rand::thread_rng();
             let token: SessionToken = rng.gen();
             if !self.sessions.contains_key(&token) {
-                break token;
+                break token
             }
         }
     }
@@ -180,4 +171,3 @@ impl<U> Session<U> {
         self.is_fast_endpoint_trusted = false;
     }
 }
-

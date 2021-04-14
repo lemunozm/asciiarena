@@ -28,10 +28,7 @@ pub struct Arena {
 
 impl Arena {
     pub fn new(_config: &Config) -> Arena {
-        Arena {
-            previous_entities: HashMap::new(),
-            damaged_entities: HashMap::new(),
-        }
+        Arena { previous_entities: HashMap::new(), damaged_entities: HashMap::new() }
     }
 
     pub fn process_event(&mut self, store: &mut Store, event: InputEvent) {
@@ -56,7 +53,7 @@ impl Arena {
                 }
                 _ => (),
             },
-            InputEvent::ResizeDisplay(..) => {},
+            InputEvent::ResizeDisplay(..) => {}
         }
     }
 
@@ -65,15 +62,10 @@ impl Arena {
 
         const ENTITY_DAMAGE_ANIMATION_TIME: Duration = Duration::from_millis(66);
         let now = Instant::now();
-        self.damaged_entities.retain(|_, from|{
-            now - *from < ENTITY_DAMAGE_ANIMATION_TIME
-        });
+        self.damaged_entities.retain(|_, from| now - *from < ENTITY_DAMAGE_ANIMATION_TIME);
 
         for (id, entity) in &self.previous_entities {
-            let damaged = entity.health > arena.entities
-                .get(id)
-                .map(|e| e.health)
-                .unwrap_or(0);
+            let damaged = entity.health > arena.entities.get(id).map(|e| e.health).unwrap_or(0);
 
             if damaged {
                 self.damaged_entities.insert(*id, now);
@@ -82,7 +74,6 @@ impl Arena {
         self.previous_entities = arena.entities.clone();
     }
 }
-
 
 #[derive(derive_new::new)]
 pub struct ArenaWidget<'a> {
@@ -95,8 +86,10 @@ impl<'a> ArenaWidget<'a> {
         let map_size = state.server.game_info.as_ref().unwrap().map_size as u16;
         let map_dim = MapWidget::dimension(map_size);
 
-        (PlayerPanelListWidget::WIDTH + 1 + map_dim.0,
-         1 + ArenaInfoLabelWidget::HEIGHT + map_dim.1 + NotificationLabelWidget::HEIGHT)
+        (
+            PlayerPanelListWidget::WIDTH + 1 + map_dim.0,
+            1 + ArenaInfoLabelWidget::HEIGHT + map_dim.1 + NotificationLabelWidget::HEIGHT,
+        )
     }
 }
 
@@ -107,39 +100,43 @@ impl Widget for ArenaWidget<'_> {
 
         let column = Layout::default()
             .direction(Dir::Vertical)
-            .constraints([
-                Constraint::Length(1), //Margin
-                Constraint::Length(ArenaInfoLabelWidget::HEIGHT),
-                Constraint::Length(map_dim.1),
-                Constraint::Length(NotificationLabelWidget::HEIGHT),
-            ].as_ref())
+            .constraints(
+                [
+                    Constraint::Length(1), //Margin
+                    Constraint::Length(ArenaInfoLabelWidget::HEIGHT),
+                    Constraint::Length(map_dim.1),
+                    Constraint::Length(NotificationLabelWidget::HEIGHT),
+                ]
+                .as_ref(),
+            )
             .split(area);
 
-        ArenaInfoLabelWidget::new(self.state)
-            .render(column[1], buffer);
+        ArenaInfoLabelWidget::new(self.state).render(column[1], buffer);
 
         let row = Layout::default()
             .direction(Dir::Horizontal)
-            .constraints([
-                Constraint::Length(PlayerPanelListWidget::WIDTH),
-                Constraint::Length(1), //Margin
-                Constraint::Length(map_dim.0),
-            ].as_ref())
+            .constraints(
+                [
+                    Constraint::Length(PlayerPanelListWidget::WIDTH),
+                    Constraint::Length(1), //Margin
+                    Constraint::Length(map_dim.0),
+                ]
+                .as_ref(),
+            )
             .split(column[2]);
 
-        PlayerPanelListWidget::new(self.state)
-            .render(row[0], buffer);
+        PlayerPanelListWidget::new(self.state).render(row[0], buffer);
 
-        MapWidget::new(self.state, self.arena)
-            .render(row[2], buffer);
+        MapWidget::new(self.state, self.arena).render(row[2], buffer);
 
-        NotificationLabelWidget::new(self.state)
-            .render(column[3], buffer);
+        NotificationLabelWidget::new(self.state).render(column[3], buffer);
     }
 }
 
 #[derive(derive_new::new)]
-struct ArenaInfoLabelWidget<'a> {state: &'a State}
+struct ArenaInfoLabelWidget<'a> {
+    state: &'a State,
+}
 
 impl ArenaInfoLabelWidget<'_> {
     pub const HEIGHT: u16 = 1;
@@ -157,14 +154,14 @@ impl Widget for ArenaInfoLabelWidget<'_> {
             Span::styled(points.to_string(), Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
-        Paragraph::new(title)
-            .alignment(Alignment::Center)
-            .render(area, buffer);
+        Paragraph::new(title).alignment(Alignment::Center).render(area, buffer);
     }
 }
 
 #[derive(derive_new::new)]
-struct PlayerPanelListWidget<'a> {state: &'a State}
+struct PlayerPanelListWidget<'a> {
+    state: &'a State,
+}
 
 impl PlayerPanelListWidget<'_> {
     pub const WIDTH: u16 = PlayerPanelWidget::DIMENSION.0;
@@ -175,17 +172,11 @@ impl Widget for PlayerPanelListWidget<'_> {
         let players = &self.state.server.game.players;
 
         let mut constraints = vec![Constraint::Length(1)]; //Top margin
-        constraints.extend(
-            players
-                .iter()
-                .map(|_| Constraint::Length(PlayerPanelWidget::DIMENSION.1))
-        );
+        constraints
+            .extend(players.iter().map(|_| Constraint::Length(PlayerPanelWidget::DIMENSION.1)));
         constraints.push(Constraint::Min(0)); // Bottom margin
 
-        let row = Layout::default()
-            .direction(Dir::Vertical)
-            .constraints(constraints)
-            .split(area);
+        let row = Layout::default().direction(Dir::Vertical).constraints(constraints).split(area);
 
         for (index, player) in self.state.server.game.players.iter().enumerate() {
             let character = &self.state.server.game.characters[&player.character_id];
@@ -196,7 +187,6 @@ impl Widget for PlayerPanelListWidget<'_> {
         }
     }
 }
-
 
 #[derive(derive_new::new)]
 struct PlayerPanelWidget<'a> {
@@ -214,11 +204,15 @@ impl Widget for PlayerPanelWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         let is_user = self.player.id == self.state.server.game.arena().user_player.player_id;
         let box_border_style = match is_user {
-             true => Style::default()
-                 .fg(if self.entity.is_some() {Color::White} else {Color::DarkGray})
-                 .add_modifier(Modifier::BOLD),
-             false => Style::default()
-                 .fg(if self.entity.is_some() {Color::Gray} else {Color::DarkGray})
+            true => Style::default()
+                .fg(if self.entity.is_some() { Color::White } else { Color::DarkGray })
+                .add_modifier(Modifier::BOLD),
+            false => Style::default().fg(if self.entity.is_some() {
+                Color::Gray
+            }
+            else {
+                Color::DarkGray
+            }),
         };
 
         // Symbol panel
@@ -231,8 +225,8 @@ impl Widget for PlayerPanelWidget<'_> {
 
         let player_color = Color::White;
         let player_style = match is_user {
-             true => Style::default().fg(player_color).add_modifier(Modifier::BOLD),
-             false => Style::default().fg(player_color)
+            true => Style::default().fg(player_color).add_modifier(Modifier::BOLD),
+            false => Style::default().fg(player_color),
         };
 
         let symbol = self.character.symbol().to_string();
@@ -243,39 +237,35 @@ impl Widget for PlayerPanelWidget<'_> {
         let points = self.player.points;
         let points_style = Style::default().fg(Color::White);
         Block::default()
-            .title(Spans::from(
-                vec![
-                    Span::raw("──"),
-                    Span::styled(" Pts: ", points_style),
-                    Span::styled(points.to_string(), points_style),
-                    Span::raw(" "),
-                ]
-            ))
+            .title(Spans::from(vec![
+                Span::raw("──"),
+                Span::styled(" Pts: ", points_style),
+                Span::styled(points.to_string(), points_style),
+                Span::raw(" "),
+            ]))
             .borders(Borders::ALL)
             .border_style(box_border_style)
             .border_type(BorderType::Rounded)
             .render(panel_area, buffer);
 
         // Bars
-        let content = panel_area.inner(&Margin {vertical: 1, horizontal: 1});
+        let content = panel_area.inner(&Margin { vertical: 1, horizontal: 1 });
 
         let bar_area = Rect::new(content.x, content.y, content.width, 1).intersection(area);
         let health = self.entity.map(|e| e.health).unwrap_or(0);
-        BarWidget::new(health, self.character.max_health(), Color::Green)
-            .render(bar_area, buffer);
+        BarWidget::new(health, self.character.max_health(), Color::Green).render(bar_area, buffer);
 
         let bar_area = Rect::new(content.x, content.y + 1, content.width, 1).intersection(area);
         let energy = self.entity.map(|e| e.energy).unwrap_or(0);
-        BarWidget::new(energy, self.character.max_energy(), Color::Cyan)
-            .render(bar_area, buffer);
+        BarWidget::new(energy, self.character.max_energy(), Color::Cyan).render(bar_area, buffer);
 
         // Bottom
         let arrow = box_border_style;
         let bottom = Rect::new(panel_area.x, panel_area.bottom() - 1, panel_area.width, 1)
             .intersection(area);
-        let bottom = bottom.inner(&Margin {vertical: 0, horizontal: 2});
+        let bottom = bottom.inner(&Margin { vertical: 0, horizontal: 2 });
 
-        let clean_row = (0..bottom.width).map(|_|" ").collect::<String>();
+        let clean_row = (0..bottom.width).map(|_| " ").collect::<String>();
         buffer.set_string(bottom.x, bottom.y, clean_row, arrow);
 
         buffer.set_string(bottom.x, bottom.y, ">", arrow);
@@ -301,7 +291,7 @@ impl Widget for BarWidget {
             .map(|index| {
                 if index + 1 == current_len {
                     let partial = self.current as u16 % bar_len;
-                    if  partial > bar_len / 2 || partial == 0 {
+                    if partial > bar_len / 2 || partial == 0 {
                         Span::styled("=", bar_style.add_modifier(Modifier::BOLD))
                     }
                     else {
@@ -332,7 +322,10 @@ impl Widget for BarWidget {
 }
 
 #[derive(derive_new::new)]
-struct MapWidget<'a> {state: &'a State, arena: &'a Arena}
+struct MapWidget<'a> {
+    state: &'a State,
+    arena: &'a Arena,
+}
 
 impl MapWidget<'_> {
     pub fn dimension(map_size: u16) -> (u16, u16) {
@@ -384,22 +377,21 @@ impl Widget for MapWidget<'_> {
             buffer.set_string(area.x + x, area.y + y, &character.symbol().to_string(), style);
         }
 
-        FinishGameMessageWidget::new(self.state)
-            .render(area, buffer);
+        FinishGameMessageWidget::new(self.state).render(area, buffer);
     }
 }
 
 #[derive(derive_new::new)]
-struct FinishGameMessageWidget<'a> {state: &'a State}
+struct FinishGameMessageWidget<'a> {
+    state: &'a State,
+}
 
 impl Widget for FinishGameMessageWidget<'_> {
     fn render(self, area: Rect, buffer: &mut Buffer) {
         if let GameStatus::Finished = self.state.server.game.status {
             let winner_points = self.state.server.game_info().winner_points;
-            let winner_player = self.state.server.game.players
-                .iter()
-                .find(|p| p.points >= winner_points)
-                .unwrap();
+            let winner_player =
+                self.state.server.game.players.iter().find(|p| p.points >= winner_points).unwrap();
             let winner_character = &self.state.server.game.characters[&winner_player.character_id];
 
             let message = vec![
@@ -413,12 +405,12 @@ impl Widget for FinishGameMessageWidget<'_> {
                 ]),
                 Spans::from(Span::raw("")),
                 Spans::from(vec![
-                   Span::raw("Press"),
-                   Span::styled(
-                       " <Enter> ",
-                       Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)
+                    Span::raw("Press"),
+                    Span::styled(
+                        " <Enter> ",
+                        Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan),
                     ),
-                   Span::raw("to back to the menu"),
+                    Span::raw("to back to the menu"),
                 ]),
             ];
 
@@ -431,7 +423,9 @@ impl Widget for FinishGameMessageWidget<'_> {
 }
 
 #[derive(derive_new::new)]
-struct NotificationLabelWidget<'a> {state: &'a State}
+struct NotificationLabelWidget<'a> {
+    state: &'a State,
+}
 
 impl NotificationLabelWidget<'_> {
     const HEIGHT: u16 = 2;
@@ -442,9 +436,10 @@ impl Widget for NotificationLabelWidget<'_> {
         let messages = match self.state.server.game.next_arena_timestamp {
             Some(timestamp) => {
                 let secs = timestamp.saturating_duration_since(Instant::now()).as_secs() + 1;
-                let winner_arena_player = self.state.server.game.players
-                    .iter()
-                    .find(|p| self.state.server.game.arena().entities.contains_key(&p.entity_id));
+                let winner_arena_player =
+                    self.state.server.game.players.iter().find(|p| {
+                        self.state.server.game.arena().entities.contains_key(&p.entity_id)
+                    });
 
                 let player_style = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
                 let style = Style::default().fg(Color::LightCyan);
@@ -458,7 +453,7 @@ impl Widget for NotificationLabelWidget<'_> {
                             Span::styled(". ", style),
                         ])
                     }
-                    None => Spans::from(vec![Span::styled("No one survived", style)])
+                    None => Spans::from(vec![Span::styled("No one survived", style)]),
                 };
 
                 vec![
@@ -470,11 +465,9 @@ impl Widget for NotificationLabelWidget<'_> {
                     ]),
                 ]
             }
-            None => vec![]
+            None => vec![],
         };
 
-        Paragraph::new(messages)
-            .alignment(Alignment::Center)
-            .render(area, buffer);
+        Paragraph::new(messages).alignment(Alignment::Center).render(area, buffer);
     }
 }
