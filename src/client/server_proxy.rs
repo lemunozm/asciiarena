@@ -86,16 +86,11 @@ impl ServerProxy {
             connection.process_event(event, |server_event| event_callback(server_event));
         });
 
-        ServerProxy {
-            node,
-            node_task,
-        }
+        ServerProxy { node, node_task }
     }
 
     pub fn api(&mut self) -> ServerApi {
-        return ServerApi {
-            node: self.node.clone(),
-        }
+        return ServerApi { node: self.node.clone() }
     }
 }
 
@@ -222,9 +217,9 @@ impl ServerConnection {
                         let tcp = *self.connection.tcp.as_ref().unwrap();
                         self.send_to_server(tcp, ClientMessage::CastSkill(direction, id));
                     }
-                }
+                },
                 ProxyEvent::HelloUdp(attempt) => self.process_hello_udp(attempt, callback),
-            }
+            },
             NodeEvent::Network(net_event) => match net_event {
                 NetEvent::Connected(_, _) => unreachable!(),
                 NetEvent::Disconnected(_) => {
@@ -266,7 +261,7 @@ impl ServerConnection {
                         ServerMessage::GameStep(frame) => {
                             callback(ServerEvent::GameStep(frame));
                         }
-                    }
+                    },
                     None => {
                         log::error!(
                             "Server sends an unknown message. Connection rejected. \
@@ -275,7 +270,7 @@ impl ServerConnection {
                         self.node.network().remove(endpoint.resource_id());
                     }
                 },
-            }
+            },
         }
     }
 
@@ -315,9 +310,12 @@ impl ServerConnection {
         callback(ServerEvent::StaticServerInfo(info));
     }
 
-    fn process_login_status(&mut self, character: char, status: LoginStatus,
+    fn process_login_status(
+        &mut self,
+        character: char,
+        status: LoginStatus,
         callback: impl Fn(ServerEvent),
-        ) {
+    ) {
         match status {
             LoginStatus::Logged(token, kind) => {
                 let kind_str = match kind {

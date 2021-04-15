@@ -35,14 +35,12 @@ impl Application {
         let event_queue = EventReceiver::default();
 
         let sender = event_queue.sender().clone();
-        let mut server = ServerProxy::new(move |server_event| {
-            sender.send(AppEvent::ServerEvent(server_event))
-        });
+        let mut server =
+            ServerProxy::new(move |server_event| sender.send(AppEvent::ServerEvent(server_event)));
 
         let sender = event_queue.sender().clone();
-        let input = InputReceiver::new(move |input_event| {
-            sender.send(AppEvent::InputEvent(input_event))
-        });
+        let input =
+            InputReceiver::new(move |input_event| sender.send(AppEvent::InputEvent(input_event)));
 
         Application {
             store: Store::new(State::new(&config), server.api()),

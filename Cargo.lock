@@ -580,7 +580,8 @@ dependencies = [
 [[package]]
 name = "message-io"
 version = "0.13.0"
-source = "git+https://github.com/lemunozm/message-io?branch=for_each_sync_and_async#315287f8fe6117ce7eff95deb0e7d4a0018c754e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2608340917ef4be105cba88d546cf0bc7428b62702f71489323c93112d668f47"
 dependencies = [
  "crossbeam",
  "integer-encoding",

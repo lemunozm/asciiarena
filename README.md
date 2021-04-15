@@ -7,9 +7,12 @@ Choose an ascii character and use your arcade skills to be the last one in the a
   <img src="https://drive.google.com/uc?export=view&id=1TMTNIbn09Ssh_e1VnhWEUhb5zYfRNyiw"/>
 </p>
 
+<p align="center">
+  <img src="https://drive.google.com/uc?export=view&id=1KMgNitMC7fhdxTIL3Ve5VbGi7VVk8j5m"/>
+</p>
+
 The game is made in [rust][rust], and built on top of
-[tui][tui] for rendering into the terminal user interface and
-[message-io][message-io] for making the network connections.
+[tui][tui] for rendering into the terminal and [message-io][message-io] to connect clients and server.
 
 **Currently under development:**
 - [x] Menu
