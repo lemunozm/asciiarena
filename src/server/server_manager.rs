@@ -115,7 +115,6 @@ impl ServerManager {
     }
 
     pub fn run(mut self) {
-        //log::trace!("[Process network event] - {:?}", event);
         let listener = self.listener.take().unwrap();
         listener.for_each(move |event| match event {
             NodeEvent::Signal(signal) => match signal {

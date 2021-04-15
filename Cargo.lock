@@ -580,7 +580,7 @@ dependencies = [
 [[package]]
 name = "message-io"
 version = "0.13.0"
-source = "git+https://github.com/lemunozm/message-io?branch=for_each_sync_and_async#589a8b3ab195e6d89700a4e37ffafd032f4bb253"
+source = "git+https://github.com/lemunozm/message-io?branch=for_each_sync_and_async#315287f8fe6117ce7eff95deb0e7d4a0018c754e"
 dependencies = [
  "crossbeam",
  "integer-encoding",

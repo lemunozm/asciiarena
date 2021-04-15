@@ -32,16 +32,16 @@ pub struct Application {
 
 impl Application {
     pub fn new(config: Config) -> Application {
-        let mut event_queue = EventReceiver::default();
+        let event_queue = EventReceiver::default();
 
-        let event_sender = event_queue.sender().clone();
+        let sender = event_queue.sender().clone();
         let mut server = ServerProxy::new(move |server_event| {
-            event_sender.send(AppEvent::ServerEvent(server_event))
+            sender.send(AppEvent::ServerEvent(server_event))
         });
 
-        let event_sender = event_queue.sender().clone();
+        let sender = event_queue.sender().clone();
         let input = InputReceiver::new(move |input_event| {
-            event_sender.send(AppEvent::InputEvent(input_event))
+            sender.send(AppEvent::InputEvent(input_event))
         });
 
         Application {
