@@ -1,5 +1,8 @@
 # Changelog
 
+## Release 0.0.7 Alpha
+- Internal network improvements
+
 ## Release 0.0.6 Alpha
 - Entity visual damage
 
