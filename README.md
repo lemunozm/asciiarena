@@ -4,11 +4,11 @@
 Choose an ascii character and use your arcade skills to be the last one in the arena!
 
 <p align="center">
-  <img src="https://drive.google.com/uc?export=view&id=1TMTNIbn09Ssh_e1VnhWEUhb5zYfRNyiw"/>
+  <img src="images/menu-screenshot.png"/>
 </p>
 
 <p align="center">
-  <img src="https://drive.google.com/uc?export=view&id=1KMgNitMC7fhdxTIL3Ve5VbGi7VVk8j5m"/>
+  <img src="images/game-screenshot.png"/>
 </p>
 
 The game is made in [rust][rust], and built on top of
