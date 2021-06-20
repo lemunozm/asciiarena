@@ -113,10 +113,7 @@ impl Server {
     }
 
     pub fn is_connected(&self) -> bool {
-        match self.connection_status {
-            ConnectionStatus::Connected => true,
-            _ => false,
-        }
+        matches!(self.connection_status, ConnectionStatus::Connected)
     }
 
     pub fn game_info(&self) -> &StaticGameInfo {

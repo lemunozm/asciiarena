@@ -285,7 +285,7 @@ impl Widget for BarWidget {
         let bar_style = Style::default().fg(self.color);
         let bar_off_style = Style::default().fg(self.color);
 
-        let bar_len = 10 as u16;
+        let bar_len = 10_u16;
         let current_len = ((self.current + 9) as f32 / bar_len as f32) as usize;
         let bar = (0..bar_len as usize)
             .map(|index| {
@@ -354,7 +354,7 @@ impl Widget for MapWidget<'_> {
             .render(area, buffer);
 
         // Spells
-        for (_, spell) in &self.state.server.game.arena().spells {
+        for spell in self.state.server.game.arena().spells.values() {
             let x = spell.position.x as u16 * 2;
             let y = spell.position.y as u16;
             let style = Style::default().fg(Color::Indexed(208)).remove_modifier(Modifier::BOLD);

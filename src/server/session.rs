@@ -50,17 +50,11 @@ impl<U: Eq> RoomSession<U> {
     }
 
     pub fn session_by_endpoint(&self, safe_endpoint: Endpoint) -> Option<&Session<U>> {
-        self.sessions.values().find(|session| match session.safe_endpoint() {
-            Some(endpoint) if *endpoint == safe_endpoint => true,
-            _ => false,
-        })
+        self.sessions.values().find(|session| matches!(session.safe_endpoint(), Some(endpoint) if *endpoint == safe_endpoint))
     }
 
     pub fn session_by_endpoint_mut(&mut self, safe_endpoint: Endpoint) -> Option<&mut Session<U>> {
-        self.sessions.values_mut().find(|session| match session.safe_endpoint() {
-            Some(endpoint) if *endpoint == safe_endpoint => true,
-            _ => false,
-        })
+        self.sessions.values_mut().find(|session| matches!(session.safe_endpoint(), Some(endpoint) if *endpoint == safe_endpoint))
     }
 
     pub fn create_session(&mut self, user: U, safe_endpoint: Endpoint) -> SessionStatus {

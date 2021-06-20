@@ -10,7 +10,7 @@ pub enum Compatibility {
 
 impl Compatibility {
     pub fn is_compatible(&self) -> bool {
-        return *self != Compatibility::None
+        *self != Compatibility::None
     }
 }
 

@@ -57,7 +57,7 @@ impl WaitingRoom {
             self.players.values().map(|state| state.position).collect::<HashSet<_>>();
 
         let now = Instant::now();
-        for (_, state) in &mut self.players {
+        for state in self.players.values_mut() {
             if now > state.last_move + MINIMAL_MOVE_TIME {
                 state.last_move = now;
                 let should_move = rng.gen::<f32>() < 0.85;

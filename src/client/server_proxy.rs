@@ -59,10 +59,7 @@ pub enum ConnectionStatus {
 
 impl ConnectionStatus {
     pub fn is_connected(&self) -> bool {
-        match self {
-            ConnectionStatus::Connected => true,
-            _ => false,
-        }
+        matches!(self, ConnectionStatus::Connected)
     }
 }
 
@@ -90,7 +87,7 @@ impl ServerProxy {
     }
 
     pub fn api(&mut self) -> ServerApi {
-        return ServerApi { node: self.node.clone() }
+        ServerApi { node: self.node.clone() }
     }
 }
 
@@ -226,7 +223,7 @@ impl ServerConnection {
                     let result = ConnectionStatus::Lost;
                     callback(ServerEvent::ConnectionResult(result));
                 }
-                NetEvent::Message(endpoint, data) => match encoding::decode(&data) {
+                NetEvent::Message(endpoint, data) => match encoding::decode(data) {
                     Some(message) => match message {
                         ServerMessage::Version(server_version, compatibility) => {
                             self.process_version(server_version, compatibility, callback);
