@@ -306,10 +306,7 @@ struct CharacterLabelWidget<'a> {
 impl StatefulWidget for CharacterLabelWidget<'_> {
     type State = Cursor;
     fn render(self, area: Rect, buffer: &mut Buffer, cursor: &mut Cursor) {
-        let character = match self.menu.character_symbol_input.content() {
-            Some(character) => character,
-            None => ' ',
-        };
+        let character = self.menu.character_symbol_input.content().unwrap_or(' ');
 
         let character_msg = Spans::from(vec![
             Span::raw("Character name:  "),
@@ -557,11 +554,11 @@ impl Widget for ServerInfoPlayersLabelWidget<'_> {
                 ("Ready", Color::LightGreen)
             }
             else {
-                ("Completed".into(), Color::LightRed)
+                ("Completed", Color::LightRed)
             }
         }
         else {
-            ("Waiting other players...".into(), Color::LightYellow)
+            ("Waiting other players...", Color::LightYellow)
         };
 
         let right = Span::styled(status_message, Style::default().fg(status_color));

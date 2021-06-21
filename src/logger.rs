@@ -19,8 +19,7 @@ pub enum Level {
 #[derive(Debug, Clone)]
 pub struct LevelUnknown;
 
-pub const LOG_LEVELS: [&'static str; 7] =
-    ["off", "error", "warning", "info", "debug", "trace", "dev"];
+pub const LOG_LEVELS: [&str; 7] = ["off", "error", "warning", "info", "debug", "trace", "dev"];
 
 impl FromStr for Level {
     type Err = LevelUnknown;

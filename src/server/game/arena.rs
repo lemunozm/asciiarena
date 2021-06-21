@@ -58,7 +58,7 @@ impl Arena {
     pub fn create_spell(&mut self, spec_id: SpellSpecId, entity_id: EntityId) {
         let id = SpellId::next(self.last_spell_id);
         let entity = &self.entities[&entity_id];
-        let spell = Spell::new(id, spec_id, &entity);
+        let spell = Spell::new(id, spec_id, entity);
         self.last_spell_id = id;
         self.spells.insert(id, spell);
     }
@@ -69,10 +69,10 @@ impl Arena {
 
         let current_time = Instant::now();
 
-        for (_, spell) in &mut self.spells {
+        for spell in self.spells.values_mut() {
             let mut spell_actions = VecDeque::from(spell.behaviour().update(
                 current_time,
-                &spell,
+                spell,
                 &self.map,
                 &self.entities,
             ));
@@ -90,7 +90,7 @@ impl Arena {
                             if let Some(entity) = entity_position {
                                 if !spell.is_affected_entity(entity.id()) {
                                     let (actions, affect) =
-                                        spell.behaviour().entity_collision(&entity);
+                                        spell.behaviour().entity_collision(entity);
 
                                     if affect {
                                         entity.add_health(-spell.damage());
@@ -111,18 +111,18 @@ impl Arena {
                     SpellAction::Create(_entities) => todo!(),
                     SpellAction::Destroy => {
                         spell.destroy();
-                        let actions = spell.behaviour().destroyed(&spell);
+                        let actions = spell.behaviour().destroyed(spell);
                         spell_actions.extend(actions);
                     }
                 }
             }
         }
 
-        for entity_id in self.entities.keys().map(|id| *id).collect::<Vec<_>>() {
+        for entity_id in self.entities.keys().copied().collect::<Vec<_>>() {
             let entity = &self.entities[&entity_id];
             let mut entity_actions = VecDeque::from(entity.behaviour().update(
                 current_time,
-                &entity,
+                entity,
                 &self.map,
                 &self.entities,
             ));
@@ -141,8 +141,7 @@ impl Arena {
                             let occupied_position = self
                                 .entities
                                 .values()
-                                .find(|entity| entity.position() == next_position)
-                                .is_some();
+                                .any(|entity| entity.position() == next_position);
 
                             if !occupied_position {
                                 let entity = self.entities.get_mut(&entity_id).unwrap();

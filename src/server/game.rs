@@ -129,6 +129,6 @@ impl Game {
     }
 
     pub fn has_finished(&self) -> bool {
-        self.players.values().find(|&player| player.points() >= self.winner_points).is_some()
+        self.players.values().any(|player| player.points() >= self.winner_points)
     }
 }

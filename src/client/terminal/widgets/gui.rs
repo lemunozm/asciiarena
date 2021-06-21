@@ -39,14 +39,13 @@ impl Gui {
 
     pub fn process_event(&mut self, store: &mut Store, event: InputEvent) {
         match event {
-            InputEvent::KeyPressed(key_event) => match key_event.code {
-                KeyCode::Char(character) => {
+            InputEvent::KeyPressed(key_event) => {
+                if let KeyCode::Char(character) = key_event.code {
                     if character == 'c' && key_event.modifiers.contains(KeyModifiers::CONTROL) {
                         return store.dispatch(Action::CloseApp)
                     }
                 }
-                _ => (),
-            },
+            }
             InputEvent::ResizeDisplay(_, _) => {}
         }
 

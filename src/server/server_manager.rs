@@ -71,15 +71,16 @@ impl ServerManager {
             .unwrap();
 
         let network_interface = "0.0.0.0";
-        if let Err(_) =
-            node.network().listen(Transport::FramedTcp, (network_interface, config.tcp_port))
+        if node
+            .network()
+            .listen(Transport::FramedTcp, (network_interface, config.tcp_port))
+            .is_err()
         {
             log::error!("Can not run server on TCP port {}", config.tcp_port);
             return None
         }
 
-        if let Err(_) = node.network().listen(Transport::Udp, (network_interface, config.udp_port))
-        {
+        if node.network().listen(Transport::Udp, (network_interface, config.udp_port)).is_err() {
             log::error!("Can not run server on UDP port {}", config.udp_port);
             return None
         }
@@ -134,7 +135,7 @@ impl ServerManager {
                 }
                 NetEvent::Message(endpoint, data) => {
                     log::trace!("Message from {}", endpoint.addr());
-                    match encoding::decode::<ClientMessage>(&data) {
+                    match encoding::decode::<ClientMessage>(data) {
                         Some(message) => match message {
                             ClientMessage::Version(client_version) => {
                                 self.process_version(endpoint, &client_version);
@@ -175,7 +176,7 @@ impl ServerManager {
     }
 
     fn process_version(&mut self, endpoint: Endpoint, client_version: &str) {
-        let compatibility = version::check(&client_version, version::current());
+        let compatibility = version::check(client_version, version::current());
         match compatibility {
             Compatibility::Fully => log::trace!("Fully compatible versions: {}", client_version),
             Compatibility::NotExact => log::warn!(
@@ -287,13 +288,13 @@ impl ServerManager {
                                 .config
                                 .arena_waiting
                                 .checked_sub(duration)
-                                .unwrap_or(Duration::new(0, 0));
+                                .unwrap_or_else(|| Duration::new(0, 0));
                             let message = ServerMessage::WaitArena(waiting);
                             self.send_to_client(endpoint, message);
                         }
 
                         let game = self.game.as_ref().unwrap();
-                        if let Some(_) = game.arena() {
+                        if game.arena().is_some() {
                             let message = Self::create_start_arena_message(game);
                             self.send_to_client(endpoint, message);
                         }
@@ -310,21 +311,19 @@ impl ServerManager {
                 log::info!("Player '{}' disconnected", session.user());
             }
         }
-        else {
-            if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
-                let player_symbols =
-                    self.room.sessions().map(|session| *session.user()).collect::<Vec<_>>();
+        else if let Some(session) = self.room.remove_session_by_endpoint(endpoint) {
+            let player_symbols =
+                self.room.sessions().map(|session| *session.user()).collect::<Vec<_>>();
 
-                log::info!(
-                    "Player '{}' logout, current players: {} ",
-                    session.user(),
-                    util::format::items_to_string(player_symbols.iter().sorted())
-                );
+            log::info!(
+                "Player '{}' logout, current players: {} ",
+                session.user(),
+                util::format::items_to_string(player_symbols.iter().sorted())
+            );
 
-                let message = ServerMessage::DynamicServerInfo(player_symbols);
-                let subscriptions = self.subscriptions.iter().cloned().collect();
-                self.send_to_all_clients(subscriptions, message);
-            }
+            let message = ServerMessage::DynamicServerInfo(player_symbols);
+            let subscriptions = self.subscriptions.iter().cloned().collect();
+            self.send_to_all_clients(subscriptions, message);
         }
     }
 
@@ -421,7 +420,7 @@ impl ServerManager {
         game.step();
 
         if let Some(arena) = game.arena() {
-            let message = Self::create_game_step_message(&arena);
+            let message = Self::create_game_step_message(arena);
             self.send_to_all_clients(self.room.faster_endpoints(), message);
         }
 
