@@ -218,7 +218,7 @@ impl ServerConnection {
                 ProxyEvent::HelloUdp(attempt) => self.process_hello_udp(attempt, callback),
             },
             NodeEvent::Network(net_event) => match net_event {
-                NetEvent::Connected(_, _) => unreachable!(),
+                NetEvent::Accepted(_, _) => unreachable!(),
                 NetEvent::Disconnected(_) => {
                     let result = ConnectionStatus::Lost;
                     callback(ServerEvent::ConnectionResult(result));
@@ -267,6 +267,7 @@ impl ServerConnection {
                         self.node.network().remove(endpoint.resource_id());
                     }
                 },
+                _ => {}
             },
         }
     }
