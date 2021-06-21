@@ -55,7 +55,7 @@ impl Direction {
 
 impl Distribution<Direction> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Direction {
-        match rng.gen_range(0..=4) {
+        match rng.gen_range(0..4) {
             0 => Direction::Up,
             1 => Direction::Right,
             2 => Direction::Down,
