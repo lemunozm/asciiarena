@@ -128,7 +128,7 @@ impl ServerManager {
                 }
             },
             NodeEvent::Network(network) => match network {
-                NetEvent::Connected(endpoint, _) => log::trace!("{} has connected", endpoint),
+                NetEvent::Accepted(endpoint, _) => log::trace!("{} has connected", endpoint),
                 NetEvent::Disconnected(endpoint) => {
                     log::trace!("{} has disconnected", endpoint);
                     self.process_disconnection(endpoint);
@@ -171,6 +171,7 @@ impl ServerManager {
                         }
                     };
                 }
+                _ => {}
             },
         });
     }
